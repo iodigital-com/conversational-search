@@ -1,0 +1,121 @@
+@using ConversationalSearchPlatform.BackOffice.Data.Entities
+@using ConversationalSearchPlatform.BackOffice.Models
+@using ConversationalSearchPlatform.BackOffice.Services
+@using ConversationalSearchPlatform.BackOffice.Components.Modals
+@using ConversationalSearchPlatform.BackOffice.Models.Indexing
+@inject ISnackbar Snackbar;
+@inject IIndexingService<WebsitePage> IndexingService;
+@inject ILogger<UpdateWebsitePageModal> Logger;
+@attribute [RenderModeInteractiveServer]
+
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Create" Class="mr-3 mb-n1"/>
+            Edit page record
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="Form" @bind-IsValid="@Valid" ReadOnly="false">
+            <MudGrid Justify="Justify.SpaceEvenly">
+                <MudItem Class="flex-grow-1">
+                    <MudCard>
+                        <MudCardContent>
+                            <MudTextField Required Label="Name" @bind-Value="Model.Name" For="@(() => Model.Name)"/>
+                            <MudTextField Required Label="Url" Class="mt-3" @bind-Value="Model.Url" For="@(() => Model.Url)"/>
+                        </MudCardContent>
+                        <MudCardActions>
+                            <MudButton OnClick="Cancel">Cancel</MudButton>
+                            <MudButton OnClick="ExecuteUpdate"
+                                       Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
+                                Create
+                            </MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    private UpdateWebsitePageDto Model { get; set; } = new();
+
+    private bool Valid { get; set; }
+
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public EditModalProps<WebsitePageDto>? Props { get; set; }
+
+    private MudForm? Form { get; set; }
+
+    protected override Task OnParametersSetAsync()
+    {
+        Model = new UpdateWebsitePageDto
+        {
+            Id = Props!.item.Id,
+            Name = Props.item.Name,
+            Url = Props.item.Url,
+        };
+
+        return base.OnParametersSetAsync();
+    }
+
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private async Task ExecuteUpdate()
+    {
+        if (Form == null)
+        {
+            return;
+        }
+
+        if (Props == null)
+        {
+            return;
+        }
+
+        await Form.Validate();
+
+        if (!Valid)
+        {
+            return;
+        }
+
+        var snackbarMessage = $"Successfully updated {Model.Name} record";
+        var success = false;
+
+        try
+        {
+            var cancellationToken = new CancellationToken();
+            var websitePage = await IndexingService.GetByIdAsync(Model.Id, cancellationToken);
+            websitePage.Name = Model.Name;
+            websitePage.Url = Model.Url;
+            await IndexingService.UpdateAsync(websitePage, cancellationToken);
+            success = true;
+        }
+        catch (Exception e)
+        {
+            Logger.LogError(e, "Something went wrong trying to update a record");
+            Snackbar.Add($"Something went wrong trying to execute this action.", Severity.Error);
+        }
+
+        if (success)
+        {
+            Snackbar.Add(snackbarMessage, Severity.Success);
+            if (Props.RefreshFunction != null)
+            {
+                await Props.RefreshFunction.Invoke();
+            }
+            MudDialog.Close();
+        }
+    }
+
+}

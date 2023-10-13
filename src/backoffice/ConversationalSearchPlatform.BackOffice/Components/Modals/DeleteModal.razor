@@ -1,0 +1,63 @@
+@inject ISnackbar Snackbar
+@attribute [RenderModeInteractiveServer]
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.DeleteForever" Class="mr-3 mb-n1"/>
+            @(Props?.ModalTitle ?? "Trying to delete")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        Are you sure you want to execute this action?
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Error" OnClick="ExecuteDelete">Delete @Props?.EntityName</MudButton>
+    </DialogActions>
+</MudDialog>
+
+
+@code {
+
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public DeleteModalProps? Props { get; set; }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private async Task ExecuteDelete()
+    {
+        if (Props == null)
+        {
+            return;
+        }
+
+        bool success = false;
+        try
+        {
+            await Props.DeleteFunction?.Invoke();
+            success = true;
+        }
+        catch (Exception e)
+        {
+            Snackbar.Add($"Something went wrong trying to execute this action." , Severity.Error);
+        }
+
+        if (success)
+        {
+            Snackbar.Add(Props.ConfirmationMessage, Severity.Success);
+            if (Props.RefreshFunction != null)
+            {
+                await Props.RefreshFunction.Invoke();
+            }
+            MudDialog.Close(DialogResult.Ok(Props.EntityId));
+        }
+    }
+
+}

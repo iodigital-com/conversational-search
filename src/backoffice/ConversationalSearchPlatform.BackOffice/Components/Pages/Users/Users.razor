@@ -1,0 +1,24 @@
+@page "/users"
+@using ConversationalSearchPlatform.BackOffice.Constants
+@using Microsoft.AspNetCore.Authorization
+@attribute [RenderModeInteractiveServer]
+
+@inject IDialogService DialogService;
+@attribute [Authorize]
+
+<PageTitle>Users</PageTitle>
+
+<AuthorizeView Roles="@RoleConstants.Administrator">
+    <MudExpansionPanels MultiExpansion="true">
+        <MudExpansionPanel Text="Users" IsInitiallyExpanded="true">
+            <UserPanel></UserPanel>
+        </MudExpansionPanel>
+        <MudExpansionPanel Text="User invites">
+            <UserInvitePanel></UserInvitePanel>
+        </MudExpansionPanel>
+    </MudExpansionPanels>
+</AuthorizeView>
+
+
+@code {
+}

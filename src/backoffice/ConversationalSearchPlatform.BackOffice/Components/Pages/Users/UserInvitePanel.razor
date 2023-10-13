@@ -1,0 +1,128 @@
+@using ConversationalSearchPlatform.BackOffice.Services
+@using ConversationalSearchPlatform.BackOffice.Data.Entities
+@using ConversationalSearchPlatform.BackOffice.Components.Modals
+@using ConversationalSearchPlatform.BackOffice.Components.Pages.Indexing
+@using ConversationalSearchPlatform.BackOffice.Constants
+@using ConversationalSearchPlatform.BackOffice.Models.Indexing
+@using ConversationalSearchPlatform.BackOffice.Models.Users
+@using ConversationalSearchPlatform.BackOffice.Paging
+@using ConversationalSearchPlatform.BackOffice.Tenants
+@using Finbuckle.MultiTenant
+@using Microsoft.AspNetCore.Authorization
+@attribute [RenderModeInteractiveServer]
+
+@inject IDialogService DialogService;
+@inject IUserInviteService UserInviteService;
+@inject IMultiTenantStore<ApplicationTenantInfo> TenantStore; 
+
+<MudButton @onclick="InviteNewUserAsync" Variant="Variant.Filled" Color="Color.Primary">
+    Invite new User
+</MudButton>
+
+<MudDataGrid @ref="_grid"
+             T="UserInviteDto"
+             Items="Items"
+             EditMode="DataGridEditMode.Form"
+             EditTrigger="DataGridEditTrigger.Manual"
+             ReadOnly="false"
+             Bordered="true"
+             ServerData="@(new Func<GridState<UserInviteDto>, Task<GridData<UserInviteDto>>>(LoadDataAsync))">
+    <Columns>
+        <PropertyColumn T="UserInviteDto" TProperty="string" Property="x => x.Email" Sortable="false" Title="Email"/>
+        <PropertyColumn T="UserInviteDto" TProperty="DateTimeOffset" Property="x => x.CreatedDate" Sortable="false" Title="Created at"/>
+        <PropertyColumn T="UserInviteDto" TProperty="DateTimeOffset" Property="x => x.ExpirationDate" Sortable="false" Title="Expires at"/>
+        <PropertyColumn T="UserInviteDto" TProperty="string" Property="x => x.TenantName" Sortable="false" Title="Tenant"/>
+        <TemplateColumn>
+            <CellTemplate Context="cellContext">
+                @{
+                    async Task DeleteButtonCallback()
+                    {
+                        var ui = cellContext.Item as UserInviteDto;
+                        var props = new DeleteModalProps(
+                            $"User invite for {ui.Email} Deleted",
+                            ui.Id,
+                            "User invite",
+                            "Trying to delete user invite",
+                            () => UserInviteService.DeleteByIdAsync(ui.Id, new CancellationToken()),
+                            () => _grid.ReloadServerData());
+
+                        var dialogSettings = new DialogParameters
+                        {
+                            {
+                                "Props", props
+                            }
+                        };
+
+                        await DialogService.ShowAsync<DeleteModal>("Delete", dialogSettings, new DialogOptions
+                        {
+                            CloseOnEscapeKey = true,
+                            CloseButton = true,
+                            NoHeader = false,
+                        });
+                    }
+                }
+
+                <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Delete" OnClick="@(DeleteButtonCallback)">
+                </MudIconButton>
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+    <PagerContent>
+        <MudDataGridPager T="UserInviteDto"
+                          RowsPerPageString="Elements per page"
+                          PageSizeOptions="PagingConstants.AmountOfPages"
+                          InfoFormat="@PagerHelper.DeterminePagerInfo(TotalPageElements)">
+        </MudDataGridPager>
+    </PagerContent>
+</MudDataGrid>
+
+
+@code {
+    private IEnumerable<UserInviteDto> Items { get; set; } = new List<UserInviteDto>();
+    private int TotalPageElements { get; set; }
+    private MudDataGrid<UserInviteDto> _grid = null!;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await _grid.SetRowsPerPageAsync(PagingConstants.AmountOfPages[0]);
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    private async Task<GridData<UserInviteDto>> LoadDataAsync(GridState<UserInviteDto> state)
+    {
+        var page = state.Page + 1;
+        var pageSize = state.PageSize;
+
+        var (pages,totalCount) = await UserInviteService.GetAllPagedAsync(new PageOptions(page, pageSize));
+        var tenantsById = (await TenantStore.GetAllAsync()).ToDictionary(info => info.Id!);
+        Items = pages.Select(ui => MapToUserInviteDto(ui, tenantsById));
+        TotalPageElements = totalCount;
+        return new GridData<UserInviteDto>
+        {
+            Items = Items,
+            TotalItems = TotalPageElements
+        };
+    }
+
+    private static UserInviteDto MapToUserInviteDto(UserInvite ui, Dictionary<string, ApplicationTenantInfo> tenantsById)
+    {
+        var dto = new UserInviteDto(ui.Id, ui.Email, ui.CreatedDate, ui.ExpirationDate, ui.Code, ui.TenantId)
+        {
+            TenantName = tenantsById[ui.TenantId].Name
+        };
+        return dto;
+    }
+
+    private async Task InviteNewUserAsync()
+    {
+        var createModalProps = new CreateWebsitePageModalProps(() => _grid.ReloadServerData());
+        var dialogParameters = new DialogParameters
+        {
+            {
+                "props", createModalProps
+            }
+        };
+        await DialogService.ShowAsync<InviteNewUserModal>("Invite new user", dialogParameters, ModalSettings.Default);
+    }
+
+}

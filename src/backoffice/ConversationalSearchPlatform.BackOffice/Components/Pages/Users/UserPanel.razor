@@ -1,0 +1,136 @@
+@using ConversationalSearchPlatform.BackOffice.Services
+@using ConversationalSearchPlatform.BackOffice.Data.Entities
+@using ConversationalSearchPlatform.BackOffice.Components.Modals
+@using ConversationalSearchPlatform.BackOffice.Components.Pages.Indexing
+@using ConversationalSearchPlatform.BackOffice.Constants
+@using ConversationalSearchPlatform.BackOffice.Data
+@using ConversationalSearchPlatform.BackOffice.Models.Indexing
+@using ConversationalSearchPlatform.BackOffice.Models.Users
+@using ConversationalSearchPlatform.BackOffice.Paging
+@using ConversationalSearchPlatform.BackOffice.Tenants
+@using Finbuckle.MultiTenant
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@attribute [RenderModeInteractiveServer]
+
+@inject IDialogService DialogService;
+@inject IMultiTenantStore<ApplicationTenantInfo> TenantStore; 
+@inject UserManager<ApplicationUser> UserManager;
+
+<MudDataGrid @ref="_grid"
+             T="UserDto"
+             Items="Items"
+             EditMode="DataGridEditMode.Form"
+             EditTrigger="DataGridEditTrigger.Manual"
+             ReadOnly="false"
+             Bordered="true"
+             ServerData="@(new Func<GridState<UserDto>, Task<GridData<UserDto>>>(LoadDataAsync))">
+    <Columns>
+        <PropertyColumn T="UserDto" TProperty="string" Property="x => x.Name" Sortable="false" Title="Name"/>
+        <PropertyColumn T="UserDto" TProperty="string" Property="x => x.Email" Sortable="false" Title="Email"/>
+        <PropertyColumn T="UserDto" TProperty="string" Property="x => x.TenantName" Sortable="false" Title="Tenant"/>
+        <TemplateColumn>
+            <CellTemplate Context="cellContext">
+                @{
+                    async Task DeleteButtonCallback()
+                    {
+                        var user = cellContext.Item as UserDto;
+                        var props = new DeleteModalProps(
+                            $"User Deleted",
+                            user.Id!.Value,
+                            "User",
+                            "Trying to delete user", async () =>
+                            {
+                                var applicationUser = await UserManager.FindByIdAsync(user.Id.Value.ToString());
+                                if (applicationUser != null)
+                                {
+                                    await UserManager.DeleteAsync(applicationUser);
+                                }
+                            },
+                            () => _grid.ReloadServerData());
+
+                        var dialogSettings = new DialogParameters
+                        {
+                            {
+                                "Props", props
+                            }
+                        };
+
+                        await DialogService.ShowAsync<DeleteModal>("Delete", dialogSettings, new DialogOptions
+                        {
+                            CloseOnEscapeKey = true,
+                            CloseButton = true,
+                            NoHeader = false,
+                        });
+                    }
+                }
+
+                <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Delete" OnClick="@(DeleteButtonCallback)">
+                </MudIconButton>
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+    <PagerContent>
+        <MudDataGridPager T="UserDto"
+                          RowsPerPageString="Elements per page"
+                          PageSizeOptions="PagingConstants.AmountOfPages"
+                          InfoFormat="@PagerHelper.DeterminePagerInfo(TotalPageElements)">
+        </MudDataGridPager>
+    </PagerContent>
+</MudDataGrid>
+
+
+@code {
+    private IEnumerable<UserDto> Items { get; set; } = new List<UserDto>();
+    private int TotalPageElements { get; set; }
+    private MudDataGrid<UserDto> _grid = null!;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await _grid.SetRowsPerPageAsync(PagingConstants.AmountOfPages[0]);
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    private async Task<GridData<UserDto>> LoadDataAsync(GridState<UserDto> state)
+    {
+        var page = state.Page + 1;
+        var pageSize = state.PageSize;
+
+        var skip = (page - 1) * pageSize;
+        var take = pageSize;
+
+        var baseQuery = UserManager.Users.AsQueryable();
+        var totalCount = await baseQuery.CountAsync();
+
+        var users = await baseQuery
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync();
+
+        var tenantsById = (await TenantStore.GetAllAsync()).ToDictionary(info => info.Id!);
+        Items = users.Select(ui => MapToUserInviteDto(ui, tenantsById));
+        TotalPageElements = totalCount;
+        return new GridData<UserDto>
+        {
+            Items = Items,
+            TotalItems = TotalPageElements
+        };
+    }
+
+    private static UserDto MapToUserInviteDto(ApplicationUser au, Dictionary<string, ApplicationTenantInfo> tenantsById) =>
+        new(new Guid(au.Id), au.UserName!, au.Email!, au.TenantId, tenantsById[au.TenantId].Name!);
+
+    private async Task InviteNewUserAsync()
+    {
+        var createModalProps = new CreateWebsitePageModalProps(() => _grid.ReloadServerData());
+        var dialogParameters = new DialogParameters
+        {
+            {
+                "props", createModalProps
+            }
+        };
+        await DialogService.ShowAsync<InviteNewUserModal>("Invite new user", dialogParameters, ModalSettings.Default);
+    }
+
+}

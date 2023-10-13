@@ -1,0 +1,137 @@
+﻿@page "/index"
+@using ConversationalSearchPlatform.BackOffice.Models
+@using ConversationalSearchPlatform.BackOffice.Services
+@using ConversationalSearchPlatform.BackOffice.Data.Entities
+@using ConversationalSearchPlatform.BackOffice.Components.Modals
+@using ConversationalSearchPlatform.BackOffice.Constants
+@using ConversationalSearchPlatform.BackOffice.Models.Indexing
+@using ConversationalSearchPlatform.BackOffice.Paging
+@using Microsoft.AspNetCore.Authorization
+@attribute [RenderModeInteractiveServer]
+
+@inject IDialogService DialogService;
+@inject IIndexingService<WebsitePage> IndexingService;
+@attribute [Authorize]
+
+<PageTitle>Index</PageTitle>
+
+<AuthorizeView>
+    <MudButton @onclick="CreateWebsitePageAsync" Variant="Variant.Filled" Color="Color.Primary" Class="mb-5">
+        Add page website record
+    </MudButton>
+
+    <MudDataGrid @ref="_grid"
+                 T="WebsitePageDto"
+                 Items="Items"
+                 EditMode="DataGridEditMode.Form"
+                 EditTrigger="DataGridEditTrigger.Manual"
+                 ReadOnly="false"
+                 Bordered="true"
+                 ServerData="@(new Func<GridState<WebsitePageDto>, Task<GridData<WebsitePageDto>>>(LoadDataAsync))">
+        <Columns>
+            <PropertyColumn T="WebsitePageDto" TProperty="string" Property="x => x.Name" Sortable="false"/>
+            <PropertyColumn T="WebsitePageDto" TProperty="string" Property="x => x.Url" Sortable="false"/>
+            <TemplateColumn>
+                <CellTemplate Context="cellContext">
+                    @{
+                        async Task DeleteButtonCallback()
+                        {
+                            var websitePage = cellContext.Item as WebsitePageDto;
+                            var props = new DeleteModalProps(
+                                $"Website page {websitePage.Name} Deleted",
+                                websitePage.Id,
+                                "Website page",
+                                "Trying to delete website page",
+                                () => IndexingService.DeleteByIdAsync(websitePage.Id, new CancellationToken()),
+                                () => _grid.ReloadServerData());
+
+                            var dialogSettings = new DialogParameters
+                            {
+                                {
+                                    "Props", props
+                                }
+                            };
+
+                            await DialogService.ShowAsync<DeleteModal>("Delete", dialogSettings, new DialogOptions
+                            {
+                                CloseOnEscapeKey = true,
+                                CloseButton = true,
+                                NoHeader = false,
+                            });
+                        }
+
+                        async Task EditButtonCallback()
+                        {
+                            if (cellContext.Item is WebsitePageDto getEmbeddingResponse)
+                            {
+                                var editModalProps = new EditModalProps<WebsitePageDto>(
+                                    cellContext.Item,
+                                    () => _grid.ReloadServerData()
+                                    );
+                                var dialogParameters = new DialogParameters
+                                {
+                                    {
+                                        "props", editModalProps
+                                    }
+                                };
+
+                                await DialogService.ShowAsync<UpdateWebsitePageModal>("Edit page record", dialogParameters, ModalSettings.Default);
+                            }
+                        }
+                    }
+                    <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Edit" OnClick="@(EditButtonCallback)">
+                    </MudIconButton>
+                    <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Delete" OnClick="@(DeleteButtonCallback)">
+                    </MudIconButton>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <PagerContent>
+            <MudDataGridPager T="WebsitePageDto"
+                              RowsPerPageString="Elements per page"
+                              PageSizeOptions="PagingConstants.AmountOfPages"
+                              InfoFormat="@PagerHelper.DeterminePagerInfo(TotalPageElements)">
+            </MudDataGridPager>
+        </PagerContent>
+    </MudDataGrid>
+</AuthorizeView>
+
+
+@code {
+    private IEnumerable<WebsitePageDto> Items { get; set; } = new List<WebsitePageDto>();
+    private int TotalPageElements { get; set; }
+    private MudDataGrid<WebsitePageDto> _grid = null!;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await _grid.SetRowsPerPageAsync(PagingConstants.AmountOfPages[0]);
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    private async Task<GridData<WebsitePageDto>> LoadDataAsync(GridState<WebsitePageDto> state)
+    {
+        var page = state.Page + 1;
+        var pageSize = state.PageSize;
+
+        var (pages,totalCount) = await IndexingService.GetAllPagedAsync(new PageOptions(page, pageSize), new CancellationToken());
+        Items = pages.Select(websitePage => new WebsitePageDto(websitePage.Id, websitePage.Name, websitePage.Url));
+        TotalPageElements = totalCount;
+        return new GridData<WebsitePageDto>
+        {
+            Items = Items,
+            TotalItems = TotalPageElements
+        };
+    }
+
+    private async Task CreateWebsitePageAsync()
+    {
+        var createModalProps = new CreateWebsitePageModalProps(() => _grid.ReloadServerData());
+        var dialogParameters = new DialogParameters
+        {
+            {
+                "props", createModalProps
+            }
+        };
+        await DialogService.ShowAsync<CreateWebsitePageModal>("Index new page", dialogParameters, ModalSettings.Default);
+    }
+}

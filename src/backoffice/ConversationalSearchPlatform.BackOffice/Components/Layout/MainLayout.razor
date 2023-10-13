@@ -1,0 +1,60 @@
+﻿@using MudBlazor.Utilities
+@inherits LayoutComponentBase
+
+<div class="page">
+    <MudThemeProvider @bind-IsDarkMode="@_isDarkMode" Theme="_theme"/>
+    <MudDialogProvider
+        FullWidth="true"
+        MaxWidth="MaxWidth.ExtraSmall"
+        CloseButton="true"
+        DisableBackdropClick="true"
+        NoHeader="true"
+        Position="DialogPosition.Center"
+        CloseOnEscapeKey="true"/>
+    <MudSnackbarProvider/>
+    <MudLayout>
+        <MudDrawer @bind-Open="@_drawerOpen">
+            <NavMenu/>
+        </MudDrawer>
+        <MudMainContent>
+            <MudContainer MaxWidth="MaxWidth.Medium">
+                @Body
+            </MudContainer>
+        </MudMainContent>
+    </MudLayout>
+
+
+</div>
+
+<div id="blazor-error-ui">
+    An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <a class="dismiss">🗙</a>
+</div>
+
+@code
+{
+    private bool _isDarkMode = true;
+    bool _drawerOpen = true;
+
+    private readonly MudTheme _theme = new()
+    {
+        Palette =
+        {
+            Primary = new MudColor(220, 200, 194, 1),
+            Dark = new MudColor(52, 53, 65, 1),
+        },
+        LayoutProperties =
+        {
+            DefaultBorderRadius = "8px"
+        }
+    };
+
+    public
+        void ToggleDarkMode() => _isDarkMode = !_isDarkMode;
+
+    void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+}

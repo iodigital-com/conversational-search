@@ -1,0 +1,128 @@
+@using ConversationalSearchPlatform.BackOffice.Services
+@using ConversationalSearchPlatform.BackOffice.Components.Modals
+@using ConversationalSearchPlatform.BackOffice.Data.Seeding
+@using ConversationalSearchPlatform.BackOffice.Models.Users
+@using ConversationalSearchPlatform.BackOffice.Tenants
+@using Finbuckle.MultiTenant
+
+@inject ISnackbar Snackbar;
+@inject IUserInviteService UserInviteService;
+@inject IMultiTenantStore<ApplicationTenantInfo> TenantStore; 
+@inject ILogger<InviteNewUserModal> Logger;
+@attribute [RenderModeInteractiveServer]
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Create" Class="mr-3 mb-n1"/>
+            @ModalTitle
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="Form" @bind-IsValid="@Valid" ReadOnly="false">
+            <MudGrid Justify="Justify.SpaceEvenly">
+                <MudItem Class="flex-grow-1">
+                    <MudCard>
+                        <MudCardContent>
+                            <MudTextField
+                                Label="Email"
+                                Class="mt-3"
+                                Required
+                                InputType="InputType.Email"
+                                @bind-Value="Model.Email"
+                                For="@(() => Model.Email)"/>
+                            <MudSelect Required Class="mt-3" @bind-Value="Model.Tenant" For="@(() => Model.Tenant)" Margin="Margin.Dense" T="ApplicationTenantInfo" Label="Tenant" Variant="Variant.Text">
+                                @foreach (var tenant in Tenants)
+                                {
+                                    <MudSelectItem Value="@tenant">@tenant.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudCardContent>
+                        <MudCardActions>
+                            <MudButton OnClick="Cancel">Cancel</MudButton>
+                            <MudButton OnClick="ExecuteCreate"
+                                       Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
+                                Invite user
+                            </MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+</MudDialog>
+
+@code {
+
+    private CreateUserInviteDto Model { get; set; } = new();
+    private IEnumerable<ApplicationTenantInfo> Tenants { get; set; } = new List<ApplicationTenantInfo>();
+
+    private bool Valid { get; set; }
+    private string ModalTitle { get; set; }
+
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public CreateModalProps? Props { get; set; }
+
+    private MudForm? Form { get; set; }
+
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private async Task ExecuteCreate()
+    {
+        if (Form == null)
+        {
+            return;
+        }
+
+        if (Props == null)
+        {
+            return;
+        }
+
+        await Form.Validate();
+
+        if (!Valid)
+        {
+            return;
+        }
+
+        var snackbarMessage = $"Successfully created a record for {Model.Email} - in tenant {Model.Tenant}";
+        var success = false;
+
+        try
+        {
+            await UserInviteService.CreateAsync(Model.Email, Model.Tenant.Id!);
+            success = true;
+        }
+        catch (Exception e)
+        {
+            Logger.LogError(e, "Something went wrong trying to create a record");
+            Snackbar.Add($"Something went wrong trying to execute this action.", Severity.Error);
+        }
+
+        if (success)
+        {
+            Snackbar.Add(snackbarMessage, Severity.Success);
+            if (Props.RefreshFunction != null)
+            {
+                await Props.RefreshFunction.Invoke();
+            }
+            MudDialog.Close();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        ModalTitle = "Invite new user";
+        Tenants = (await TenantStore.GetAllAsync()).Where(info => info.Id != TenantConstants.DefaultTenant.Id);
+        await base.OnInitializedAsync();
+    }
+
+}

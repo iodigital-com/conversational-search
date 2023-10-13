@@ -1,0 +1,23 @@
+version: '3.9'
+
+services:
+  csp-db-amd64:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    ports:
+      - "1450:1433"
+    volumes:
+      - ./sql:/var/lib/mssqlql/data
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=CSP_PW_1450!
+
+  csp-db-arm:
+    image: mcr.microsoft.com/azure-sql-edge
+    cap_add: [ 'SYS_PTRACE' ]
+    ports:
+      - "1450:1433"
+    volumes:
+      - ./sql:/var/opt/mssql
+    environment:
+      - ACCEPT_EULA=Y
+      - "MSSQL_SA_PASSWORD=CSP_PW_1450!"

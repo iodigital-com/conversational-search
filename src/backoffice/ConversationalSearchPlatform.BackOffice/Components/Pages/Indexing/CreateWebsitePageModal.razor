@@ -1,0 +1,123 @@
+@using ConversationalSearchPlatform.BackOffice.Models
+@using ConversationalSearchPlatform.BackOffice.Services
+@using ConversationalSearchPlatform.BackOffice.Data.Entities
+@using ConversationalSearchPlatform.BackOffice.Components.Modals
+@using ConversationalSearchPlatform.BackOffice.Models.Indexing
+
+@inject ISnackbar Snackbar;
+@inject IIndexingService<WebsitePage> IndexingService;
+@inject ILogger<CreateWebsitePageModal> Logger;
+@attribute [RenderModeInteractiveServer]
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Create" Class="mr-3 mb-n1"/>
+            @ModalTitle
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="Form" @bind-IsValid="@Valid" ReadOnly="false">
+            <MudGrid Justify="Justify.SpaceEvenly">
+                <MudItem Class="flex-grow-1">
+                    <MudCard>
+                        <MudCardContent>
+                            <MudTextField
+                                Label="The name of the page"
+                                Class="mt-3"
+                                @bind-Value="Model.Name"
+                                For="@(() => Model.Name)"/>
+                            <MudTextField
+                                Label="The url of the page"
+                                Class="mt-3"
+                                @bind-Value="Model.Url"
+                                For="@(() => Model.Url)"/>
+                        </MudCardContent>
+                        <MudCardActions>
+                            <MudButton OnClick="Cancel">Cancel</MudButton>
+                            <MudButton OnClick="ExecuteCreate"
+                                       Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
+                                Index website page
+                            </MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+</MudDialog>
+
+@code {
+
+
+    private CreateWebsitePageDto Model { get; set; } = new();
+
+    private bool Valid { get; set; }
+    private string ModalTitle { get; set; }
+
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public CreateWebsitePageModalProps? Props { get; set; }
+
+    private MudForm? Form { get; set; }
+
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private async Task ExecuteCreate()
+    {
+        if (Form == null)
+        {
+            return;
+        }
+
+        if (Props == null)
+        {
+            return;
+        }
+
+        await Form.Validate();
+
+        if (!Valid)
+        {
+            return;
+        }
+
+        var snackbarMessage = $"Successfully created a record for {Model.Name}";
+        var success = false;
+
+        try
+        {
+            var websitePage = new WebsitePage(Model.Name, Model.Url);
+            await IndexingService.CreateAsync(websitePage, new CancellationToken());
+            success = true;
+        }
+        catch (Exception e)
+        {
+            Logger.LogError(e, "Something went wrong trying to create a record");
+            Snackbar.Add($"Something went wrong trying to execute this action.", Severity.Error);
+        }
+
+        if (success)
+        {
+            Snackbar.Add(snackbarMessage, Severity.Success);
+            if (Props.RefreshFunction != null)
+            {
+                await Props.RefreshFunction.Invoke();
+            }
+            MudDialog.Close();
+        }
+    }
+
+    protected override Task OnInitializedAsync()
+    {
+        ModalTitle = "Create website page record";
+        return base.OnInitializedAsync();
+    }
+
+}
