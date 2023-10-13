@@ -29,6 +29,7 @@ builder.Services.AddMudServices();
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
     .AddIdentityCookies();
 
+builder.Services.AddMemoryCache();
 builder.Services.AddDistributedMemoryCache();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
@@ -60,8 +61,11 @@ builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.Requ
 
 
 builder.Services.AddSingleton<IEmailSender, NoOpEmailSender>();
+builder.Services.AddHttpContextAccessor();
+
 builder.Services.AddOpenAi(builder.Configuration);
 builder.Services.AddIndexingServices();
+builder.Services.AddConversationServices();
 builder.Services.AddUserServices();
 
 builder.Services.AddEndpointsApiExplorer();

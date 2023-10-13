@@ -32,6 +32,12 @@ internal static class BootstrapExtensions
         return serviceCollection;
     }
 
+    internal static IServiceCollection AddConversationServices(this IServiceCollection serviceCollection)
+    {
+        serviceCollection.AddTransient<IConversationService, ConversationService>();
+        return serviceCollection;
+    }
+
     internal static IServiceCollection AddUserServices(this IServiceCollection serviceCollection)
     {
         serviceCollection.AddTransient<IUserInviteService, UserInviteService>();

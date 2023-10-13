@@ -23,10 +23,11 @@ public class ConversationService : IConversationService
         SlidingExpiration = TimeSpan.FromHours(2)
     };
 
-    public ConversationService(IMemoryCache conversationsCache, IOpenAiFactory openAiFactory)
+    public ConversationService(IMemoryCache conversationsCache, IOpenAiFactory openAiFactory, IMultiTenantStore<ApplicationTenantInfo> tenantStore)
     {
         _conversationsCache = conversationsCache;
         _openAiFactory = openAiFactory;
+        _tenantStore = tenantStore;
     }
 
     public Task<ConversationId> StartConversationAsync(string tenantId, ChatModel model, int amountOfSearchReferences)

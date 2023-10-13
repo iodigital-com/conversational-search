@@ -20,7 +20,7 @@ public static class ConversationalSearchEndpoints
 
         innerGroup.MapPost($"/conversation",
             async (
-                [FromServices] HttpContext httpContext,
+                HttpContext httpContext,
                 [FromServices] IConversationService conversationService,
                 [FromServices] IMultiTenantStore<ApplicationTenantInfo> tenantStore,
                 [FromBody] ConversationRequest request
@@ -42,7 +42,7 @@ public static class ConversationalSearchEndpoints
 
         innerGroup.MapPost("/conversation/{conversationId}",
             async ([FromRoute] Guid conversationId,
-                [FromServices] HttpContext httpContext,
+                HttpContext httpContext,
                 [FromServices] IConversationService conversationService,
                 [FromBody] ConversationRequest request
             ) =>

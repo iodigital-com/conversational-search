@@ -27,17 +27,17 @@ public class ApiKeyMiddleware
                 if (tenant == null)
                 {
                     await UnauthorizedResponse(context, "Invalid api key");
+                    return;
                 }
             }
             else
             {
                 await UnauthorizedResponse(context, "Missing api key");
+                return;
             }
         }
-        else
-        {
-            await _next.Invoke(context);
-        }
+
+        await _next.Invoke(context);
     }
 
     private static async Task UnauthorizedResponse(HttpContext context, string info)
