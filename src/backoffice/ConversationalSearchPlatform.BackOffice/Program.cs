@@ -1,4 +1,5 @@
 using ConversationalSearchPlatform.BackOffice;
+using ConversationalSearchPlatform.BackOffice.Api;
 using ConversationalSearchPlatform.BackOffice.Api.Conversation;
 using ConversationalSearchPlatform.BackOffice.Bootstrap;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -84,6 +85,7 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseMiddleware<BlazorCookieLoginMiddleware>();
+app.UseMiddleware<ApiKeyMiddleware>();
 app.UseMultiTenant();
 app.UseStaticFiles();
 app.UseAntiforgery();

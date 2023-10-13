@@ -1,3 +1,4 @@
+using ConversationalSearchPlatform.BackOffice.Constants;
 using ConversationalSearchPlatform.BackOffice.Data.Entities;
 using ConversationalSearchPlatform.BackOffice.Services;
 using ConversationalSearchPlatform.BackOffice.Swagger;
@@ -48,8 +49,8 @@ internal static class BootstrapExtensions
 
     internal static IServiceCollection AddSwagger(this IServiceCollection services)
     {
-        var apimSubscriptionHeaderSecurityScheme = CreateApiKeyHeaderSecurityScheme();
-        var apimSubscriptionHeaderSecurityRequirement = CreateApiKeyHeaderSecurityRequirement();
+        var securityScheme = CreateApiKeyHeaderSecurityScheme();
+        var securityRequirement = CreateApiKeyHeaderSecurityRequirement();
 
         var contact = new OpenApiContact
         {
@@ -66,11 +67,12 @@ internal static class BootstrapExtensions
         services.AddSwaggerGen(o =>
         {
             o.SwaggerDoc("v1", info);
-            o.AddSecurityDefinition("ApiKey", apimSubscriptionHeaderSecurityScheme);
-            o.AddSecurityRequirement(apimSubscriptionHeaderSecurityRequirement);
+            o.AddSecurityDefinition("ApiKey", securityScheme);
+            o.AddSecurityRequirement(securityRequirement);
             var filePath = Path.Combine(AppContext.BaseDirectory, "ConversationalSearchPlatform.BackOffice.xml");
             o.IncludeXmlComments(filePath);
             o.SchemaFilter<EnumSchemaFilter>();
+            o.OperationFilter<AuthenticationRequirementsOperationFilter>();
         });
 
         return services;
@@ -121,7 +123,7 @@ internal static class BootstrapExtensions
 
     private static OpenApiSecurityScheme CreateApiKeyHeaderSecurityScheme() => new()
     {
-        Name = "X-API-KEY",
+        Name = HeaderConstants.TenantHeader,
         Type = SecuritySchemeType.ApiKey,
         Scheme = "Header",
         In = ParameterLocation.Header,

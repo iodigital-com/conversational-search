@@ -15,6 +15,7 @@ public static class ConversationalSearchEndpoints
     public static IEndpointRouteBuilder MapConversationalSearchGroup(this IEndpointRouteBuilder outerGroup)
     {
         var innerGroup = outerGroup.MapGroup(string.Empty)
+            .RequireAuthorization()
             .WithTags(ConversationalSearchTag);
 
         innerGroup.MapPost($"/conversation",
