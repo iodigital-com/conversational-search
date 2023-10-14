@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>aspnet-ConversationalSearchPlatform.BackOffice-6f35fbd7-ebf9-477c-8f6c-6370331dbd66</UserSecretsId>
     <RootNamespace>ConversationalSearchPlatform.BackOffice</RootNamespace>
+    <AssemblyName>ConversationalSearchPlatform.BackOffice</AssemblyName>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
@@ -33,7 +34,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <AdditionalFiles Include="Components\Pages\Indexing\CreateWebsitePageModal.razor" />
+    <AdditionalFiles Include="Components\App.razor" />
+    <AdditionalFiles Include="Components\App.razor.cs" />
   </ItemGroup>
 
   <ItemGroup>

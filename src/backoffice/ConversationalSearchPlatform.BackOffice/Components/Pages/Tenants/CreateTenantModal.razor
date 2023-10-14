@@ -1,0 +1,172 @@
+@using ConversationalSearchPlatform.BackOffice.Models
+@using ConversationalSearchPlatform.BackOffice.Services
+@using ConversationalSearchPlatform.BackOffice.Data.Entities
+@using ConversationalSearchPlatform.BackOffice.Components.Modals
+@using ConversationalSearchPlatform.BackOffice.Models.Indexing
+@using ConversationalSearchPlatform.BackOffice.Models.Tenants
+@using ConversationalSearchPlatform.BackOffice.Services.Models
+@using ConversationalSearchPlatform.BackOffice.Tenants
+@using Finbuckle.MultiTenant
+
+@inject ISnackbar Snackbar;
+@inject IMultiTenantStore<ApplicationTenantInfo> TenantStore;
+@inject ILogger<CreateTenantModal> Logger;
+@attribute [RenderModeInteractiveServer]
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Create" Class="mr-3 mb-n1"/>
+            @ModalTitle
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="Form" @bind-IsValid="@Valid" ReadOnly="false">
+            <MudGrid Justify="Justify.SpaceEvenly">
+                <MudItem Class="flex-grow-1">
+                    <MudCard>
+                        <MudCardContent>
+                            <MudTextField
+                                Required
+                                Label="The name of the tenant"
+                                Placeholder="My Brand"
+                                Class="mt-3"
+                                @bind-Value="Model.Name"
+                                For="@(() => Model.Name)"/>
+                            <MudTextField
+                                Required
+                                Label="The identifier"
+                                Placeholder="my-brand"
+                                Class="mt-3"
+                                @bind-Value="Model.Identifier"
+                                For="@(() => Model.Identifier)"/>
+                            <MudTextField
+                                Label="The base prompt"
+                                Class="mt-3"
+                                Lines="3"
+                                @bind-Value="Model.BasePrompt"
+                                For="@(() => Model.BasePrompt)"/>
+                            <MudTextField
+                                Required
+                                Label="Amount of search references"
+                                Class="mt-3"
+                                Lines="3"
+                                InputType="InputType.Number"
+                                @bind-Value="Model.AmountOfSearchReferences"
+                                For="@(() => Model.AmountOfSearchReferences)"/>
+                            <MudSelect
+                                Required
+                                Class="mt-3"
+                                @bind-Value="Model.ChatModel"
+                                For="@(() => Model.ChatModel)"
+                                Margin="Margin.Dense"
+                                T="ChatModel"
+                                Label="Type"
+                                Variant="Variant.Text">
+                                @{
+                                    var i = 0;
+                                    foreach (ChatModel chatModel in Enum.GetValues(typeof(ChatModel)))
+                                    {
+                                        
+                                        <MudSelectItem  Value="@chatModel">@chatModel</MudSelectItem>
+                                    }
+                                }
+                           
+                            </MudSelect>
+                        </MudCardContent>
+                        <MudCardActions>
+                            <MudButton OnClick="Cancel">Cancel</MudButton>
+                            <MudButton OnClick="ExecuteCreate"
+                                       Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
+                                Add tenant
+                            </MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    private CreateTenantDto Model { get; set; } = new();
+
+    private bool Valid { get; set; }
+    private string ModalTitle { get; set; }
+
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public CreateModalProps? Props { get; set; }
+
+    private MudForm? Form { get; set; }
+
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private async Task ExecuteCreate()
+    {
+        if (Form == null)
+        {
+            return;
+        }
+
+        if (Props == null)
+        {
+            return;
+        }
+
+        await Form.Validate();
+
+        if (!Valid)
+        {
+            return;
+        }
+
+        var snackbarMessage = $"Successfully created a record for {Model.Name}";
+        var success = false;
+
+        try
+        {
+            var mutatingTenantStore = TenantStore as IMutatingEFCoreFactoryCreatingStore<ApplicationTenantInfo>;
+
+            var tenant = new ApplicationTenantInfo()
+            {
+                Identifier = Model.Identifier,
+                Name = Model.Name,
+                ChatModel = Model.ChatModel,
+                BasePrompt = Model.BasePrompt,
+                AmountOfSearchReferences = Model.AmountOfSearchReferences
+            };
+            await mutatingTenantStore!.CreateAsync(tenant);
+
+            success = true;
+        }
+        catch (Exception e)
+        {
+            Logger.LogError(e, "Something went wrong trying to create a record");
+            Snackbar.Add($"Something went wrong trying to execute this action.", Severity.Error);
+        }
+
+        if (success)
+        {
+            Snackbar.Add(snackbarMessage, Severity.Success);
+            if (Props.RefreshFunction != null)
+            {
+                await Props.RefreshFunction.Invoke();
+            }
+            MudDialog.Close();
+        }
+    }
+
+    protected override Task OnInitializedAsync()
+    {
+        ModalTitle = "Create new tenant";
+        return base.OnInitializedAsync();
+    }
+
+}

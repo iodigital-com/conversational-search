@@ -1,0 +1,135 @@
+@page "/tenants"
+@using ConversationalSearchPlatform.BackOffice.Components.Modals
+@using ConversationalSearchPlatform.BackOffice.Constants
+@using ConversationalSearchPlatform.BackOffice.Models.Indexing
+@using ConversationalSearchPlatform.BackOffice.Models.Tenants
+@using ConversationalSearchPlatform.BackOffice.Paging
+@using ConversationalSearchPlatform.BackOffice.Services.Models
+@using ConversationalSearchPlatform.BackOffice.Tenants
+@using Finbuckle.MultiTenant
+@using Microsoft.AspNetCore.Authorization
+@attribute [RenderModeInteractiveServer]
+
+@inject IDialogService DialogService;
+@inject IMultiTenantStore<ApplicationTenantInfo> TenantStore;
+@attribute [Authorize]
+
+<PageTitle>Index</PageTitle>
+
+<AuthorizeView>
+    <MudButton @onclick="CreateTenantAsync" Variant="Variant.Filled" Color="Color.Primary" Class="mb-5">
+        Add new tenant
+    </MudButton>
+
+    <MudDataGrid @ref="_grid"
+                 T="TenantDto"
+                 Items="Items"
+                 EditMode="DataGridEditMode.Form"
+                 EditTrigger="DataGridEditTrigger.Manual"
+                 ReadOnly="false"
+                 Bordered="true"
+                 ServerData="@(new Func<GridState<TenantDto>, Task<GridData<TenantDto>>>(LoadDataAsync))">
+        <Columns>
+            <PropertyColumn T="TenantDto" TProperty="string" Property="x => x.Name" Sortable="false"/>
+            <PropertyColumn T="TenantDto" TProperty="string" Property="x => x.Identifier" Sortable="false"/>
+            <PropertyColumn T="TenantDto" TProperty="ChatModel" Property="x => x.ChatModel" Sortable="false" Title="LLM"/>
+            <PropertyColumn T="TenantDto" TProperty="int" Property="x => x.AmountOfSearchReferences" Sortable="false" Title="Search reference #"/>
+            <TemplateColumn Title="API Key">
+                <CellTemplate Context="cellContext">
+                    @{
+                        var tenantDto = cellContext.Item as TenantDto;
+                        var state = ShowApiKeyStateDict[tenantDto.Id];
+
+                        var action = () => ShowApiKey(state);
+
+                    }
+                    <MudTextField @bind-Value="@tenantDto.Id" Variant="Variant.Outlined" InputType="@state.PasswordInput"
+                                  Adornment="Adornment.End" AdornmentIcon="@state.PasswordInputIcon"
+                                  OnAdornmentClick="action" AdornmentAriaLabel="Show API Key" ReadOnly="true"/>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <PagerContent>
+            <MudDataGridPager T="TenantDto"
+                              RowsPerPageString="Elements per page"
+                              PageSizeOptions="PagingConstants.AmountOfPages"
+                              InfoFormat="@PagerHelper.DeterminePagerInfo(TotalPageElements)">
+            </MudDataGridPager>
+        </PagerContent>
+    </MudDataGrid>
+</AuthorizeView>
+
+
+@code {
+
+    void ShowApiKey(ShowApiKeyState state)
+    {
+        @if (state.isShow)
+        {
+            state.isShow = false;
+            state.PasswordInputIcon = Icons.Material.Filled.VisibilityOff;
+            state.PasswordInput = InputType.Password;
+        }
+        else
+        {
+            state.isShow = true;
+            state.PasswordInputIcon = Icons.Material.Filled.Visibility;
+            state.PasswordInput = InputType.Text;
+        }
+    }
+
+    private Dictionary<string, ShowApiKeyState> ShowApiKeyStateDict = new Dictionary<string, ShowApiKeyState>();
+
+    private IEnumerable<TenantDto> Items { get; set; } = new List<TenantDto>();
+    private int TotalPageElements { get; set; }
+    private MudDataGrid<TenantDto> _grid = null!;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await _grid.SetRowsPerPageAsync(PagingConstants.AmountOfPages[0]);
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    private async Task<GridData<TenantDto>> LoadDataAsync(GridState<TenantDto> state)
+    {
+        var page = state.Page + 1;
+        var pageSize = state.PageSize;
+
+        var pagingTenantStore = TenantStore as IPagingEFCoreFactoryCreatingStore<ApplicationTenantInfo>;
+        var (tenants,totalCount) = await pagingTenantStore!.GetAllPagedAsync(new PageOptions(page, pageSize));
+
+        var dtos = tenants.Select(t => new TenantDto(t.Id!, t.Identifier!, t.Name!, t.ChatModel, t.BasePrompt, t.AmountOfSearchReferences))
+            .ToList();
+        var showApiKeyStateDict = dtos.ToDictionary(dto => dto.Id, dto => new ShowApiKeyState());
+
+        Items = dtos;
+        TotalPageElements = totalCount;
+        ShowApiKeyStateDict = showApiKeyStateDict;
+
+        return new GridData<TenantDto>
+        {
+            Items = Items,
+            TotalItems = TotalPageElements
+        };
+    }
+
+    private async Task CreateTenantAsync()
+    {
+        var createModalProps = new CreateModalProps(() => _grid.ReloadServerData());
+        var dialogParameters = new DialogParameters
+        {
+            {
+                "props", createModalProps
+            }
+        };
+        await DialogService.ShowAsync<CreateTenantModal>("Create tenant modal", dialogParameters, ModalSettings.Default);
+    }
+
+    public record ShowApiKeyState
+    {
+        public bool isShow { get; set; } = false;
+        public string PasswordInputIcon { get; set; } = Icons.Material.Filled.VisibilityOff;
+        public InputType PasswordInput { get; set; } = InputType.Password;
+    }
+
+}

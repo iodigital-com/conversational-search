@@ -3,6 +3,7 @@ using Azure;
 using Azure.Search.Documents;
 using Azure.Search.Documents.Models;
 using ConversationalSearchPlatform.BackOffice.Exceptions;
+using ConversationalSearchPlatform.BackOffice.Resources;
 using ConversationalSearchPlatform.BackOffice.Services.Models;
 using ConversationalSearchPlatform.BackOffice.Tenants;
 using Finbuckle.MultiTenant;
@@ -50,9 +51,9 @@ public class ConversationService : IConversationService
             ThrowHelper.ThrowConversationNotFoundException(conversationId);
         }
 
-        //TODO this implementation needs to
+        //TODO this implementation needs to be completed
         var references = await GetReferences(promptText);
-        var basePrompt = (await GetEmbeddedResourceText("BasePrompt.txt")).Trim();
+        var basePrompt = (await GetEmbeddedResourceText(ResourceConstants.BasePromptFile)).Trim();
 
         var tenantPrompt = await GetTenantPromptAsync(tenantId);
         basePrompt = basePrompt.Replace("{{TenantPrompt}}", tenantPrompt);
