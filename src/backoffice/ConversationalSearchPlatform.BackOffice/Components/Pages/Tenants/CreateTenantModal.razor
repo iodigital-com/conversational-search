@@ -43,14 +43,14 @@
                             <MudTextField
                                 Label="The base prompt"
                                 Class="mt-3"
-                                Lines="3"
+                                Lines="6"
                                 @bind-Value="Model.BasePrompt"
                                 For="@(() => Model.BasePrompt)"/>
                             <MudTextField
                                 Required
                                 Label="Amount of search references"
                                 Class="mt-3"
-                                Lines="3"
+                                Lines="6"
                                 InputType="InputType.Number"
                                 @bind-Value="Model.AmountOfSearchReferences"
                                 For="@(() => Model.AmountOfSearchReferences)"/>
@@ -64,14 +64,12 @@
                                 Label="Type"
                                 Variant="Variant.Text">
                                 @{
-                                    var i = 0;
                                     foreach (ChatModel chatModel in Enum.GetValues(typeof(ChatModel)))
                                     {
                                         
                                         <MudSelectItem  Value="@chatModel">@chatModel</MudSelectItem>
                                     }
                                 }
-                           
                             </MudSelect>
                         </MudCardContent>
                         <MudCardActions>

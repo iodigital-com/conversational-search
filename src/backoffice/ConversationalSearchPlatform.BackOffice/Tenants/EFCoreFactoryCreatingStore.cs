@@ -122,6 +122,16 @@ public class EFCoreFactoryCreatingStore<TEFCoreStoreDbContext, TTenantInfo> :
         }
     }
 
+    public async Task<TTenantInfo> UpdateAsync(TTenantInfo tenant)
+    {
+        using (var db = await _dbContextFactory.CreateDbContextAsync())
+        {
+            db.TenantInfo.Update(tenant);
+            await db.SaveChangesAsync();
+            return tenant;
+        }
+    }
+
     public async Task DeleteAsync(string tenantId)
     {
         using (var db = await _dbContextFactory.CreateDbContextAsync())

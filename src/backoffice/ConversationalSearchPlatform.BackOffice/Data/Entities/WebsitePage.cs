@@ -3,7 +3,7 @@ using Finbuckle.MultiTenant;
 namespace ConversationalSearchPlatform.BackOffice.Data.Entities;
 
 [MultiTenant]
-public class WebsitePage : IIndexable, IHaveUrl
+public class WebsitePage : IIndexable, IHaveUrl, IMultiTenant
 {
     public WebsitePage(Guid id, string name, string url)
     {
@@ -24,4 +24,5 @@ public class WebsitePage : IIndexable, IHaveUrl
     public string Name { get; set; }
     public IndexableType IndexableType { get; init; }
     public string Url { get; set; }
+    public string TenantId { get; set; }
 }

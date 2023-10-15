@@ -14,9 +14,11 @@
 @inject IMultiTenantStore<ApplicationTenantInfo> TenantStore;
 @attribute [Authorize]
 
-<PageTitle>Index</PageTitle>
+<PageTitle>Tenants</PageTitle>
 
 <AuthorizeView>
+    <MudText Typo="Typo.h3" Align="Align.Center" GutterBottom="true">Tenants</MudText>
+    
     <MudButton @onclick="CreateTenantAsync" Variant="Variant.Filled" Color="Color.Primary" Class="mb-5">
         Add new tenant
     </MudButton>

@@ -29,6 +29,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         modelBuilder.Entity<WebsitePage>().HasIndex(x => x.Name);
         modelBuilder.Entity<WebsitePage>().HasIndex(x => x.Name);
         modelBuilder.Entity<WebsitePage>().IsMultiTenant();
+        modelBuilder.Entity<WebsitePage>().HasIndex(w => w.TenantId);
+        modelBuilder.Entity<UserInvite>().HasIndex(w => w.TenantId);
 
         UserAndRolesDatabaseSeeder.Seed(modelBuilder);
     }

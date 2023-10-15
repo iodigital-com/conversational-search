@@ -1,6 +1,156 @@
 @page "/preferences"
-<h3>Preferences</h3>
+@using ConversationalSearchPlatform.BackOffice.Models.Users
+@using ConversationalSearchPlatform.BackOffice.Services
+@using ConversationalSearchPlatform.BackOffice.Tenants
+@using Finbuckle.MultiTenant
+@using ConversationalSearchPlatform.BackOffice.Components.Modals
+@using ConversationalSearchPlatform.BackOffice.Models.Preferences
+@using ConversationalSearchPlatform.BackOffice.Services.Models
 
-@code {
-    
+@inject ISnackbar Snackbar;
+@inject IMultiTenantStore<ApplicationTenantInfo> TenantStore; 
+@inject IMultiTenantContextAccessor<ApplicationTenantInfo> TenantAccessor;
+@inject ILogger<Preferences> Logger;
+@attribute [RenderModeInteractiveServer]
+
+<PageTitle>Preferences</PageTitle>
+
+<MudForm @ref="Form" @bind-IsValid="@Valid" ReadOnly="false">
+    <MudText Typo="Typo.h3" Align="Align.Center" GutterBottom="true">Preferences</MudText>
+    <MudGrid Justify="Justify.SpaceEvenly">
+        <MudItem Class="flex-grow-1">
+            <MudCard>
+                <MudCardContent>
+                    <MudTextField
+                        Label="Name"
+                        Class="mt-3"
+                        Required
+                        Disabled
+                        ReadOnly
+                        @bind-Value="Model.Name"
+                        For="@(() => Model.Name)"/>
+                    <MudTextField
+                        Label="Identifier"
+                        Class="mt-3"
+                        Required
+                        Disabled
+                        ReadOnly
+                        @bind-Value="Model.Identifier"
+                        For="@(() => Model.Identifier)"/>
+                    <MudTextField
+                        Label="Base prompt"
+                        Class="mt-3"
+                        Required
+                        Lines="6"
+                        @bind-Value="Model.BasePrompt"
+                        For="@(() => Model.BasePrompt)"/>
+                    <MudTextField
+                        Label="Amount of search references"
+                        Class="mt-3"
+                        Required
+                        InputType="InputType.Number"
+                        @bind-Value="Model.AmountOfSearchReferences"
+                        For="@(() => Model.AmountOfSearchReferences)"/>
+                    <MudSelect
+                        Label="LLM"
+                        Class="mt-3"
+                        Required
+                        @bind-Value="Model.ChatModel"
+                        For="@(() => Model.ChatModel)"
+                        Margin="Margin.Dense"
+                        T="ChatModel"
+                        Variant="Variant.Text">
+                        @{
+                            foreach (ChatModel chatModel in Enum.GetValues(typeof(ChatModel)))
+                            {
+                                <MudSelectItem Value="@chatModel">@chatModel</MudSelectItem>
+                            }
+                        }
+                    </MudSelect>
+                </MudCardContent>
+                <MudCardActions>
+                    <MudButton OnClick="Submit"
+                               Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
+                        Save
+                    </MudButton>
+                </MudCardActions>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+</MudForm>
+
+@code{
+    private TenantPreferenceDto Model { get; set; } = new();
+    private ApplicationTenantInfo? Tenant { get; set; }
+
+    private bool Valid { get; set; }
+
+    private MudForm? Form { get; set; }
+
+    private async Task Submit()
+    {
+        if (Tenant == null)
+        {
+            return;
+        }
+
+        if (Form == null)
+        {
+            return;
+        }
+
+        await Form.Validate();
+
+        if (!Valid)
+        {
+            return;
+        }
+
+        var snackbarMessage = $"Successfully updated the preferences.";
+        var success = false;
+
+        try
+        {
+            Tenant.AmountOfSearchReferences = Model.AmountOfSearchReferences;
+            Tenant.ChatModel = Model.ChatModel;
+            Tenant.BasePrompt = Model.BasePrompt;
+
+            var mutatingTenantStore = TenantStore as IMutatingEFCoreFactoryCreatingStore<ApplicationTenantInfo>;
+            await mutatingTenantStore!.UpdateAsync(Tenant);
+            success = true;
+        }
+        catch (Exception e)
+        {
+            Logger.LogError(e, "Something went wrong trying to update the preferences");
+            Snackbar.Add($"Something went wrong trying to execute this action.", Severity.Error);
+        }
+
+        if (success)
+        {
+            Snackbar.Add(snackbarMessage, Severity.Success);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (TenantAccessor.MultiTenantContext?.HasResolvedTenant == true)
+        {
+            Tenant = TenantAccessor.MultiTenantContext?.TenantInfo;
+
+            if (Tenant != null)
+            {
+                Model.Identifier = Tenant.Identifier!;
+                Model.Name = Tenant.Name!;
+                Model.ChatModel = Tenant.ChatModel;
+                Model.AmountOfSearchReferences = Tenant.AmountOfSearchReferences;
+                Model.BasePrompt = Tenant.GetBasePromptOrDefault();
+            }
+        }
+        else
+        {
+            Logger.LogError("Cannot resolve tenant");
+        }
+        await base.OnInitializedAsync();
+    }
+
 }

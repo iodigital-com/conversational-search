@@ -13,9 +13,11 @@
 @inject IIndexingService<WebsitePage> IndexingService;
 @attribute [Authorize]
 
-<PageTitle>Index</PageTitle>
+<PageTitle>Index content</PageTitle>
 
 <AuthorizeView>
+    <MudText Typo="Typo.h3" Align="Align.Center" GutterBottom="true">Index content</MudText>
+    
     <MudButton @onclick="CreateWebsitePageAsync" Variant="Variant.Filled" Color="Color.Primary" Class="mb-5">
         Add page website record
     </MudButton>
