@@ -23,6 +23,7 @@ public class WebsitePage : IIndexable, IHaveUrl, IMultiTenant
     public Guid Id { get; set; }
     public string Name { get; set; }
     public IndexableType IndexableType { get; init; }
+    public DateTimeOffset? IndexedAt { get; set; }
     public string Url { get; set; }
     public string TenantId { get; set; }
 }

@@ -17,7 +17,7 @@
 
 <AuthorizeView>
     <MudText Typo="Typo.h3" Align="Align.Center" GutterBottom="true">Index content</MudText>
-    
+
     <MudButton @onclick="CreateWebsitePageAsync" Variant="Variant.Filled" Color="Color.Primary" Class="mb-5">
         Add page website record
     </MudButton>
@@ -33,6 +33,25 @@
         <Columns>
             <PropertyColumn T="WebsitePageDto" TProperty="string" Property="x => x.Name" Sortable="false"/>
             <PropertyColumn T="WebsitePageDto" TProperty="string" Property="x => x.Url" Sortable="false"/>
+            <TemplateColumn Title="Indexed at">
+                <CellTemplate Context="cellContext">
+                    @{
+                        var websitePageDto = cellContext.Item as WebsitePageDto;
+                        var isIndexed = websitePageDto.IndexedAt != null;
+                        const string notIndexedText = "Not indexed yet";
+
+                    }
+                    @if (isIndexed)
+                    {
+                        <MudTextField @bind-Value="@websitePageDto.IndexedAt" Variant="Variant.Text" Format="yyyy/MM/dd"  ReadOnly="true"/>
+                    }
+                    else
+                    {
+                        @notIndexedText
+                    }
+
+                </CellTemplate>
+            </TemplateColumn>
             <TemplateColumn>
                 <CellTemplate Context="cellContext">
                     @{
@@ -116,7 +135,7 @@
         var pageSize = state.PageSize;
 
         var (pages,totalCount) = await IndexingService.GetAllPagedAsync(new PageOptions(page, pageSize), new CancellationToken());
-        Items = pages.Select(websitePage => new WebsitePageDto(websitePage.Id, websitePage.Name, websitePage.Url));
+        Items = pages.Select(websitePage => new WebsitePageDto(websitePage.Id, websitePage.Name, websitePage.Url, websitePage.IndexedAt?.DateTime));
         TotalPageElements = totalCount;
         return new GridData<WebsitePageDto>
         {
@@ -136,4 +155,5 @@
         };
         await DialogService.ShowAsync<CreateWebsitePageModal>("Index new page", dialogParameters, ModalSettings.Default);
     }
+
 }
