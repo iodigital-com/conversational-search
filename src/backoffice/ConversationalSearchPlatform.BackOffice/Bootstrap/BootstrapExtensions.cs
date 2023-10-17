@@ -1,13 +1,22 @@
+using System.Net.Http.Headers;
+using System.Reflection;
 using ConversationalSearchPlatform.BackOffice.Constants;
 using ConversationalSearchPlatform.BackOffice.Data.Entities;
+using ConversationalSearchPlatform.BackOffice.Jobs;
 using ConversationalSearchPlatform.BackOffice.Services;
+using ConversationalSearchPlatform.BackOffice.Services.Implementations;
 using ConversationalSearchPlatform.BackOffice.Swagger;
 using ConversationalSearchPlatform.BackOffice.Tenants;
 using Finbuckle.MultiTenant;
 using Finbuckle.MultiTenant.Stores;
+using Hangfire;
+using Hangfire.Console;
+using Hangfire.SqlServer;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.OpenApi.Models;
 using Rystem.OpenAi;
+using Swashbuckle.AspNetCore.Filters;
+using ReferenceType = Microsoft.OpenApi.Models.ReferenceType;
 
 namespace ConversationalSearchPlatform.BackOffice.Bootstrap;
 
@@ -29,6 +38,39 @@ internal static class BootstrapExtensions
     internal static IServiceCollection AddIndexingServices(this IServiceCollection serviceCollection)
     {
         serviceCollection.AddTransient<IIndexingService<WebsitePage>, WebsitePageIndexingService>();
+        return serviceCollection;
+    }
+
+    internal static IServiceCollection AddJobServices(this IServiceCollection serviceCollection, IConfiguration configuration)
+    {
+        serviceCollection.AddTransient<IScraperService, SimpleScraperService>();
+        serviceCollection.AddTransient<IChunkService, UnstructuredChunkService>();
+        serviceCollection.AddTransient<IVectorizationService, WeaviateVectorizationService>();
+
+        serviceCollection.AddHttpClient<IScraperService, SimpleScraperService>();
+
+        var unstructuredUrl = configuration.GetRequiredSection("Unstructured")["BaseUrl"]!;
+        serviceCollection.AddHttpClient<IChunkService, UnstructuredChunkService>()
+            .ConfigureHttpClient(client =>
+            {
+                client.BaseAddress = new Uri(unstructuredUrl);
+            });
+
+        var section = configuration.GetRequiredSection("Weaviate");
+        var weaviateUrl = section["BaseUrl"]!;
+        var weaviateApiKey = section["ApiKey"];
+
+        serviceCollection.AddHttpClient<IVectorizationService, WeaviateVectorizationService>()
+            .ConfigureHttpClient(client =>
+            {
+                client.BaseAddress = new Uri(weaviateUrl);
+
+                if (!string.IsNullOrWhiteSpace(weaviateApiKey))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", weaviateApiKey);
+                }
+            });
+
         return serviceCollection;
     }
 
@@ -79,7 +121,10 @@ internal static class BootstrapExtensions
             o.IncludeXmlComments(filePath);
             o.SchemaFilter<EnumSchemaFilter>();
             o.OperationFilter<AuthenticationRequirementsOperationFilter>();
+            o.EnableAnnotations();
+            o.ExampleFilters();
         });
+        services.AddSwaggerExamplesFromAssemblies(Assembly.GetEntryAssembly());
 
         return services;
     }
@@ -87,7 +132,7 @@ internal static class BootstrapExtensions
     internal static IApplicationBuilder UseSwaggerWithUi(this IApplicationBuilder application)
     {
         application.UseSwagger();
-        application.UseSwaggerUI();
+        application.UseSwaggerUI(options => options.InjectStylesheet("/swagger-ui/SwaggerDark.css"));
         return application;
     }
 
@@ -109,6 +154,28 @@ internal static class BootstrapExtensions
                 settings.Azure.MapDeploymentEmbeddingModel("text-embedding-ada-002-io-gpt", EmbeddingModelType.AdaTextEmbedding);
             }
         });
+        return services;
+    }
+
+    internal static IServiceCollection AddHangfire(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddHangfire(cfg => cfg
+            .SetDataCompatibilityLevel(CompatibilityLevel.Version_170)
+            .UseSimpleAssemblyNameTypeSerializer()
+            .UseRecommendedSerializerSettings()
+            .UseFilter(new LogJobFilter())
+            .UseConsole()
+            .UseSqlServerStorage(configuration.GetConnectionString("DefaultConnection"),
+                new SqlServerStorageOptions
+                {
+                    CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
+                    SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
+                    QueuePollInterval = TimeSpan.Zero,
+                    UseRecommendedIsolationLevel = true,
+                    DisableGlobalLocks = true
+                }));
+        services.AddHangfireServer();
+
         return services;
     }
 

@@ -4,6 +4,7 @@ using ConversationalSearchPlatform.BackOffice.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ConversationalSearchPlatform.BackOffice.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20231017121727_AddReferenceType")]
+    partial class AddReferenceType
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -95,15 +98,15 @@ namespace ConversationalSearchPlatform.BackOffice.Data.Migrations
                         {
                             Id = "68657A77-57AE-409D-A845-5ABAF7C1E633",
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "e9d77439-5df0-4414-88cd-1190011f19bc",
+                            ConcurrencyStamp = "a1b77bd7-79a0-463d-ab69-96e05be32026",
                             Email = "user@test.com",
                             EmailConfirmed = true,
                             LockoutEnabled = false,
                             NormalizedEmail = "USER@TEST.COM",
                             NormalizedUserName = "USER",
-                            PasswordHash = "AQAAAAIAAYagAAAAEHg3A6Q7cnsBHGNge8NhCvm50upAR8OJPHaFZgdnCDZOGDMk9Ow09zVsiaoormryow==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEDi8pAScED4eEyjH6dU138wOlNjJ5RD7M4MYFnpnv++32fZeYekH20PPy8vV3OeWQw==",
                             PhoneNumberConfirmed = false,
-                            SecurityStamp = "e702bf14-0107-4d52-a080-e3d6878598fd",
+                            SecurityStamp = "a81e3075-1bb4-4e8b-afc5-de86f0569b08",
                             TenantId = "D2FA78CE-3185-458E-964F-8FD0052B4330",
                             TwoFactorEnabled = false,
                             UserName = "user"
@@ -112,15 +115,15 @@ namespace ConversationalSearchPlatform.BackOffice.Data.Migrations
                         {
                             Id = "8D4540D4-D50F-48D0-9508-503883712B1A",
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "b1192a00-6ce8-4daa-bba6-10b861afa85f",
+                            ConcurrencyStamp = "c32a2f77-31aa-4f4d-b9b7-641b3fe865d3",
                             Email = "user2@test.com",
                             EmailConfirmed = true,
                             LockoutEnabled = false,
                             NormalizedEmail = "USER2@TEST.COM",
                             NormalizedUserName = "USER2",
-                            PasswordHash = "AQAAAAIAAYagAAAAEAKnz/9szdXYHMyQ//veMYUdCeSjpLuGmK5du0gL2/RG0YfpXNf+CNRJdrRvv4VmEg==",
+                            PasswordHash = "AQAAAAIAAYagAAAAENvCYKccVWmIbFSGecPTD8VhC0Xd1bkOEO3RkNIFm41it55a6Fxj+6NmmQrWmZLazA==",
                             PhoneNumberConfirmed = false,
-                            SecurityStamp = "ee6bb69c-ceef-481f-b710-4f8a84795100",
+                            SecurityStamp = "7b65e187-cf09-44c3-ab7a-ad334f0349f7",
                             TenantId = "D2FA78CE-3185-458E-964F-8FD0052B4330",
                             TwoFactorEnabled = false,
                             UserName = "user2"
@@ -129,15 +132,15 @@ namespace ConversationalSearchPlatform.BackOffice.Data.Migrations
                         {
                             Id = "61581AFC-FC42-41BF-A483-F9863B8E4693",
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "101478f1-55f8-4a20-9106-fd5c41728fc3",
+                            ConcurrencyStamp = "95c12d44-ca48-4afa-9084-cefc7325066f",
                             Email = "admin@test.com",
                             EmailConfirmed = true,
                             LockoutEnabled = false,
                             NormalizedEmail = "ADMIN@TEST.com",
                             NormalizedUserName = "admin",
-                            PasswordHash = "AQAAAAIAAYagAAAAEEt9ctexpNdiJ/nYkdN0Sf0ZugAUE6dSvzJUSerOrmvjtrRSH373YiGEABhwZpTdGg==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEAOYXqp6Nu0mA7Gr1RYjEsqNPf88liaWv7itxS3JTNuhM+vuWHugGH/5/VtOM9vplQ==",
                             PhoneNumberConfirmed = false,
-                            SecurityStamp = "c9beb376-fa37-4190-a62c-782c23fab474",
+                            SecurityStamp = "b565c294-3288-4d4a-be39-7146ab1df50a",
                             TenantId = "CCFA9314-ABE6-403A-9E21-2B31D95A5258",
                             TwoFactorEnabled = false,
                             UserName = "admin"
@@ -192,9 +195,6 @@ namespace ConversationalSearchPlatform.BackOffice.Data.Migrations
 
                     b.Property<DateTimeOffset?>("IndexedAt")
                         .HasColumnType("datetimeoffset");
-
-                    b.Property<int>("Language")
-                        .HasColumnType("int");
 
                     b.Property<string>("Name")
                         .IsRequired()

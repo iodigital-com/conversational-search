@@ -12,20 +12,25 @@ namespace ConversationalSearchPlatform.BackOffice.Data;
 
 public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityRole, string>, IMultiTenantDbContext
 {
-    protected ApplicationDbContext()
+    private readonly IMultiTenantContextAccessor<ApplicationTenantInfo> _multiTenantContextAccessor;
+
+    protected ApplicationDbContext(IMultiTenantContextAccessor<ApplicationTenantInfo> multiTenantContextAccessor)
     {
-        TenantInfo = TenantConstants.DefaultTenant;
+        _multiTenantContextAccessor = multiTenantContextAccessor;
+        TenantInfo = _multiTenantContextAccessor.MultiTenantContext?.TenantInfo ?? TenantConstants.DefaultTenant;
     }
 
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, IMultiTenantContextAccessor<ApplicationTenantInfo> multiTenantContextAccessor) : base(options)
     {
-        TenantInfo = TenantConstants.DefaultTenant;
+        _multiTenantContextAccessor = multiTenantContextAccessor;
+        TenantInfo = _multiTenantContextAccessor.MultiTenantContext?.TenantInfo ?? TenantConstants.DefaultTenant;
     }
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
         modelBuilder.Entity<WebsitePage>().HasIndex(x => x.Name);
         modelBuilder.Entity<WebsitePage>().HasIndex(x => x.Name);
         modelBuilder.Entity<WebsitePage>().IsMultiTenant();
@@ -52,7 +57,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<WebsitePage> WebsitePages { get; set; }
     public DbSet<UserInvite> UserInvites { get; set; }
 
-    public ITenantInfo TenantInfo { get; }
+    public ITenantInfo TenantInfo { get; set; }
     public TenantMismatchMode TenantMismatchMode { get; } = TenantMismatchMode.Ignore;
     public TenantNotSetMode TenantNotSetMode { get; } = TenantNotSetMode.Overwrite;
 }

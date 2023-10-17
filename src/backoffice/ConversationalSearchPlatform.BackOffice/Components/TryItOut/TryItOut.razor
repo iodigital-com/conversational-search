@@ -1,0 +1,47 @@
+@page "/TryItOut"
+@using Finbuckle.MultiTenant
+@using ConversationalSearchPlatform.BackOffice.Tenants
+@inject IJSRuntime JSRuntime;
+@inject ISnackbar Snackbar;
+@inject IMultiTenantContextAccessor<ApplicationTenantInfo> MultiTenantAccessor;
+
+<MudText Typo="Typo.h3" Align="Align.Center" GutterBottom="true">Try the search below</MudText>
+
+
+<MudTabs Outlined="true">
+    <MudTabPanel Text="Api" Icon="@Icons.Material.Filled.Api">
+        <MudText Typo="Typo.h6" Align="Align.Center" GutterBottom="true">Try our API</MudText>
+        <MudContainer MaxWidth="MaxWidth.Medium">
+            <MudTextField Class="mt-3 mb-3"
+                Label="Api Key"
+                @bind-Value="@ApiKey" Variant="Variant.Outlined" InputType="InputType.Text"
+                Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Outlined.ContentCopy"
+                OnAdornmentClick="@CopyPasswordAsync" AdornmentAriaLabel="Copy API Key"
+                ReadOnly="true"
+                HelperText="Copy the APi Key to use in the Authorize section below"/>
+            <iframe src="swagger" style="width:100%;height:600px;border:none;"/>
+        </MudContainer>
+
+    </MudTabPanel>
+    <MudTabPanel Text="Frontend" Icon="@Icons.Material.Outlined.AutoAwesome">
+        <MudText Typo="Typo.h6" Align="Align.Center" GutterBottom="true">Try our frontend widget</MudText>
+        
+    </MudTabPanel>
+</MudTabs>
+
+@code {
+    string ApiKey { get; set; }
+
+    protected override Task OnInitializedAsync()
+    {
+        ApiKey = MultiTenantAccessor?.MultiTenantContext?.TenantInfo?.Id!;
+        return Task.CompletedTask;
+    }
+
+    async Task CopyPasswordAsync()
+    {
+        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", ApiKey);
+        Snackbar.Add("Copied API key to clipboard.", Severity.Success);
+    }
+
+}

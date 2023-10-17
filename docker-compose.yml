@@ -3,6 +3,7 @@ version: '3.9'
 services:
   csp-db-amd64:
     image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: csp-db
     ports:
       - "1450:1433"
     volumes:
@@ -13,6 +14,7 @@ services:
 
   csp-db-arm:
     image: mcr.microsoft.com/azure-sql-edge
+    container_name: csp-db
     cap_add: [ 'SYS_PTRACE' ]
     ports:
       - "1450:1433"
@@ -21,3 +23,31 @@ services:
     environment:
       - ACCEPT_EULA=Y
       - "MSSQL_SA_PASSWORD=CSP_PW_1450!"
+
+  unstructured:
+    ports:
+      - '8200:8000'
+    container_name: csp-unstructured-api
+    image: 'downloads.unstructured.io/unstructured-io/unstructured-api:0.0.53'
+  
+  weaviate:
+    image: semitechnologies/weaviate:1.19.0
+    container_name: csp-weaviate
+    restart: on-failure
+    ports:
+      - "8080:8080"
+    environment:
+      QUERY_DEFAULTS_LIMIT: 20
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      PERSISTENCE_DATA_PATH: "./data"
+      DEFAULT_VECTORIZER_MODULE: text2vec-transformers
+      ENABLE_MODULES: text2vec-transformers
+      TRANSFORMERS_INFERENCE_API: http://t2v-transformers:8080
+      CLUSTER_HOSTNAME: 'node1'
+    volumes:
+      - ./data/weaviate:/var/lib/weaviate
+  t2v-transformers:
+    image: semitechnologies/transformers-inference:sentence-transformers-multi-qa-MiniLM-L6-cos-v1
+    container_name: csp-weaviate-t2v
+    environment:
+      ENABLE_CUDA: 0

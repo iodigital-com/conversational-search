@@ -2,7 +2,9 @@
 @using ConversationalSearchPlatform.BackOffice.Services
 @using ConversationalSearchPlatform.BackOffice.Data.Entities
 @using ConversationalSearchPlatform.BackOffice.Components.Modals
+@using ConversationalSearchPlatform.BackOffice.Models.Conversations
 @using ConversationalSearchPlatform.BackOffice.Models.Indexing
+@using ConversationalSearchPlatform.BackOffice.Services.Models
 
 @inject ISnackbar Snackbar;
 @inject IIndexingService<WebsitePage> IndexingService;
@@ -32,6 +34,38 @@
                                 Class="mt-3"
                                 @bind-Value="Model.Url"
                                 For="@(() => Model.Url)"/>
+                            <MudSelect
+                                Required
+                                Class="mt-3"
+                                @bind-Value="Model.ReferenceType"
+                                For="@(() => Model.ReferenceType)"
+                                Margin="Margin.Dense"
+                                T="ConversationReferenceTypeDto"
+                                Label="Reference type"
+                                Variant="Variant.Text">
+                                @{
+                                    foreach (ConversationReferenceTypeDto refType in Enum.GetValues(typeof(ConversationReferenceTypeDto)))
+                                    {
+                                        <MudSelectItem Value="@refType">@refType</MudSelectItem>
+                                    }
+                                }
+                            </MudSelect>
+                            <MudSelect
+                                Required
+                                Class="mt-3"
+                                @bind-Value="Model.Language"
+                                For="@(() => Model.Language)"
+                                Margin="Margin.Dense"
+                                T="LanguageDto"
+                                Label="Language"
+                                Variant="Variant.Text">
+                                @{
+                                    foreach (LanguageDto lang in Enum.GetValues(typeof(LanguageDto)))
+                                    {
+                                        <MudSelectItem Value="@lang">@lang</MudSelectItem>
+                                    }
+                                }
+                            </MudSelect>
                         </MudCardContent>
                         <MudCardActions>
                             <MudButton OnClick="Cancel">Cancel</MudButton>
@@ -93,7 +127,7 @@
 
         try
         {
-            var websitePage = new WebsitePage(Model.Name, Model.Url);
+            var websitePage = new WebsitePage(Model.Name, Model.Url, (ReferenceType)Model.ReferenceType, (Language)Model.Language);
             await IndexingService.CreateAsync(websitePage, new CancellationToken());
             success = true;
         }

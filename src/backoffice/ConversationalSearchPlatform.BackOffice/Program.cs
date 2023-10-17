@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace ConversationalSearchPlatform.BackOffice;
 
@@ -81,11 +82,12 @@ internal class Program
 
         builder.Services.AddSingleton<IEmailSender, NoOpEmailSender>();
         builder.Services.AddHttpContextAccessor();
-
+        builder.Services.AddHangfire(builder.Configuration);
         builder.Services.AddOpenAi(builder.Configuration);
         builder.Services.AddIndexingServices();
         builder.Services.AddConversationServices();
         builder.Services.AddUserServices();
+        builder.Services.AddJobServices(builder.Configuration);
 
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddHealthChecks();
@@ -97,14 +99,16 @@ internal class Program
                 .SetIsOriginAllowed(_ => true)
                 .AllowCredentials())
         );
+        builder.Services.AddProblemDetails();
 
         var app = builder.Build();
 
         if (!app.Environment.IsDevelopment())
         {
-            app.UseExceptionHandler("/Error", createScopeForErrors: true);
             app.UseHsts();
         }
+        app.UseExceptionHandler();
+        app.UseStatusCodePages();
 
         app.UseHttpsRedirection();
         app.UseMiddleware<BlazorCookieLoginMiddleware>();

@@ -5,7 +5,7 @@ using ConversationalSearchPlatform.BackOffice.Paging;
 using ConversationalSearchPlatform.BackOffice.Services.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace ConversationalSearchPlatform.BackOffice.Services;
+namespace ConversationalSearchPlatform.BackOffice.Services.Implementations;
 
 public class UserInviteService : IUserInviteService
 {

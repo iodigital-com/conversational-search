@@ -1,17 +1,21 @@
 using ConversationalSearchPlatform.BackOffice.Data;
 using ConversationalSearchPlatform.BackOffice.Data.Entities;
+using ConversationalSearchPlatform.BackOffice.Jobs;
 using ConversationalSearchPlatform.BackOffice.Paging;
+using Hangfire;
 using Microsoft.EntityFrameworkCore;
 
-namespace ConversationalSearchPlatform.BackOffice.Services;
+namespace ConversationalSearchPlatform.BackOffice.Services.Implementations;
 
 public class WebsitePageIndexingService : IIndexingService<WebsitePage>
 {
     private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
+    private readonly IBackgroundJobClient _backgroundJobClient;
 
-    public WebsitePageIndexingService(IDbContextFactory<ApplicationDbContext> dbContextFactory)
+    public WebsitePageIndexingService(IDbContextFactory<ApplicationDbContext> dbContextFactory, IBackgroundJobClient backgroundJobClient)
     {
         _dbContextFactory = dbContextFactory;
+        _backgroundJobClient = backgroundJobClient;
     }
 
     public async Task<(List<WebsitePage> items, int totalCount)> GetAllPagedAsync(PageOptions pageOptions, CancellationToken cancellationToken = default)
@@ -39,7 +43,9 @@ public class WebsitePageIndexingService : IIndexingService<WebsitePage>
         {
             db.Set<WebsitePage>().Add(indexable);
             await db.SaveChangesAsync(cancellationToken);
-            //TODO execute some kind of job here to actually index the indexed version
+            _backgroundJobClient.Enqueue<WebsitePageIndexingJob>(job =>
+                job.Execute(indexable.TenantId, new WebsitePageIndexingDetails(indexable.Id, IndexJobChangeType.CREATE))
+            );
 
             return indexable;
         }
@@ -51,7 +57,9 @@ public class WebsitePageIndexingService : IIndexingService<WebsitePage>
         {
             db.Set<WebsitePage>().Update(indexable);
             await db.SaveChangesAsync(cancellationToken);
-            //TODO execute some kind of job here to actually update the indexed version
+            _backgroundJobClient.Enqueue<WebsitePageIndexingJob>(job =>
+                job.Execute(indexable.TenantId, new WebsitePageIndexingDetails(indexable.Id, IndexJobChangeType.UPDATE))
+            );
 
             return indexable;
         }
@@ -61,10 +69,15 @@ public class WebsitePageIndexingService : IIndexingService<WebsitePage>
     {
         using (var db = await _dbContextFactory.CreateDbContextAsync(cancellationToken))
         {
-            await db.Set<WebsitePage>()
-                .Where(page => page.Id == id)
-                .ExecuteDeleteAsync(cancellationToken);
-            //TODO execute some kind of job here to delete the indexed version
+            var indexable = await db.Set<WebsitePage>()
+                .FirstOrDefaultAsync(page => page.Id == id, cancellationToken: cancellationToken);
+
+            if (indexable != null)
+            {
+                _backgroundJobClient.Enqueue<WebsitePageIndexingJob>(job =>
+                    job.Execute(indexable.TenantId, new WebsitePageIndexingDetails(id, IndexJobChangeType.DELETE))
+                );
+            }
         }
     }
 

@@ -13,13 +13,18 @@
         CloseOnEscapeKey="true"/>
     <MudSnackbarProvider/>
     <MudLayout>
-        <MudDrawer @bind-Open="@_drawerOpen">
-            <NavMenu/>
-        </MudDrawer>
+        @if (!Preview.GetValueOrDefault(false))
+        {
+            <MudDrawer @bind-Open="@_drawerOpen">
+                <NavMenu/>
+            </MudDrawer>
+        }
         <MudMainContent>
-            <MudContainer MaxWidth="MaxWidth.Medium">
-                @Body
-            </MudContainer>
+            <ErrorBoundary>
+                <MudContainer MaxWidth="MaxWidth.Medium">
+                    @Body
+                </MudContainer>
+            </ErrorBoundary>
         </MudMainContent>
     </MudLayout>
 
@@ -34,6 +39,10 @@
 
 @code
 {
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public bool? Preview { get; set; }
+
     private bool _isDarkMode = true;
     bool _drawerOpen = true;
 

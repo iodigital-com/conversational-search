@@ -1,7 +1,4 @@
 using System.Text;
-using Azure;
-using Azure.Search.Documents;
-using Azure.Search.Documents.Models;
 using ConversationalSearchPlatform.BackOffice.Exceptions;
 using ConversationalSearchPlatform.BackOffice.Resources;
 using ConversationalSearchPlatform.BackOffice.Services.Models;
@@ -11,7 +8,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Rystem.OpenAi;
 using Rystem.OpenAi.Chat;
 
-namespace ConversationalSearchPlatform.BackOffice.Services;
+namespace ConversationalSearchPlatform.BackOffice.Services.Implementations;
 
 public class ConversationService : IConversationService
 {
@@ -31,31 +28,33 @@ public class ConversationService : IConversationService
         _tenantStore = tenantStore;
     }
 
-    public Task<ConversationId> StartConversationAsync(string tenantId, ChatModel model, int amountOfSearchReferences)
+    public Task<ConversationId> StartConversationAsync(StartConversation startConversation)
     {
         var conversationId = Guid.NewGuid();
         var cacheKey = GetCacheKey(conversationId);
-        _conversationsCache.Set(cacheKey, new ConversationHolder(model, amountOfSearchReferences), _defaultMemoryCacheEntryOptions);
+        _conversationsCache.Set(cacheKey,
+            new ConversationHolder(startConversation.Model, startConversation.AmountOfSearchReferences),
+            _defaultMemoryCacheEntryOptions);
 
         return Task.FromResult(new ConversationId(conversationId));
     }
 
-    public async Task<ConversationReferencedResult> ConverseAsync(Guid conversationId, string tenantId, string prompt)
+    public async Task<ConversationReferencedResult> ConverseAsync(HoldConversation holdConversation)
     {
-        var promptText = prompt.Trim();
+        var promptText = holdConversation.Prompt.Trim();
 
-        var cacheKey = GetCacheKey(conversationId);
+        var cacheKey = GetCacheKey(holdConversation.ConversationId);
 
         if (!_conversationsCache.TryGetValue(cacheKey, out ConversationHolder? conversationHistory))
         {
-            ThrowHelper.ThrowConversationNotFoundException(conversationId);
+            ThrowHelper.ThrowConversationNotFoundException(holdConversation.ConversationId);
         }
 
         //TODO this implementation needs to be completed
         var references = await GetReferences(promptText);
         var basePrompt = (await GetEmbeddedResourceText(ResourceConstants.BasePromptFile)).Trim();
 
-        var tenantPrompt = await GetTenantPromptAsync(tenantId);
+        var tenantPrompt = await GetTenantPromptAsync(holdConversation.TenantId);
         basePrompt = basePrompt.Replace("{{TenantPrompt}}", tenantPrompt);
 
         var sources = GetKnowledgeBase(references);
@@ -70,7 +69,7 @@ public class ConversationService : IConversationService
             chatBuilder.AddAssistantMessage(conversation.prompt);
         }
 
-        chatBuilder.AddUserMessage(prompt);
+        chatBuilder.AddUserMessage(holdConversation.Prompt);
         chatBuilder
             .WithModel((ChatModelType)conversationHistory.Model)
             .WithTemperature(1);
@@ -86,11 +85,17 @@ public class ConversationService : IConversationService
 
         var validReferences =
             references
-                .Where(document => completeAnswer.Contains(document.Document.Source))
-                .Select(validReference => new ConversationReference(++index, validReference.Document.Source))
+                .Where(document => completeAnswer.Contains(document.Source))
+                .Select(validReference => new ConversationReference(++index, validReference.Source, validReference.Type))
                 .ToList();
 
-        return new ConversationReferencedResult(new ConversationResponse(conversationId, completeAnswer), validReferences);
+        return new ConversationReferencedResult(
+            new ConversationResult(
+                holdConversation.ConversationId,
+                completeAnswer,
+                holdConversation.Language
+            ),
+            validReferences);
     }
 
     private static string ParseAnswer(CostResult<ChatResult> chatResult)
@@ -128,29 +133,22 @@ public class ConversationService : IConversationService
         return tenant.GetBasePromptOrDefault();
     }
 
-    private static string GetKnowledgeBase(List<SearchResult<Document>> references)
+    private static string GetKnowledgeBase(List<SearchReference> references)
     {
         var knowledgeBaseBuilder = new StringBuilder();
 
         foreach (var reference in references)
         {
-            knowledgeBaseBuilder.AppendLine($"{reference.Document.Source} -> {reference.Document.DocumentText.ReplaceLineEndings(" ")}");
+            knowledgeBaseBuilder.AppendLine($"{reference.Source} -> {reference.Content.ReplaceLineEndings(" ")}");
         }
 
         return knowledgeBaseBuilder.ToString();
     }
 
-    private static async Task<List<SearchResult<Document>>> GetReferences(string prompt)
+    //TODO call weaviate here
+    private static Task<List<SearchReference>> GetReferences(string prompt)
     {
-        // var searchClient = new SearchClient(new Uri("someUrl"),
-        //     "someIndex",
-        //     new AzureKeyCredential("someApiKey"));
-        //
-        // var searchResults = await searchClient.SearchAsync<Document>(prompt);
-        // var documents = searchResults.Value;
-        //
-        // return documents.GetResults().Take(7).ToList();
-        return new List<SearchResult<Document>>();
+        return Task.FromResult(new List<SearchReference>());
     }
 
     private async Task<string> GetEmbeddedResourceText(string resourceName)
@@ -171,9 +169,6 @@ public class ConversationService : IConversationService
         return resourceContents;
     }
 
-    private static string GetCacheKey(Guid conversationId)
-    {
-        var cacheKey = "conversation_" + conversationId;
-        return cacheKey;
-    }
+    private static string GetCacheKey(Guid conversationId) =>
+        $"conversation_{conversationId}";
 }

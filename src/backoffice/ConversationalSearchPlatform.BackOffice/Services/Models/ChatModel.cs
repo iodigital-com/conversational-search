@@ -1,5 +1,9 @@
+using System.Text.Json.Serialization;
+
 namespace ConversationalSearchPlatform.BackOffice.Services.Models;
 
+[Serializable]
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum ChatModel
 {
     Gpt35Turbo = 350,

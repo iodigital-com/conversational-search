@@ -14,6 +14,7 @@
     <PackageReference Include="CLIP.Net" Version="1.0.0" />
     <PackageReference Include="Finbuckle.MultiTenant.AspNetCore" Version="6.12.0" />
     <PackageReference Include="Finbuckle.MultiTenant.EntityFrameworkCore" Version="6.12.0" />
+    <PackageReference Include="HtmlAgilityPack" Version="1.11.54" />
     <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="8.0.0-rc.2.23480.2" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.0-rc.2.23480.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.0-rc.2.23480.1" />
@@ -30,6 +31,8 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
     <PackageReference Include="Rystem.OpenAi" Version="3.3.4" />
     <PackageReference Include="Azure.Search.Documents" Version="11.4.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="6.5.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore.Filters" Version="7.0.11" />
     
   </ItemGroup>
 
@@ -45,6 +48,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Api\Errors\" />
     <Folder Include="Data\Migrations\Tenant\" />
   </ItemGroup>
 

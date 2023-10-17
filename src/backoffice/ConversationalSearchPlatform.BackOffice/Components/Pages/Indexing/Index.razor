@@ -4,6 +4,7 @@
 @using ConversationalSearchPlatform.BackOffice.Data.Entities
 @using ConversationalSearchPlatform.BackOffice.Components.Modals
 @using ConversationalSearchPlatform.BackOffice.Constants
+@using ConversationalSearchPlatform.BackOffice.Models.Conversations
 @using ConversationalSearchPlatform.BackOffice.Models.Indexing
 @using ConversationalSearchPlatform.BackOffice.Paging
 @using Microsoft.AspNetCore.Authorization
@@ -33,6 +34,8 @@
         <Columns>
             <PropertyColumn T="WebsitePageDto" TProperty="string" Property="x => x.Name" Sortable="false"/>
             <PropertyColumn T="WebsitePageDto" TProperty="string" Property="x => x.Url" Sortable="false"/>
+            <PropertyColumn T="WebsitePageDto" TProperty="ConversationReferenceTypeDto" Title="Reference type" Property="x => x.ReferenceType" Sortable="false"/>
+            <PropertyColumn T="WebsitePageDto" TProperty="LanguageDto" Title="Language" Property="x => x.Language" Sortable="false"/>
             <TemplateColumn Title="Indexed at">
                 <CellTemplate Context="cellContext">
                     @{
@@ -43,7 +46,7 @@
                     }
                     @if (isIndexed)
                     {
-                        <MudTextField @bind-Value="@websitePageDto.IndexedAt" Variant="Variant.Text" Format="yyyy/MM/dd"  ReadOnly="true"/>
+                        <MudTextField @bind-Value="@websitePageDto.IndexedAt" Variant="Variant.Text" Format="yyyy/MM/dd" ReadOnly="true"/>
                     }
                     else
                     {
@@ -135,7 +138,7 @@
         var pageSize = state.PageSize;
 
         var (pages,totalCount) = await IndexingService.GetAllPagedAsync(new PageOptions(page, pageSize), new CancellationToken());
-        Items = pages.Select(websitePage => new WebsitePageDto(websitePage.Id, websitePage.Name, websitePage.Url, websitePage.IndexedAt?.DateTime));
+        Items = pages.Select(ToWebsitePageDto);
         TotalPageElements = totalCount;
         return new GridData<WebsitePageDto>
         {
@@ -155,5 +158,14 @@
         };
         await DialogService.ShowAsync<CreateWebsitePageModal>("Index new page", dialogParameters, ModalSettings.Default);
     }
+
+    private static WebsitePageDto ToWebsitePageDto(WebsitePage websitePage) =>
+        new(websitePage.Id,
+            websitePage.Name,
+            websitePage.Url,
+            websitePage.IndexedAt?.DateTime,
+            (ConversationReferenceTypeDto)websitePage.ReferenceType,
+            (LanguageDto)websitePage.Language
+            );
 
 }
