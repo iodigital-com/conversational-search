@@ -4,7 +4,7 @@ namespace ConversationalSearchPlatform.BackOffice.Services;
 
 public interface IConversationService
 {
-    Task<ConversationId> StartConversationAsync(StartConversation startConversation);
+    Task<ConversationId> StartConversationAsync(StartConversation startConversation, CancellationToken cancellationToken = default);
 
-    Task<ConversationReferencedResult> ConverseAsync(HoldConversation holdConversation);
+    Task<ConversationReferencedResult> ConverseAsync(HoldConversation holdConversation, CancellationToken cancellationToken = default);
 }

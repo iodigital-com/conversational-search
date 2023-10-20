@@ -5,6 +5,7 @@
 @using Finbuckle.MultiTenant
 @using ConversationalSearchPlatform.BackOffice.Components.Modals
 @using ConversationalSearchPlatform.BackOffice.Models.Preferences
+@using ConversationalSearchPlatform.BackOffice.Models.Tenants
 @using ConversationalSearchPlatform.BackOffice.Services.Models
 
 @inject ISnackbar Snackbar;
@@ -44,6 +45,26 @@
                         Lines="6"
                         @bind-Value="Model.BasePrompt"
                         For="@(() => Model.BasePrompt)"/>
+                    <MudGrid Style="align-items: center">
+                        <MudItem xs="8">
+                            <MudTextField
+                                Label="Prompt tags"
+                                Placeholder="Enter a new tag"
+                                Class="mt-3"
+                                @bind-Value="NewPromptTag"
+                                For="@(() => NewPromptTag)"
+                                HelperText="Example tag: {{Make}} to designate the make of a vehicle which can then be used in the prompt as replacement for the conversation context."/>
+                        </MudItem>
+                        <MudItem xs="4">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddNewPromptTag">Add</MudButton>
+                        </MudItem>
+                    </MudGrid>
+                    @{
+                        foreach (var promptTag in Model.PromptTags)
+                        {
+                            <MudChip Value="@promptTag.Value">@promptTag.Value</MudChip>
+                        }
+                    }
                     <MudTextField
                         Label="Amount of search references"
                         Class="mt-3"
@@ -82,6 +103,7 @@
 @code{
     private TenantPreferenceDto Model { get; set; } = new();
     private ApplicationTenantInfo? Tenant { get; set; }
+    private string? NewPromptTag { get; set; }
 
     private bool Valid { get; set; }
 
@@ -114,6 +136,10 @@
             Tenant.AmountOfSearchReferences = Model.AmountOfSearchReferences;
             Tenant.ChatModel = Model.ChatModel;
             Tenant.BasePrompt = Model.BasePrompt;
+            Tenant.PromptTags = Model.PromptTags.Select(dto => new PromptTag
+            {
+                Value = dto.Value
+            }).ToList();
 
             var mutatingTenantStore = TenantStore as IMutatingEFCoreFactoryCreatingStore<ApplicationTenantInfo>;
             await mutatingTenantStore!.UpdateAsync(Tenant);
@@ -144,6 +170,7 @@
                 Model.ChatModel = Tenant.ChatModel;
                 Model.AmountOfSearchReferences = Tenant.AmountOfSearchReferences;
                 Model.BasePrompt = Tenant.GetBasePromptOrDefault();
+                Model.PromptTags = Tenant.PromptTags?.Select(tag => new PromptTagDto(tag.Value)).ToList() ?? new List<PromptTagDto>();
             }
         }
         else
@@ -151,6 +178,15 @@
             Logger.LogError("Cannot resolve tenant");
         }
         await base.OnInitializedAsync();
+    }
+
+    private void AddNewPromptTag()
+    {
+        if (NewPromptTag != null)
+        {
+            Model.PromptTags.Add(new PromptTagDto(NewPromptTag));
+            NewPromptTag = null;
+        }
     }
 
 }

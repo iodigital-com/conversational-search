@@ -2,7 +2,20 @@ using System.Text.Json.Serialization;
 
 namespace ConversationalSearchPlatform.BackOffice.Services.Models;
 
-public record ChunkResult
+public interface IInsertable;
+
+public interface IInsertableCollection<T> where T : IInsertable
+{
+    public List<T> Items { get; }
+};
+
+public record ImageCollection(string InternalId, List<ImageResult> Items) : IInsertableCollection<ImageResult>;
+
+public record ImageResult(string FileName, string ImageBlob, string? AltDescription, string? NearByText, string Url, string InternalId) : IInsertable;
+
+public record ChunkCollection(string TenantId, string InternalId, string Url, string ReferenceType, string Language, List<ChunkResult> Items) : IInsertableCollection<ChunkResult>;
+
+public record ChunkResult : IInsertable
 {
     [JsonPropertyName("type")]
     public string ElementType { get; set; }

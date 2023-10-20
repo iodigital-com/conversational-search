@@ -9,6 +9,8 @@ public class ApplicationTenantInfo : TenantInfo
     public string? BasePrompt { get; set; }
     public int AmountOfSearchReferences { get; set; } = 5;
 
+    public List<PromptTag>? PromptTags { get; set; }
+
     public string GetBasePromptOrDefault()
     {
         return string.IsNullOrEmpty(BasePrompt)

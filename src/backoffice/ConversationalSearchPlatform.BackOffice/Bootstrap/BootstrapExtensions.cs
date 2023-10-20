@@ -5,13 +5,19 @@ using ConversationalSearchPlatform.BackOffice.Data.Entities;
 using ConversationalSearchPlatform.BackOffice.Jobs;
 using ConversationalSearchPlatform.BackOffice.Services;
 using ConversationalSearchPlatform.BackOffice.Services.Implementations;
+using ConversationalSearchPlatform.BackOffice.Services.Models;
+using ConversationalSearchPlatform.BackOffice.Services.Models.Weaviate;
 using ConversationalSearchPlatform.BackOffice.Swagger;
 using ConversationalSearchPlatform.BackOffice.Tenants;
 using Finbuckle.MultiTenant;
 using Finbuckle.MultiTenant.Stores;
+using GraphQL.Client.Abstractions;
+using GraphQL.Client.Http;
+using GraphQL.Client.Serializer.SystemTextJson;
 using Hangfire;
 using Hangfire.Console;
 using Hangfire.SqlServer;
+using HangfireBasicAuthenticationFilter;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.OpenApi.Models;
 using Rystem.OpenAi;
@@ -43,11 +49,30 @@ internal static class BootstrapExtensions
 
     internal static IServiceCollection AddJobServices(this IServiceCollection serviceCollection, IConfiguration configuration)
     {
-        serviceCollection.AddTransient<IScraperService, SimpleScraperService>();
+        // serviceCollection.AddTransient<IScraperService, SimpleScraperService>();
+        // serviceCollection.AddTransient<IScraperService, PuppeteerScraperService>();
+        // serviceCollection.AddHttpClient<IScraperService, SimpleScraperService>();
+        serviceCollection.AddTransient<IScraperService, PuppeteerScraperService>();
+
+        var puppeteerSection = configuration.GetSection("Puppeteer");
+        serviceCollection.AddOptions<PuppeteerSettings>().Bind(puppeteerSection);
+        var puppeteerSettings = puppeteerSection.Get<PuppeteerSettings>() ?? throw new InvalidOperationException("No WeaviateSettings found");
+
+        serviceCollection.AddHttpClient<IScraperService, PuppeteerScraperService>()
+            .ConfigureHttpClient(client =>
+            {
+                client.BaseAddress = new Uri(puppeteerSettings.BaseUrl);
+            });
+
+        serviceCollection
+            .AddTransient<IWeaviateRecordCreator<ChunkResult, ChunkCollection, WebsitePageWeaviateCreateRecord>,
+                WebsitePageRecordCreator<ChunkResult, ChunkCollection, WebsitePageWeaviateCreateRecord>>();
+        serviceCollection
+            .AddTransient<IWeaviateRecordCreator<ImageResult, ImageCollection, ImageWeaviateCreateRecord>,
+                ImageRecordCreator<ImageResult, ImageCollection, ImageWeaviateCreateRecord>>();
         serviceCollection.AddTransient<IChunkService, UnstructuredChunkService>();
         serviceCollection.AddTransient<IVectorizationService, WeaviateVectorizationService>();
 
-        serviceCollection.AddHttpClient<IScraperService, SimpleScraperService>();
 
         var unstructuredUrl = configuration.GetRequiredSection("Unstructured")["BaseUrl"]!;
         serviceCollection.AddHttpClient<IChunkService, UnstructuredChunkService>()
@@ -56,20 +81,27 @@ internal static class BootstrapExtensions
                 client.BaseAddress = new Uri(unstructuredUrl);
             });
 
-        var section = configuration.GetRequiredSection("Weaviate");
-        var weaviateUrl = section["BaseUrl"]!;
-        var weaviateApiKey = section["ApiKey"];
+        var configurationSection = configuration.GetSection("Weaviate");
+        serviceCollection.AddOptions<WeaviateSettings>().Bind(configurationSection);
 
-        serviceCollection.AddHttpClient<IVectorizationService, WeaviateVectorizationService>()
-            .ConfigureHttpClient(client =>
-            {
-                client.BaseAddress = new Uri(weaviateUrl);
+        var weaviateSettings = configurationSection.Get<WeaviateSettings>() ?? throw new InvalidOperationException("No WeaviateSettings found");
+        serviceCollection.AddHttpClient("Weaviate", client => ConfigureWeaviateClient(client, weaviateSettings));
 
-                if (!string.IsNullOrWhiteSpace(weaviateApiKey))
+        var graphQlWebsocketJsonSerializer = new SystemTextJsonSerializer();
+
+        serviceCollection.AddScoped<IGraphQLClient>(sp =>
+        {
+            var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+            var httpClient = httpClientFactory.CreateClient("Weaviate");
+            return new GraphQLHttpClient(
+                new GraphQLHttpClientOptions
                 {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", weaviateApiKey);
-                }
-            });
+                    EndPoint = new Uri($"{weaviateSettings.BaseUrl}/v1/graphql"),
+                },
+                graphQlWebsocketJsonSerializer,
+                httpClient
+            );
+        });
 
         return serviceCollection;
     }
@@ -140,6 +172,8 @@ internal static class BootstrapExtensions
     {
         var configurationSection = configuration.GetSection("OpenAI");
         var openAiSettings = configurationSection.Get<OpenAISettings>() ?? throw new InvalidOperationException("No OpenAiSettings found");
+        services.AddOptions<OpenAISettings>().Bind(configurationSection);
+
         services.AddOpenAi(settings =>
         {
             settings.ApiKey = openAiSettings.ApiKey;
@@ -179,6 +213,23 @@ internal static class BootstrapExtensions
         return services;
     }
 
+    public static IApplicationBuilder UseHangfireDashboard(this IApplicationBuilder app, IConfiguration config)
+    {
+        var dashboardOptions = config.GetRequiredSection("Hangfire:Dashboard").Get<DashboardOptions>() ?? throw new InvalidOperationException("");
+
+#if !DEBUG
+              dashboardOptions.Authorization = new[]
+        {
+            new HangfireCustomBasicAuthenticationFilter
+            {
+                User = config.GetSection("Hangfire:Credentials:User").Value,
+                Pass = config.GetSection("Hangfire:Credentials:Password").Value
+            }
+        };
+#endif
+        return app.UseHangfireDashboard(config["Hangfire:Route"], dashboardOptions);
+    }
+
     private static OpenApiSecurityRequirement CreateApiKeyHeaderSecurityRequirement() => new()
     {
         {
@@ -202,4 +253,14 @@ internal static class BootstrapExtensions
         In = ParameterLocation.Header,
         Description = $"Api Key",
     };
+
+    private static void ConfigureWeaviateClient(HttpClient client, WeaviateSettings weaviateSettings)
+    {
+        client.BaseAddress = new Uri(weaviateSettings.BaseUrl);
+
+        if (!string.IsNullOrWhiteSpace(weaviateSettings.ApiKey))
+        {
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", weaviateSettings.ApiKey);
+        }
+    }
 }

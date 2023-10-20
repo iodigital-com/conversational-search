@@ -11,15 +11,20 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CLIP.Net" Version="1.0.0" />
     <PackageReference Include="Finbuckle.MultiTenant.AspNetCore" Version="6.12.0" />
     <PackageReference Include="Finbuckle.MultiTenant.EntityFrameworkCore" Version="6.12.0" />
     <PackageReference Include="HtmlAgilityPack" Version="1.11.54" />
+    <PackageReference Include="HttpClientToCurl" Version="2.0.2" />
     <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="8.0.0-rc.2.23480.2" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.0-rc.2.23480.2" />
+    <PackageReference Include="Microsoft.CodeAnalysis" Version="4.7.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.0-rc.2.23480.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.0-rc.2.23480.1" />
+    <PackageReference Include="Microsoft.SemanticKernel" Version="1.0.0-beta2" />
+    <PackageReference Include="Microsoft.SemanticKernel.Connectors.Memory.Weaviate" Version="1.0.0-beta2" />
+    <PackageReference Include="Microsoft.SemanticKernel.Plugins.Memory" Version="1.0.0-beta2" />
     <PackageReference Include="MudBlazor" Version="6.11.0" />
+    <PackageReference Include="PuppeteerSharp" Version="12.0.0" />
     <PackageReference Include="Serilog.AspNetCore" Version="7.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="4.1.0" />
     <PackageReference Include="Hangfire.Core" Version="1.8.5" />
@@ -33,7 +38,9 @@
     <PackageReference Include="Azure.Search.Documents" Version="11.4.0" />
     <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="6.5.0" />
     <PackageReference Include="Swashbuckle.AspNetCore.Filters" Version="7.0.11" />
-    
+    <PackageReference Include="System.Linq.Async" Version="6.0.1" />
+    <PackageReference Include="GraphQL.Client" Version="6.0.0" />
+    <PackageReference Include="GraphQL.Client.Serializer.SystemTextJson" Version="6.0.0" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,3 +1,4 @@
+using ConversationalSearchPlatform.BackOffice.Api.Indexing;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 
@@ -107,6 +108,7 @@ internal class Program
         {
             app.UseHsts();
         }
+
         app.UseExceptionHandler();
         app.UseStatusCodePages();
 
@@ -116,10 +118,13 @@ internal class Program
         app.UseMultiTenant();
         app.UseStaticFiles();
         app.UseAntiforgery();
-        app.MapGroup(ApiConstants.ApiV1Path).MapConversationalSearchGroup();
+        app.MapGroup(ApiConstants.ApiV1Path)
+            .MapConversationalSearchGroup()
+            .MapIndexingGroup();
         app.MapRazorComponents<App>()
             .AddInteractiveServerRenderMode();
         app.UseSwaggerWithUi();
+        app.UseHangfireDashboard(builder.Configuration);
 // app.MapAdditionalIdentityEndpoints();
 
         app.Run();

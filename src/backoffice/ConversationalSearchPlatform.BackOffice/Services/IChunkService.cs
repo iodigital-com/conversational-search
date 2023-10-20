@@ -4,5 +4,5 @@ namespace ConversationalSearchPlatform.BackOffice.Services;
 
 public interface IChunkService
 {
-    public Task<ChunkResult> ChunkAsync(ChunkInput chunkInput);
+    public Task<ChunkCollection> ChunkAsync(ChunkInput chunkInput);
 }

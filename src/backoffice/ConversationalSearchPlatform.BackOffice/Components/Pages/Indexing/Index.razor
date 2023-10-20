@@ -36,7 +36,7 @@
             <PropertyColumn T="WebsitePageDto" TProperty="string" Property="x => x.Url" Sortable="false"/>
             <PropertyColumn T="WebsitePageDto" TProperty="ConversationReferenceTypeDto" Title="Reference type" Property="x => x.ReferenceType" Sortable="false"/>
             <PropertyColumn T="WebsitePageDto" TProperty="LanguageDto" Title="Language" Property="x => x.Language" Sortable="false"/>
-            <TemplateColumn Title="Indexed at">
+            <TemplateColumn CellStyle="min-width: 180px;" Title="Indexed at">
                 <CellTemplate Context="cellContext">
                     @{
                         var websitePageDto = cellContext.Item as WebsitePageDto;
@@ -46,7 +46,7 @@
                     }
                     @if (isIndexed)
                     {
-                        <MudTextField @bind-Value="@websitePageDto.IndexedAt" Variant="Variant.Text" Format="yyyy/MM/dd" ReadOnly="true"/>
+                        <MudTextField @bind-Value="@websitePageDto.IndexedAt" Variant="Variant.Text" Format="dd/MM/yyyy HH:mm" ReadOnly="true"/>
                     }
                     else
                     {

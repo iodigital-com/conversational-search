@@ -79,6 +79,34 @@ namespace ConversationalSearchPlatform.BackOffice.Data.Migrations.TenantDbContex
                             Name = "iODigital"
                         });
                 });
+
+            modelBuilder.Entity("ConversationalSearchPlatform.BackOffice.Tenants.ApplicationTenantInfo", b =>
+                {
+                    b.OwnsMany("ConversationalSearchPlatform.BackOffice.Tenants.PromptTag", "PromptTags", b1 =>
+                        {
+                            b1.Property<string>("ApplicationTenantInfoId")
+                                .HasColumnType("nvarchar(64)");
+
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("int");
+
+                            b1.Property<string>("Value")
+                                .IsRequired()
+                                .HasColumnType("nvarchar(max)");
+
+                            b1.HasKey("ApplicationTenantInfoId", "Id");
+
+                            b1.ToTable("TenantInfo");
+
+                            b1.ToJson("PromptTags");
+
+                            b1.WithOwner()
+                                .HasForeignKey("ApplicationTenantInfoId");
+                        });
+
+                    b.Navigation("PromptTags");
+                });
 #pragma warning restore 612, 618
         }
     }

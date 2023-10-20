@@ -7,5 +7,6 @@ namespace ConversationalSearchPlatform.BackOffice.Models.Conversations;
 public enum LanguageDto
 {
     English,
-    Swedish
+    Swedish,
+    Dutch
 }

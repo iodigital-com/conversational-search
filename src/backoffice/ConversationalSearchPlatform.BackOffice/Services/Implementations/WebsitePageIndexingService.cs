@@ -74,6 +74,8 @@ public class WebsitePageIndexingService : IIndexingService<WebsitePage>
 
             if (indexable != null)
             {
+                db.Remove(indexable);
+                await db.SaveChangesAsync(cancellationToken);
                 _backgroundJobClient.Enqueue<WebsitePageIndexingJob>(job =>
                     job.Execute(indexable.TenantId, new WebsitePageIndexingDetails(id, IndexJobChangeType.DELETE))
                 );

@@ -11,14 +11,14 @@ public class UnstructuredChunkService : IChunkService
         _httpClient = httpClient;
     }
 
-    public async Task<ChunkResult> ChunkAsync(ChunkInput chunkInput)
+    public async Task<ChunkCollection> ChunkAsync(ChunkInput chunkInput)
     {
         using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(chunkInput.HtmlContent));
         using var request = new HttpRequestMessage(HttpMethod.Post, "general/v0/general");
         using var content = new MultipartFormDataContent
         {
             {
-                new StreamContent(stream), "file", chunkInput.Name
+                new StreamContent(stream), "files", $"{chunkInput.Name}.html"
             },
             {
                 new StringContent(chunkInput.Language.ToUnstructuredChunkerLanguage()), "languages"
@@ -30,6 +30,15 @@ public class UnstructuredChunkService : IChunkService
         request.Content = content;
 
         var responseMessage = await _httpClient.SendAsync(request);
-        return await responseMessage.Content.ReadFromJsonAsync<ChunkResult>() ?? throw new InvalidOperationException($"Cannot read {nameof(ChunkResult)}");
+        var chunks = await responseMessage.Content.ReadFromJsonAsync<List<ChunkResult>>() ?? throw new InvalidOperationException($"Cannot read {nameof(ChunkResult)}");
+
+        return new ChunkCollection(
+            chunkInput.TenantId,
+            chunkInput.InternalId,
+            chunkInput.Url,
+            chunkInput.ReferenceType.ToString(),
+            chunkInput.Language.ToString(),
+            chunks
+        );
     }
 }

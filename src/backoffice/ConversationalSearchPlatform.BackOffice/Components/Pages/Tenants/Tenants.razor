@@ -101,7 +101,14 @@
         var pagingTenantStore = TenantStore as IPagingEFCoreFactoryCreatingStore<ApplicationTenantInfo>;
         var (tenants,totalCount) = await pagingTenantStore!.GetAllPagedAsync(new PageOptions(page, pageSize));
 
-        var dtos = tenants.Select(t => new TenantDto(t.Id!, t.Identifier!, t.Name!, t.ChatModel, t.BasePrompt, t.AmountOfSearchReferences))
+        var dtos = tenants.Select(t => new TenantDto(t.Id!,
+            t.Identifier!,
+            t.Name!,
+            t.ChatModel,
+            t.BasePrompt,
+            t.AmountOfSearchReferences,
+            t.PromptTags?.Select(tag => new PromptTagDto(tag.Value)).ToList() ?? new List<PromptTagDto>())
+            )
             .ToList();
         var showApiKeyStateDict = dtos.ToDictionary(dto => dto.Id, dto => new ShowApiKeyState());
 

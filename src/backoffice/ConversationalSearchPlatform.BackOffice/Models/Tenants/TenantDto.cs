@@ -8,8 +8,8 @@ public record TenantDto(
     string Name,
     ChatModel ChatModel,
     string? BasePrompt,
-    int AmountOfSearchReferences
-)
+    int AmountOfSearchReferences,
+    List<PromptTagDto> PromptTags)
 {
     public string Id { get; set; } = Id;
     public string Identifier { get; set; } = Identifier;
@@ -17,4 +17,5 @@ public record TenantDto(
     public ChatModel ChatModel { get; set; } = ChatModel;
     public string? BasePrompt { get; set; } = BasePrompt;
     public int AmountOfSearchReferences { get; set; } = AmountOfSearchReferences;
+    public List<PromptTagDto> PromptTags { get; set; } = PromptTags;
 }

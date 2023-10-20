@@ -1,12 +1,17 @@
+using System.Collections.Specialized;
 using System.Text;
+using ConversationalSearchPlatform.BackOffice.Constants;
+using ConversationalSearchPlatform.BackOffice.Data.Entities;
 using ConversationalSearchPlatform.BackOffice.Exceptions;
 using ConversationalSearchPlatform.BackOffice.Resources;
 using ConversationalSearchPlatform.BackOffice.Services.Models;
+using ConversationalSearchPlatform.BackOffice.Services.Models.Weaviate.Queries;
 using ConversationalSearchPlatform.BackOffice.Tenants;
 using Finbuckle.MultiTenant;
 using Microsoft.Extensions.Caching.Memory;
 using Rystem.OpenAi;
 using Rystem.OpenAi.Chat;
+using Language = ConversationalSearchPlatform.BackOffice.Services.Models.Language;
 
 namespace ConversationalSearchPlatform.BackOffice.Services.Implementations;
 
@@ -15,20 +20,27 @@ public class ConversationService : IConversationService
     private readonly IMemoryCache _conversationsCache;
     private readonly IOpenAiFactory _openAiFactory;
     private readonly IMultiTenantStore<ApplicationTenantInfo> _tenantStore;
+    private readonly IVectorizationService _vectorizationService;
+
 
     private readonly MemoryCacheEntryOptions _defaultMemoryCacheEntryOptions = new()
     {
         SlidingExpiration = TimeSpan.FromHours(2)
     };
 
-    public ConversationService(IMemoryCache conversationsCache, IOpenAiFactory openAiFactory, IMultiTenantStore<ApplicationTenantInfo> tenantStore)
+    public ConversationService(
+        IMemoryCache conversationsCache,
+        IOpenAiFactory openAiFactory,
+        IMultiTenantStore<ApplicationTenantInfo> tenantStore,
+        IVectorizationService vectorizationService)
     {
         _conversationsCache = conversationsCache;
         _openAiFactory = openAiFactory;
         _tenantStore = tenantStore;
+        _vectorizationService = vectorizationService;
     }
 
-    public Task<ConversationId> StartConversationAsync(StartConversation startConversation)
+    public Task<ConversationId> StartConversationAsync(StartConversation startConversation, CancellationToken cancellationToken)
     {
         var conversationId = Guid.NewGuid();
         var cacheKey = GetCacheKey(conversationId);
@@ -39,31 +51,50 @@ public class ConversationService : IConversationService
         return Task.FromResult(new ConversationId(conversationId));
     }
 
-    public async Task<ConversationReferencedResult> ConverseAsync(HoldConversation holdConversation)
+    public async Task<ConversationReferencedResult> ConverseAsync(HoldConversation holdConversation, CancellationToken cancellationToken)
     {
-        var promptText = holdConversation.Prompt.Trim();
+        holdConversation.Prompt = holdConversation.Prompt.Trim();
 
         var cacheKey = GetCacheKey(holdConversation.ConversationId);
 
-        if (!_conversationsCache.TryGetValue(cacheKey, out ConversationHolder? conversationHistory))
-        {
-            ThrowHelper.ThrowConversationNotFoundException(holdConversation.ConversationId);
-        }
+        var conversationHistory = GetConversationHistory(holdConversation, cacheKey);
 
-        //TODO this implementation needs to be completed
-        var references = await GetReferences(promptText);
         var basePrompt = (await GetEmbeddedResourceText(ResourceConstants.BasePromptFile)).Trim();
 
-        var tenantPrompt = await GetTenantPromptAsync(holdConversation.TenantId);
+        var tenantPrompt = await GetTenantPromptAsync(holdConversation.TenantId, holdConversation.ConversationContext);
         basePrompt = basePrompt.Replace("{{TenantPrompt}}", tenantPrompt);
 
-        var sources = GetKnowledgeBase(references);
-        basePrompt = basePrompt.Replace("{{Sources}}", sources);
+        var vector = await _vectorizationService.CreateVectorAsync(holdConversation.Prompt);
+        var textReferences = await GetTextReferences(
+            conversationHistory,
+            nameof(WebsitePage),
+            holdConversation.TenantId,
+            holdConversation.Language.ToString(),
+            ConversationReferenceType.Official.ToString(), // TODO later extend this to accept multiple kind of references
+            vector,
+            cancellationToken);
+
+        var imageSearchReferences = await GetImageReferences(
+            conversationHistory,
+            IndexingConstants.ImageClass,
+            holdConversation.Prompt,
+            textReferences.Select(reference => reference.InternalId).Distinct().ToList(),
+            cancellationToken);
+
+        var references = textReferences.Select((textRef, i) => new SortedSearchReference
+            {
+                TextSearchReference = textRef,
+                Index = i + 1
+            })
+            .ToList();
+
+        basePrompt = basePrompt.Replace("{{TextSources}}", FlattenTextReferences(references));
+        basePrompt = basePrompt.Replace("{{ImageSources}}", FlattenImageReferences(references, imageSearchReferences));
 
         var chatBuilder = _openAiFactory.CreateChat()
             .RequestWithSystemMessage(basePrompt);
 
-        foreach (var conversation in conversationHistory!.PromptResponses)
+        foreach (var conversation in conversationHistory.PromptResponses)
         {
             chatBuilder.AddUserMessage(conversation.prompt);
             chatBuilder.AddAssistantMessage(conversation.prompt);
@@ -75,16 +106,16 @@ public class ConversationService : IConversationService
             .WithTemperature(1);
 
         var chatResult = await chatBuilder
-            .ExecuteAndCalculateCostAsync();
+            .ExecuteAndCalculateCostAsync(cancellationToken: cancellationToken);
 
         var completeAnswer = ParseAnswer(chatResult);
 
-        SaveConversationHistory(cacheKey, conversationHistory, promptText, completeAnswer);
+        AppendToConversationHistory(cacheKey, conversationHistory, holdConversation.Prompt, completeAnswer);
 
         var index = 0;
 
         var validReferences =
-            references
+            textReferences
                 .Where(document => completeAnswer.Contains(document.Source))
                 .Select(validReference => new ConversationReference(++index, validReference.Source, validReference.Type))
                 .ToList();
@@ -96,6 +127,16 @@ public class ConversationService : IConversationService
                 holdConversation.Language
             ),
             validReferences);
+    }
+
+    private ConversationHolder GetConversationHistory(HoldConversation holdConversation, string cacheKey)
+    {
+        if (!_conversationsCache.TryGetValue(cacheKey, out ConversationHolder? conversationHistory))
+        {
+            ThrowHelper.ThrowConversationNotFoundException(holdConversation.ConversationId);
+        }
+
+        return conversationHistory!;
     }
 
     private static string ParseAnswer(CostResult<ChatResult> chatResult)
@@ -115,13 +156,13 @@ public class ConversationService : IConversationService
             .ReplaceLineEndings();
     }
 
-    private void SaveConversationHistory(string cacheKey, ConversationHolder conversationHistory, string promptText, string completeAnswer)
+    private void AppendToConversationHistory(string cacheKey, ConversationHolder conversationHistory, string promptText, string completeAnswer)
     {
         conversationHistory.PromptResponses.Add((promptText, completeAnswer));
         _conversationsCache.Set(cacheKey, conversationHistory);
     }
 
-    private async Task<string> GetTenantPromptAsync(string tenantId)
+    private async Task<string> GetTenantPromptAsync(string tenantId, IDictionary<string, string> conversationContext)
     {
         var tenant = await _tenantStore.TryGetAsync(tenantId);
 
@@ -130,25 +171,122 @@ public class ConversationService : IConversationService
             ThrowHelper.ThrowTenantNotFoundException(tenantId);
         }
 
-        return tenant.GetBasePromptOrDefault();
+        var prompt = tenant.GetBasePromptOrDefault();
+
+        var promptTags = tenant.PromptTags ?? new List<PromptTag>();
+
+        foreach (var promptTag in promptTags)
+        {
+            var trimmedKey = promptTag.Value.TrimStart('{').TrimEnd('}');
+            conversationContext.TryGetValue(trimmedKey, out var value);
+
+            if (value != null)
+            {
+                prompt = prompt.Replace(promptTag.Value, value);
+            }
+        }
+
+        return prompt;
     }
 
-    private static string GetKnowledgeBase(List<SearchReference> references)
+    private static string FlattenTextReferences(List<SortedSearchReference> references)
     {
         var knowledgeBaseBuilder = new StringBuilder();
 
         foreach (var reference in references)
         {
-            knowledgeBaseBuilder.AppendLine($"{reference.Source} -> {reference.Content.ReplaceLineEndings(" ")}");
+            knowledgeBaseBuilder.AppendLine($"{reference.Index} | {reference.TextSearchReference.Source} | {reference.TextSearchReference.Content.ReplaceLineEndings(" ")}");
         }
 
         return knowledgeBaseBuilder.ToString();
     }
 
-    //TODO call weaviate here
-    private static Task<List<SearchReference>> GetReferences(string prompt)
+    private static string FlattenImageReferences(List<SortedSearchReference> textSearchReferences, List<ImageSearchReference> references)
     {
-        return Task.FromResult(new List<SearchReference>());
+        var knowledgeBaseBuilder = new StringBuilder();
+
+        foreach (var reference in references)
+        {
+            var matching = textSearchReferences.FirstOrDefault(searchReference => searchReference.TextSearchReference.InternalId == reference.InternalId);
+
+            if (matching == null)
+            {
+                continue;
+            }
+
+            knowledgeBaseBuilder.AppendLine($"{matching.Index} | {reference.Source} | {reference.AltDescription?.ReplaceLineEndings(" ")}");
+        }
+
+        return knowledgeBaseBuilder.ToString();
+    }
+
+    private async Task<List<ImageSearchReference>> GetImageReferences(
+        ConversationHolder conversationHistory,
+        string collectionName,
+        string prompt,
+        List<string> textReferenceInternalIds,
+        CancellationToken cancellationToken = default)
+    {
+        var request = new GetImagesFiltered()
+            .Request(new GetImagesFiltered.ImageQueryParams(
+                collectionName,
+                conversationHistory.AmountOfSearchReferences,
+                prompt,
+                textReferenceInternalIds
+            ));
+
+        var search = await _vectorizationService
+            .SearchAsync<GetImagesFiltered.ImageQueryParams, GetImagesFiltered.WeaviateRecordResponse>(GetImagesFiltered.Key, request, cancellationToken);
+
+        return search.Select(result =>
+                new ImageSearchReference
+                {
+                    InternalId = result.InternalId,
+                    Source = result.Url,
+                    AltDescription = result.AltDescription,
+                    Certainty = result.Additional?.Certainty,
+                })
+            .ToList();
+    }
+
+    private async Task<List<TextSearchReference>> GetTextReferences(
+        ConversationHolder conversationHistory,
+        string collectionName,
+        string tenantId,
+        string language,
+        string referenceType,
+        float[] vector,
+        CancellationToken cancellationToken = default)
+    {
+        var request = new GetByPromptFiltered()
+            .Request(new GetByPromptFiltered.WebsitePageQueryParams(
+                collectionName,
+                tenantId,
+                language,
+                referenceType,
+                vector,
+                conversationHistory.AmountOfSearchReferences)
+            );
+
+        var search = await _vectorizationService
+            .SearchAsync<GetByPromptFiltered.WebsitePageQueryParams, GetByPromptFiltered.WeaviateRecordResponse>(GetByPromptFiltered.Key, request, cancellationToken);
+
+        return search.Select(result =>
+            {
+                Enum.TryParse<ConversationReferenceType>(result.ReferenceType, out var refType);
+                Enum.TryParse<Language>(result.Language, out var lang);
+
+                return new TextSearchReference
+                {
+                    Content = result.Text,
+                    Source = result.Source,
+                    Type = refType,
+                    Certainty = result.Additional?.Certainty,
+                    Language = lang,
+                    InternalId = result.InternalId
+                };
+            })
+            .ToList();
     }
 
     private async Task<string> GetEmbeddedResourceText(string resourceName)
@@ -157,14 +295,13 @@ public class ConversationService : IConversationService
         var fullResourceName = $"ConversationalSearchPlatform.BackOffice.Resources.{resourceName}";
         var assembly = this.GetType().Assembly;
 
-        using (var stream = assembly.GetManifestResourceStream(fullResourceName))
-            if (stream != null)
-            {
-                using (var reader = new StreamReader(stream))
-                {
-                    resourceContents = (await reader.ReadToEndAsync()).Trim();
-                }
-            }
+        using var stream = assembly.GetManifestResourceStream(fullResourceName);
+
+        if (stream != null)
+        {
+            using var reader = new StreamReader(stream);
+            resourceContents = (await reader.ReadToEndAsync()).Trim();
+        }
 
         return resourceContents;
     }

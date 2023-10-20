@@ -7,7 +7,8 @@ namespace ConversationalSearchPlatform.BackOffice.Services.Models;
 public enum Language
 {
     English,
-    Swedish
+    Swedish,
+    Dutch
 }
 
 public static class LanguageExtensions
@@ -18,6 +19,7 @@ public static class LanguageExtensions
         {
             Language.English => "eng",
             Language.Swedish => "swe",
+            Language.Dutch => "nld",
             _ => throw new ArgumentOutOfRangeException(nameof(language), language, null)
         };
     }

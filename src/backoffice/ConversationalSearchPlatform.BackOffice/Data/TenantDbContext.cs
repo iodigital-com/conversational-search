@@ -15,6 +15,9 @@ public class TenantDbContext : EFCoreStoreDbContext<ApplicationTenantInfo>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<ApplicationTenantInfo>(ati => ati
+            .Property(p => p.PromptTags).HasConversion<PromptTagConverter>()
+        );
         TenantSeeder.Seed(modelBuilder);
     }
 }

@@ -125,8 +125,7 @@
             Logger.LogInformation("User logged in.");
             NavigationManager.NavigateTo($"/login?key={key}", true);
         }
-
-        if (result.RequiresTwoFactor)
+        else if (result.RequiresTwoFactor)
         {
             RedirectManager.RedirectTo(
                 "/Account/LoginWith2fa",
@@ -136,11 +135,14 @@
                     ["RememberMe"] = Input.RememberMe
                 });
         }
-        
-        if (result.IsLockedOut)
+        else if (result.IsLockedOut)
         {
             Logger.LogWarning("User a1ccount locked out.");
             RedirectManager.RedirectTo("/Account/Lockout");
+        }
+        else
+        {
+            errorMessage = "Error: Invalid login attempt.";
         }
     }
 

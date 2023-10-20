@@ -22,7 +22,7 @@ public static class ConversationalSearchEndpoints
         var innerGroup = outerGroup.MapGroup(string.Empty)
             .RequireAuthorization(nameof(TenantApiKeyHeaderRequirement))
             .WithTags(ConversationalSearchTag);
-        
+
         innerGroup.MapPost($"/conversation",
                 [SwaggerRequestExample(typeof(ConversationRequest), typeof(ConversationalSearchEndpointsExamples.SuccessExample))]
                 [SwaggerResponseExample(404, typeof(ConversationalSearchEndpointsExamples.Error404Example))]
@@ -32,7 +32,8 @@ public static class ConversationalSearchEndpoints
                     HttpContext httpContext,
                     [FromServices] IConversationService conversationService,
                     [FromServices] IMultiTenantStore<ApplicationTenantInfo> tenantStore,
-                    [FromBody] ConversationRequest request
+                    [FromBody] ConversationRequest request,
+                    CancellationToken cancellationToken
                 ) =>
                 {
                     var tenantId = httpContext.GetTenantHeader();
@@ -44,10 +45,10 @@ public static class ConversationalSearchEndpoints
                     }
 
                     var startConversation = new StartConversation(tenant.ChatModel, tenant.AmountOfSearchReferences, (Language)request.Language);
-                    var conversationId = await conversationService.StartConversationAsync(startConversation);
+                    var conversationId = await conversationService.StartConversationAsync(startConversation, cancellationToken);
 
                     var holdConversation = new HoldConversation(conversationId.Value, tenantId, request.Prompt, request.Context, (Language)request.Language);
-                    var response = await conversationService.ConverseAsync(holdConversation);
+                    var response = await conversationService.ConverseAsync(holdConversation, cancellationToken);
 
                     return MapToApiResponse(response);
                 })
@@ -68,13 +69,14 @@ public static class ConversationalSearchEndpoints
                 async ([FromRoute] Guid conversationId,
                     HttpContext httpContext,
                     [FromServices] IConversationService conversationService,
-                    [FromBody] ConversationRequest request
+                    [FromBody] ConversationRequest request,
+                    CancellationToken cancellationToken
                 ) =>
                 {
                     var tenantId = httpContext.GetTenantHeader();
 
                     var holdConversation = new HoldConversation(conversationId, tenantId, request.Prompt, request.Context, (Language)request.Language);
-                    var response = await conversationService.ConverseAsync(holdConversation);
+                    var response = await conversationService.ConverseAsync(holdConversation, cancellationToken);
 
                     return MapToApiResponse(response);
                 })
