@@ -1,8 +1,10 @@
-using System.Collections.Specialized;
+using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using ConversationalSearchPlatform.BackOffice.Constants;
 using ConversationalSearchPlatform.BackOffice.Data.Entities;
 using ConversationalSearchPlatform.BackOffice.Exceptions;
+using ConversationalSearchPlatform.BackOffice.Extensions;
 using ConversationalSearchPlatform.BackOffice.Resources;
 using ConversationalSearchPlatform.BackOffice.Services.Models;
 using ConversationalSearchPlatform.BackOffice.Services.Models.Weaviate.Queries;
@@ -15,12 +17,13 @@ using Language = ConversationalSearchPlatform.BackOffice.Services.Models.Languag
 
 namespace ConversationalSearchPlatform.BackOffice.Services.Implementations;
 
-public class ConversationService : IConversationService
+public partial class ConversationService : IConversationService
 {
     private readonly IMemoryCache _conversationsCache;
     private readonly IOpenAiFactory _openAiFactory;
     private readonly IMultiTenantStore<ApplicationTenantInfo> _tenantStore;
     private readonly IVectorizationService _vectorizationService;
+    private readonly ILogger<ConversationService> _logger;
 
 
     private readonly MemoryCacheEntryOptions _defaultMemoryCacheEntryOptions = new()
@@ -32,12 +35,14 @@ public class ConversationService : IConversationService
         IMemoryCache conversationsCache,
         IOpenAiFactory openAiFactory,
         IMultiTenantStore<ApplicationTenantInfo> tenantStore,
-        IVectorizationService vectorizationService)
+        IVectorizationService vectorizationService,
+        ILogger<ConversationService> logger)
     {
         _conversationsCache = conversationsCache;
         _openAiFactory = openAiFactory;
         _tenantStore = tenantStore;
         _vectorizationService = vectorizationService;
+        _logger = logger;
     }
 
     public Task<ConversationId> StartConversationAsync(StartConversation startConversation, CancellationToken cancellationToken)
@@ -45,7 +50,7 @@ public class ConversationService : IConversationService
         var conversationId = Guid.NewGuid();
         var cacheKey = GetCacheKey(conversationId);
         _conversationsCache.Set(cacheKey,
-            new ConversationHolder(startConversation.Model, startConversation.AmountOfSearchReferences),
+            new ConversationHistory(startConversation.Model, startConversation.AmountOfSearchReferences),
             _defaultMemoryCacheEntryOptions);
 
         return Task.FromResult(new ConversationId(conversationId));
@@ -53,12 +58,93 @@ public class ConversationService : IConversationService
 
     public async Task<ConversationReferencedResult> ConverseAsync(HoldConversation holdConversation, CancellationToken cancellationToken)
     {
-        holdConversation.Prompt = holdConversation.Prompt.Trim();
-
         var cacheKey = GetCacheKey(holdConversation.ConversationId);
-
         var conversationHistory = GetConversationHistory(holdConversation, cacheKey);
 
+        var (chatBuilder, textReferences) = await BuildChatAsync(holdConversation, conversationHistory, cancellationToken);
+
+        var chatResult = await chatBuilder.ExecuteAndCalculateCostAsync(false, cancellationToken);
+        var answer = chatResult.Result.CombineAnswers();
+
+        conversationHistory.AppendToConversation(holdConversation.Prompt, answer);
+        conversationHistory.SaveConversationHistory(_conversationsCache, cacheKey);
+
+        return ParseAnswerWithReferences(holdConversation, conversationHistory, textReferences);
+    }
+
+    public async IAsyncEnumerable<ConversationReferencedResult> ConverseStreamingAsync(
+        HoldConversation holdConversation,
+        string tenantId,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var cacheKey = GetCacheKey(holdConversation.ConversationId);
+        var conversationHistory = GetConversationHistory(holdConversation, cacheKey);
+        conversationHistory.IsStreaming = true;
+
+        var (chatBuilder, textReferences) = await BuildChatAsync(holdConversation, conversationHistory, cancellationToken);
+
+        await foreach (var entry in chatBuilder
+                           .ExecuteAsStreamAndCalculateCostAsync(false, cancellationToken)
+                           .SelectAwait(streamEntry => ProcessStreamedChatChunk(
+                               holdConversation,
+                               streamEntry,
+                               cacheKey,
+                               conversationHistory,
+                               textReferences,
+                               cancellationToken)
+                           )
+                           .Where(result => result is { IsOk: true, Value: not null })
+                           .Select(result => result.Value!)
+                           .WithCancellation(cancellationToken))
+        {
+            yield return entry;
+        }
+    }
+
+    private ValueTask<StreamResult<ConversationReferencedResult>> ProcessStreamedChatChunk(
+        HoldConversation holdConversation,
+        CostResult<StreamingChatResult> streamEntry,
+        string cacheKey,
+        ConversationHistory conversationHistory,
+        List<SortedSearchReference> textReferences,
+        CancellationToken cancellationToken)
+    {
+        var chunk = streamEntry.Result.LastChunk.Choices?
+            .Select(choice => choice)
+            .FirstOrDefault(choice => choice.Delta is { Role: ChatRole.Assistant });
+
+        if (chunk == null)
+        {
+            return ValueTask.FromResult(StreamResult<ConversationReferencedResult>.Skip("NoAssistantRole"));
+        }
+
+        var completed = chunk.IsAnswerCompleted(_logger);
+
+        if (StreamCancelledOrFinished(completed, cancellationToken) && HasFullyComposedMessage(streamEntry))
+        {
+            var answer = streamEntry.Result.CombineStreamAnswer();
+            conversationHistory.IsStreaming = false;
+            conversationHistory.StreamingResponseChunks.Clear();
+
+            conversationHistory.AppendToConversation(holdConversation.Prompt, answer);
+            conversationHistory.SaveConversationHistory(_conversationsCache, cacheKey);
+        }
+        else
+        {
+            var chunkedAnswer = chunk.Delta?.Content ?? string.Empty;
+            conversationHistory.StreamingResponseChunks.Add(chunkedAnswer);
+        }
+
+        var result = ParseAnswerWithReferences(holdConversation, conversationHistory, textReferences);
+        return ValueTask.FromResult(StreamResult<ConversationReferencedResult>.Ok(result));
+    }
+
+    private async Task<(ChatRequestBuilder chatRequestBuilder, List<SortedSearchReference>)> BuildChatAsync(
+        HoldConversation holdConversation,
+        ConversationHistory conversationHistory,
+        CancellationToken cancellationToken)
+    {
+        holdConversation.Prompt = holdConversation.Prompt.Trim();
         var basePrompt = (await GetEmbeddedResourceText(ResourceConstants.BasePromptFile)).Trim();
 
         var tenantPrompt = await GetTenantPromptAsync(holdConversation.TenantId, holdConversation.ConversationContext);
@@ -81,57 +167,90 @@ public class ConversationService : IConversationService
             textReferences.Select(reference => reference.InternalId).Distinct().ToList(),
             cancellationToken);
 
-        var references = textReferences.Select((textRef, i) => new SortedSearchReference
+        var indexedTextReferences = IndexizeTextReferences(textReferences);
+
+        basePrompt = basePrompt.Replace("{{TextSources}}", FlattenTextReferences(indexedTextReferences));
+        basePrompt = basePrompt.Replace("{{ImageSources}}", FlattenImageReferences(indexedTextReferences, imageSearchReferences));
+
+        var chatBuilder = _openAiFactory.CreateChat()
+            .RequestWithSystemMessage(basePrompt)
+            .AddPreviousMessages(conversationHistory.PromptResponses)
+            .AddUserMessage(holdConversation.Prompt)
+            .WithModel((ChatModelType)conversationHistory.Model)
+            .WithTemperature(1);
+
+        return (chatBuilder, indexedTextReferences);
+    }
+
+    private static List<SortedSearchReference> IndexizeTextReferences(List<TextSearchReference> textReferences)
+    {
+        return textReferences.Select((textRef, i) => new SortedSearchReference
             {
                 TextSearchReference = textRef,
                 Index = i + 1
             })
             .ToList();
+    }
 
-        basePrompt = basePrompt.Replace("{{TextSources}}", FlattenTextReferences(references));
-        basePrompt = basePrompt.Replace("{{ImageSources}}", FlattenImageReferences(references, imageSearchReferences));
+    private static ConversationReferencedResult ParseAnswerWithReferences(
+        HoldConversation holdConversation,
+        ConversationHistory conversationHistory,
+        IReadOnlyCollection<SortedSearchReference> textReferences)
+    {
+        string mergedAnswer;
 
-        var chatBuilder = _openAiFactory.CreateChat()
-            .RequestWithSystemMessage(basePrompt);
+        var isStreaming = conversationHistory.IsStreaming;
 
-        foreach (var conversation in conversationHistory.PromptResponses)
+        if (isStreaming)
         {
-            chatBuilder.AddUserMessage(conversation.prompt);
-            chatBuilder.AddAssistantMessage(conversation.prompt);
+            mergedAnswer = conversationHistory.GetAllStreamingResponseChunksMerged();
+        }
+        else
+        {
+            var (_, answer) = conversationHistory.PromptResponses.Last();
+            mergedAnswer = answer;
         }
 
-        chatBuilder.AddUserMessage(holdConversation.Prompt);
-        chatBuilder
-            .WithModel((ChatModelType)conversationHistory.Model)
-            .WithTemperature(1);
-
-        var chatResult = await chatBuilder
-            .ExecuteAndCalculateCostAsync(cancellationToken: cancellationToken);
-
-        var completeAnswer = ParseAnswer(chatResult);
-
-        AppendToConversationHistory(cacheKey, conversationHistory, holdConversation.Prompt, completeAnswer);
-
-        var index = 0;
-
-        var validReferences =
-            textReferences
-                .Where(document => completeAnswer.Contains(document.Source))
-                .Select(validReference => new ConversationReference(++index, validReference.Source, validReference.Type))
-                .ToList();
+        var validReferences = DetermineValidReferences(textReferences, mergedAnswer);
 
         return new ConversationReferencedResult(
             new ConversationResult(
                 holdConversation.ConversationId,
-                completeAnswer,
+                isStreaming ? conversationHistory.StreamingResponseChunks.Last() : mergedAnswer,
                 holdConversation.Language
             ),
             validReferences);
     }
 
-    private ConversationHolder GetConversationHistory(HoldConversation holdConversation, string cacheKey)
+    private static List<ConversationReference> DetermineValidReferences(IReadOnlyCollection<SortedSearchReference> textReferences, string mergedAnswer)
     {
-        if (!_conversationsCache.TryGetValue(cacheKey, out ConversationHolder? conversationHistory))
+        var sourceRegex = SourceIndexRegex();
+        var matches = sourceRegex.Matches(mergedAnswer);
+
+        var validReferences = new List<ConversationReference>();
+
+        foreach (Match match in matches)
+        {
+            var idx = match.Value
+                .TrimStart('[')
+                .TrimEnd(']');
+
+            var parsed = int.TryParse(idx, out var parsedIdx);
+
+            if (parsed)
+            {
+                var sortedSearchReference = textReferences.First(reference => reference.Index == parsedIdx);
+                var reference = new ConversationReference(parsedIdx, sortedSearchReference.TextSearchReference.Source, sortedSearchReference.TextSearchReference.Type);
+                validReferences.Add(reference);
+            }
+        }
+
+        return validReferences;
+    }
+
+    private ConversationHistory GetConversationHistory(HoldConversation holdConversation, string cacheKey)
+    {
+        if (!_conversationsCache.TryGetValue(cacheKey, out ConversationHistory? conversationHistory))
         {
             ThrowHelper.ThrowConversationNotFoundException(holdConversation.ConversationId);
         }
@@ -139,28 +258,6 @@ public class ConversationService : IConversationService
         return conversationHistory!;
     }
 
-    private static string ParseAnswer(CostResult<ChatResult> chatResult)
-    {
-        var answers = chatResult
-                          .Result
-                          .Choices?
-                          .Select(choice => choice.Message)
-                          .Where(message => message != null)
-                          .Select(message => message!)
-                          .Where(msg => msg.Role == ChatRole.Assistant)
-                          .Select(message => message.Content)
-                          .Where(content => content != null) ??
-                      Enumerable.Empty<string>();
-
-        return string.Join(Environment.NewLine, answers)
-            .ReplaceLineEndings();
-    }
-
-    private void AppendToConversationHistory(string cacheKey, ConversationHolder conversationHistory, string promptText, string completeAnswer)
-    {
-        conversationHistory.PromptResponses.Add((promptText, completeAnswer));
-        _conversationsCache.Set(cacheKey, conversationHistory);
-    }
 
     private async Task<string> GetTenantPromptAsync(string tenantId, IDictionary<string, string> conversationContext)
     {
@@ -221,7 +318,7 @@ public class ConversationService : IConversationService
     }
 
     private async Task<List<ImageSearchReference>> GetImageReferences(
-        ConversationHolder conversationHistory,
+        ConversationHistory conversationHistory,
         string collectionName,
         string prompt,
         List<string> textReferenceInternalIds,
@@ -250,7 +347,7 @@ public class ConversationService : IConversationService
     }
 
     private async Task<List<TextSearchReference>> GetTextReferences(
-        ConversationHolder conversationHistory,
+        ConversationHistory conversationHistory,
         string collectionName,
         string tenantId,
         string language,
@@ -271,7 +368,10 @@ public class ConversationService : IConversationService
         var search = await _vectorizationService
             .SearchAsync<GetByPromptFiltered.WebsitePageQueryParams, GetByPromptFiltered.WeaviateRecordResponse>(GetByPromptFiltered.Key, request, cancellationToken);
 
-        return search.Select(result =>
+        return search
+            .GroupBy(p => p.Source)
+            .Select(grouping => grouping.First())
+            .Select(result =>
             {
                 Enum.TryParse<ConversationReferenceType>(result.ReferenceType, out var refType);
                 Enum.TryParse<Language>(result.Language, out var lang);
@@ -306,6 +406,17 @@ public class ConversationService : IConversationService
         return resourceContents;
     }
 
+
+    private static bool HasFullyComposedMessage(CostResult<StreamingChatResult> streamEntry) =>
+        streamEntry.Result.Composed.Choices != null &&
+        streamEntry.Result.Composed.Choices.Count != 0;
+
+    private static bool StreamCancelledOrFinished(bool completed, CancellationToken cancellationToken) =>
+        completed || cancellationToken.IsCancellationRequested;
+
     private static string GetCacheKey(Guid conversationId) =>
         $"conversation_{conversationId}";
+
+    [GeneratedRegex("\\[([0-9]*?)\\]")]
+    private static partial Regex SourceIndexRegex();
 }

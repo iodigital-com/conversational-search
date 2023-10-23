@@ -118,6 +118,8 @@ internal class Program
         app.UseMultiTenant();
         app.UseStaticFiles();
         app.UseAntiforgery();
+        app.UseWebSockets();
+        app.MapConversationalSearchWebSocket();
         app.MapGroup(ApiConstants.ApiV1Path)
             .MapConversationalSearchGroup()
             .MapIndexingGroup();

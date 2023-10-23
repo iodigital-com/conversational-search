@@ -1,17 +1,24 @@
 ﻿@page "/index"
-@using ConversationalSearchPlatform.BackOffice.Models
 @using ConversationalSearchPlatform.BackOffice.Services
 @using ConversationalSearchPlatform.BackOffice.Data.Entities
 @using ConversationalSearchPlatform.BackOffice.Components.Modals
 @using ConversationalSearchPlatform.BackOffice.Constants
+@using ConversationalSearchPlatform.BackOffice.Jobs
 @using ConversationalSearchPlatform.BackOffice.Models.Conversations
 @using ConversationalSearchPlatform.BackOffice.Models.Indexing
 @using ConversationalSearchPlatform.BackOffice.Paging
+@using ConversationalSearchPlatform.BackOffice.Tenants
+@using Finbuckle.MultiTenant
+@using Hangfire
 @using Microsoft.AspNetCore.Authorization
 @attribute [RenderModeInteractiveServer]
 
 @inject IDialogService DialogService;
+@inject ISnackbar Snackbar;
 @inject IIndexingService<WebsitePage> IndexingService;
+@inject IBackgroundJobClient BackgroundJobClient;
+@inject IMultiTenantContextAccessor<ApplicationTenantInfo> TenantAccessor;
+
 @attribute [Authorize]
 
 <PageTitle>Index content</PageTitle>
@@ -58,9 +65,11 @@
             <TemplateColumn>
                 <CellTemplate Context="cellContext">
                     @{
+                        var cellContextItem = cellContext.Item;
+
                         async Task DeleteButtonCallback()
                         {
-                            var websitePage = cellContext.Item as WebsitePageDto;
+                            var websitePage = cellContextItem as WebsitePageDto;
                             var props = new DeleteModalProps(
                                 $"Website page {websitePage.Name} Deleted",
                                 websitePage.Id,
@@ -86,10 +95,10 @@
 
                         async Task EditButtonCallback()
                         {
-                            if (cellContext.Item is WebsitePageDto getEmbeddingResponse)
+                            if (cellContextItem is WebsitePageDto)
                             {
                                 var editModalProps = new EditModalProps<WebsitePageDto>(
-                                    cellContext.Item,
+                                    cellContextItem,
                                     () => _grid.ReloadServerData()
                                     );
                                 var dialogParameters = new DialogParameters
@@ -102,11 +111,28 @@
                                 await DialogService.ShowAsync<UpdateWebsitePageModal>("Edit page record", dialogParameters, ModalSettings.Default);
                             }
                         }
+
+                        async Task RefreshCallback()
+                        {
+                            if (cellContextItem is WebsitePageDto websitePageDto)
+                            {
+                                var tenantId = TenantAccessor.MultiTenantContext?.TenantInfo?.Id;
+                                if (tenantId != null)
+                                {
+                                    BackgroundJobClient.Enqueue<WebsitePageIndexingJob>(job =>
+                                        job.Execute(tenantId, new WebsitePageIndexingDetails(websitePageDto.Id, IndexJobChangeType.UPDATE)));
+                                    Snackbar.Add("Enqueued job to reindex page", Severity.Success);
+                                }
+                                else
+                                {
+                                    Snackbar.Add("Unable to execute action. Tenant could not be resolved", Severity.Error);
+                                }
+                            }
+                        }
                     }
-                    <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Edit" OnClick="@(EditButtonCallback)">
-                    </MudIconButton>
-                    <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Delete" OnClick="@(DeleteButtonCallback)">
-                    </MudIconButton>
+                    <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Edit" OnClick="@(EditButtonCallback)"></MudIconButton>
+                    <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.RemoveFromQueue" OnClick="@(RefreshCallback)"></MudIconButton>
+                    <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Delete" OnClick="@(DeleteButtonCallback)"></MudIconButton>
                 </CellTemplate>
             </TemplateColumn>
         </Columns>

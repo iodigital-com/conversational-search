@@ -6,7 +6,6 @@ using ConversationalSearchPlatform.BackOffice.Services.Models;
 using ConversationalSearchPlatform.BackOffice.Services.Models.Weaviate.Queries;
 using ConversationalSearchPlatform.BackOffice.Tenants;
 using Finbuckle.MultiTenant;
-using GraphQL;
 using Hangfire;
 using HttpClientToCurl;
 using Microsoft.EntityFrameworkCore;
@@ -66,6 +65,8 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
                     await CreateEntry(db, tenantId, details);
                     break;
                 case IndexJobChangeType.UPDATE:
+                    await DeleteEntry(db, tenantId, details);
+                    await CreateEntry(db, tenantId, details);
                     break;
                 case IndexJobChangeType.DELETE:
                     await DeleteEntry(db, tenantId, details);
@@ -96,40 +97,64 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
 
     private async Task DeletePagesAsync(IIndexable indexable)
     {
+        var recordsLeftToDelete = true;
+
         var request = new GetWebsitePageByInternalIdForDeletion()
             .Request(new GetWebsitePageByInternalIdForDeletion.GetByInternalIdForDeletionQueryParams(indexable.Id.ToString()));
 
-        var pageResponses = await _vectorizationService
-            .SearchAsync<
-                GetWebsitePageByInternalIdForDeletion.GetByInternalIdForDeletionQueryParams,
-                GetWebsitePageByInternalIdForDeletion.WeaviateRecordResponse>(nameof(WebsitePage),
-                request);
+        do
+        {
+            var pageResponses = await _vectorizationService
+                .SearchAsync<
+                    GetWebsitePageByInternalIdForDeletion.GetByInternalIdForDeletionQueryParams,
+                    GetWebsitePageByInternalIdForDeletion.WeaviateRecordResponse
+                >(nameof(WebsitePage), request);
 
-        var pageIdsToDelete = pageResponses.Select(response => response.Additional?.Id)
-            .Where(guid => guid != null)
-            .OfType<Guid>()
-            .ToList();
 
-        await _vectorizationService.BulkDeleteAsync(nameof(WebsitePage), pageIdsToDelete);
+            if (pageResponses.Count == 0)
+            {
+                recordsLeftToDelete = false;
+            }
+            else
+            {
+                var pageIdsToDelete = pageResponses.Select(response => response.Additional?.Id)
+                    .Where(guid => guid != null)
+                    .OfType<Guid>()
+                    .ToList();
+                await _vectorizationService.BulkDeleteAsync(nameof(WebsitePage), pageIdsToDelete);
+            }
+        } while (recordsLeftToDelete);
     }
 
     private async Task DeleteImagesAsync(IIndexable indexable)
     {
+        var recordsLeftToDelete = true;
+
         var request = new GetImagesByInternalIdForDeletion()
             .Request(new GetImagesByInternalIdForDeletion.GetImagesByInternalIdForDeletionQueryParams(indexable.Id.ToString()));
 
-        var imageResponses = await _vectorizationService
-            .SearchAsync<
-                GetImagesByInternalIdForDeletion.GetImagesByInternalIdForDeletionQueryParams,
-                GetImagesByInternalIdForDeletion.WeaviateRecordResponse>(IndexingConstants.ImageClass,
-                request);
+        do
+        {
+            var imageResponses = await _vectorizationService
+                .SearchAsync<
+                    GetImagesByInternalIdForDeletion.GetImagesByInternalIdForDeletionQueryParams,
+                    GetImagesByInternalIdForDeletion.WeaviateRecordResponse
+                >(IndexingConstants.ImageClass, request);
 
-        var imageIdsToDelete = imageResponses.Select(response => response.Additional?.Id)
-            .Where(guid => guid != null)
-            .OfType<Guid>()
-            .ToList();
+            if (imageResponses.Count == 0)
+            {
+                recordsLeftToDelete = false;
+            }
+            else
+            {
+                var imageIdsToDelete = imageResponses.Select(response => response.Additional?.Id)
+                    .Where(guid => guid != null)
+                    .OfType<Guid>()
+                    .ToList();
 
-        await _vectorizationService.BulkDeleteAsync(IndexingConstants.ImageClass, imageIdsToDelete);
+                await _vectorizationService.BulkDeleteAsync(IndexingConstants.ImageClass, imageIdsToDelete);
+            }
+        } while (recordsLeftToDelete);
     }
 
     private async Task CreateEntry(ApplicationDbContext db, string tenantId, WebsitePageIndexingDetails details)
@@ -195,7 +220,6 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
                     var byteArray = await response.Content.ReadAsByteArrayAsync();
                     var imageBlob = Convert.ToBase64String(byteArray);
 
-                    //todo add nearbytext
                     var imageResult = new ImageResult(filename, imageBlob, part.AltDescription, part.NearbyText, part.Url, internalId);
                     imageResults.Add(imageResult);
                 }

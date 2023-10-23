@@ -1,9 +1,6 @@
 @page "/preferences"
-@using ConversationalSearchPlatform.BackOffice.Models.Users
-@using ConversationalSearchPlatform.BackOffice.Services
 @using ConversationalSearchPlatform.BackOffice.Tenants
 @using Finbuckle.MultiTenant
-@using ConversationalSearchPlatform.BackOffice.Components.Modals
 @using ConversationalSearchPlatform.BackOffice.Models.Preferences
 @using ConversationalSearchPlatform.BackOffice.Models.Tenants
 @using ConversationalSearchPlatform.BackOffice.Services.Models
@@ -53,7 +50,7 @@
                                 Class="mt-3"
                                 @bind-Value="NewPromptTag"
                                 For="@(() => NewPromptTag)"
-                                HelperText="Example tag: {{Make}} to designate the make of a vehicle which can then be used in the prompt as replacement for the conversation context."/>
+                                HelperText="Example tag: {{make}} to designate the make of a vehicle which can then be used in the prompt as replacement for the conversation context."/>
                         </MudItem>
                         <MudItem xs="4">
                             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddNewPromptTag">Add</MudButton>
@@ -62,7 +59,7 @@
                     @{
                         foreach (var promptTag in Model.PromptTags)
                         {
-                            <MudChip Value="@promptTag.Value">@promptTag.Value</MudChip>
+                            <MudChip OnClose="@(() => RemoveTag(promptTag.Value))" Value="@promptTag.Value">@promptTag.Value</MudChip>
                         }
                     }
                     <MudTextField
@@ -186,6 +183,15 @@
         {
             Model.PromptTags.Add(new PromptTagDto(NewPromptTag));
             NewPromptTag = null;
+        }
+    }
+
+    void RemoveTag(string promptTagValue)
+    {
+        var toRemove = Model.PromptTags.FirstOrDefault(dto => dto.Value == promptTagValue);
+        if (toRemove != null)
+        {
+            Model.PromptTags.Remove(toRemove);
         }
     }
 

@@ -25,16 +25,16 @@ And you have the following fictitious image source:
 Valid answers would be:
 
 Question: What kind of job does Tom Bruyneel do?
-Answer: Tom Bruyneel is a developer [https://www.doc1.be]
+Answer: Tom Bruyneel is a developer [1]
 
 Question: Where does is Sioen located?
-Answer: In West-Flanders [https://www.doc2.be]
+Answer: In West-Flanders [2]
 
 Question: What is Sioen?
-Answer: A company in West-Flanders. This is the logo of Sioen <img src="https://www.doc2.be/logo.png" alt="The logo of Sioen"> [https://www.doc2.be].
+Answer: A company in West-Flanders. This is the logo of Sioen <img src="https://www.doc2.be/logo.png" alt="The logo of Sioen"> [1].
 
 Question: Does Tom Bruyneel work for Sioen?
-Answer: I don't have information about that, but Tom Bruyneel lives in Gent [https://www.doc1.be] and Sioen is a West-Flemish company [https://www.doc2.be]
+Answer: I don't have information about that, but Tom Bruyneel lives in Gent [1] and Sioen is a West-Flemish company [2]
 
 Question: Who is Tom Bruyneel?
-Answer: Tom Bruyneel is a developer who lives in Gent [https://www.doc1.be] and he loves Italian music [https://www.doc3.be].
+Answer: Tom Bruyneel is a developer who lives in Gent [https://www.doc1.be] and he loves Italian music [3].
