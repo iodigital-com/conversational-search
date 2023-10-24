@@ -8,4 +8,5 @@ public interface IConversationService
 
     Task<ConversationReferencedResult> ConverseAsync(HoldConversation holdConversation, CancellationToken cancellationToken = default);
     IAsyncEnumerable<ConversationReferencedResult> ConverseStreamingAsync(HoldConversation holdConversation, string tenantId, CancellationToken cancellationToken);
+    Task<ConversationSimulation> SimulateAsync(HoldConversation holdConversation, CancellationToken cancellationToken);
 }

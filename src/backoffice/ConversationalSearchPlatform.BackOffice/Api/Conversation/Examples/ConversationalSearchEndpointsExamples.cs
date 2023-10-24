@@ -102,4 +102,9 @@ public static class ConversationalSearchEndpointsExamples
         }
     }
 
+    public class ConversationSimulationResponseExample : IExamplesProvider<ConversationSimulationResponse>
+    {
+        public ConversationSimulationResponse GetExamples() =>
+            new("A prompt here");
+    }
 }

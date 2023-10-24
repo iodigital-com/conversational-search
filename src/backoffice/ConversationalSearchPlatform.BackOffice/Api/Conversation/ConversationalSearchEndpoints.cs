@@ -122,6 +122,46 @@ public static class ConversationalSearchEndpoints
             .Produces<ProblemDetails>((int)HttpStatusCode.BadRequest)
             .Produces<ProblemDetails>((int)HttpStatusCode.InternalServerError)
             ;
+
+        innerGroup.MapPost("/conversation/simulation",
+                [SwaggerRequestExample(typeof(ConversationRequest), typeof(ConversationalSearchEndpointsExamples.SuccessExample))]
+                [SwaggerResponseExample(200, typeof(ConversationalSearchEndpointsExamples.ConversationSimulationResponseExample))]
+                [SwaggerResponseExample(404, typeof(ConversationalSearchEndpointsExamples.Error404Example))]
+                [SwaggerResponseExample(400, typeof(ConversationalSearchEndpointsExamples.Error400Example))]
+                [SwaggerResponseExample(500, typeof(ConversationalSearchEndpointsExamples.Error500Example))]
+                async (
+                    HttpContext httpContext,
+                    [FromServices] IConversationService conversationService,
+                    [FromServices] IMultiTenantStore<ApplicationTenantInfo> tenantStore,
+                    [FromBody] ConversationRequest request,
+                    CancellationToken cancellationToken
+                ) =>
+                {
+                    var tenantId = httpContext.GetTenantHeader();
+                    var tenant = await tenantStore.TryGetAsync(tenantId);
+
+                    if (tenant == null)
+                    {
+                        ThrowHelper.ThrowTenantNotFoundException(tenantId);
+                    }
+
+                    var startConversation = new StartConversation(tenant.ChatModel, tenant.AmountOfSearchReferences, (Language)request.Language);
+
+                    var conversationId = await conversationService.StartConversationAsync(startConversation, cancellationToken);
+
+                    var holdConversation = new HoldConversation(conversationId.Value, tenantId, request.Prompt, request.Context, (Language)request.Language);
+                    var response = await conversationService.SimulateAsync(holdConversation, cancellationToken);
+
+                    return new ConversationSimulationResponse(response.Prompt);
+                })
+            .WithName("SimulateConversation")
+            .WithDescription("Simulate a conversation, returning the prompt.")
+            .Produces<ConversationSimulationResponse>()
+            .Produces<ProblemDetails>((int)HttpStatusCode.NotFound)
+            .Produces<ProblemDetails>((int)HttpStatusCode.BadRequest)
+            .Produces<ProblemDetails>((int)HttpStatusCode.InternalServerError)
+            ;
+
         innerGroup.MapPost("/conversation/{conversationId}/streaming",
                 [SwaggerRequestExample(typeof(ConversationRequest), typeof(ConversationalSearchEndpointsExamples.SuccessExample))]
                 [SwaggerResponseExample(200, typeof(ConversationalSearchEndpointsExamples.ConversationReferencedResponseExample))]

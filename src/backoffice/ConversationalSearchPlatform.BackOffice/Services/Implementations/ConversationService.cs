@@ -101,6 +101,16 @@ public partial class ConversationService : IConversationService
         }
     }
 
+    public async Task<ConversationSimulation> SimulateAsync(HoldConversation holdConversation, CancellationToken cancellationToken)
+    {
+        var cacheKey = GetCacheKey(holdConversation.ConversationId);
+        var conversationHistory = GetConversationHistory(holdConversation, cacheKey);
+
+        var (chatBuilder, textReferences) = await BuildChatAsync(holdConversation, conversationHistory, cancellationToken);
+        var fullPrompt = string.Join(Environment.NewLine, chatBuilder.GetCurrentMessages().Select(message => message.Content));
+        return new ConversationSimulation(fullPrompt);
+    }
+
     private ValueTask<StreamResult<ConversationReferencedResult>> ProcessStreamedChatChunk(
         HoldConversation holdConversation,
         CostResult<StreamingChatResult> streamEntry,
@@ -241,11 +251,17 @@ public partial class ConversationService : IConversationService
             {
                 var sortedSearchReference = textReferences.First(reference => reference.Index == parsedIdx);
                 var reference = new ConversationReference(parsedIdx, sortedSearchReference.TextSearchReference.Source, sortedSearchReference.TextSearchReference.Type);
-                validReferences.Add(reference);
+
+                if (validReferences.All(conversationReference => conversationReference.Index != parsedIdx))
+                {
+                    validReferences.Add(reference);
+                }
             }
         }
 
-        return validReferences;
+        return validReferences
+            .OrderBy(reference => reference.Index)
+            .ToList();
     }
 
     private ConversationHistory GetConversationHistory(HoldConversation holdConversation, string cacheKey)

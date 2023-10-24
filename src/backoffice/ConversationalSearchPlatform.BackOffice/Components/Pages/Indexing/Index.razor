@@ -43,7 +43,7 @@
             <PropertyColumn T="WebsitePageDto" TProperty="string" Property="x => x.Url" Sortable="false"/>
             <PropertyColumn T="WebsitePageDto" TProperty="ConversationReferenceTypeDto" Title="Reference type" Property="x => x.ReferenceType" Sortable="false"/>
             <PropertyColumn T="WebsitePageDto" TProperty="LanguageDto" Title="Language" Property="x => x.Language" Sortable="false"/>
-            <TemplateColumn CellStyle="min-width: 180px;" Title="Indexed at">
+            <TemplateColumn CellStyle="min-width: 180px;" Title="Indexed at" Sortable="false">
                 <CellTemplate Context="cellContext">
                     @{
                         var websitePageDto = cellContext.Item as WebsitePageDto;
@@ -62,7 +62,7 @@
 
                 </CellTemplate>
             </TemplateColumn>
-            <TemplateColumn>
+            <TemplateColumn CellStyle="min-width: 120px;">
                 <CellTemplate Context="cellContext">
                     @{
                         var cellContextItem = cellContext.Item;
@@ -131,7 +131,7 @@
                         }
                     }
                     <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Edit" OnClick="@(EditButtonCallback)"></MudIconButton>
-                    <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.RemoveFromQueue" OnClick="@(RefreshCallback)"></MudIconButton>
+                    <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Refresh" OnClick="@(RefreshCallback)"></MudIconButton>
                     <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Delete" OnClick="@(DeleteButtonCallback)"></MudIconButton>
                 </CellTemplate>
             </TemplateColumn>
