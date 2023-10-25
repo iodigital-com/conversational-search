@@ -1,6 +1,7 @@
 using System.Text.Json;
 using ConversationalSearchPlatform.BackOffice.Constants;
 using ConversationalSearchPlatform.BackOffice.Data.Entities;
+using ConversationalSearchPlatform.BackOffice.Events;
 using ConversationalSearchPlatform.BackOffice.Services.Models;
 using ConversationalSearchPlatform.BackOffice.Services.Models.Weaviate;
 using ConversationalSearchPlatform.BackOffice.Services.Models.Weaviate.Queries;
@@ -22,13 +23,15 @@ public class WeaviateVectorizationService : IVectorizationService
     private readonly ILogger<WeaviateVectorizationService> _logger;
     private readonly IWeaviateRecordCreator<ImageResult, ImageCollection, ImageWeaviateCreateRecord> _imageCreator;
     private readonly IWeaviateRecordCreator<ChunkResult, ChunkCollection, WebsitePageWeaviateCreateRecord> _websitePageCreator;
+    private readonly IOpenAIUsageTelemetryService _telemetryService;
 
     public WeaviateVectorizationService(ILogger<WeaviateVectorizationService> logger,
         IHttpClientFactory httpClientFactory,
         IGraphQLClient graphQLClient,
         IOpenAiFactory openAiFactory,
         IWeaviateRecordCreator<ChunkResult, ChunkCollection, WebsitePageWeaviateCreateRecord> websitePageCreator,
-        IWeaviateRecordCreator<ImageResult, ImageCollection, ImageWeaviateCreateRecord> imageCreator)
+        IWeaviateRecordCreator<ImageResult, ImageCollection, ImageWeaviateCreateRecord> imageCreator,
+        IOpenAIUsageTelemetryService telemetryService)
     {
         _logger = logger;
         _httpClientFactory = httpClientFactory;
@@ -36,15 +39,17 @@ public class WeaviateVectorizationService : IVectorizationService
         _openAiFactory = openAiFactory;
         _websitePageCreator = websitePageCreator;
         _imageCreator = imageCreator;
+        _telemetryService = telemetryService;
     }
 
-    public async Task<float[]> CreateVectorAsync(string text)
+    public async Task<float[]> CreateVectorAsync(Guid correlationId, string tenantId, UsageType usageType, string content)
     {
         var openAiEmbedding = _openAiFactory.CreateEmbedding();
-        return await GetVectorDataAsync(openAiEmbedding, text);
+        return await GetVectorDataAsync(openAiEmbedding, correlationId, tenantId, usageType, content);
     }
 
-    public async Task<List<Guid>> BulkCreateAsync<T>(string collectionName, IInsertableCollection<T> insertableCollection) where T : IInsertable
+    public async Task<List<Guid>> BulkCreateAsync<T>(string collectionName, Guid correlationId, string tenantId, UsageType usageType, IInsertableCollection<T> insertableCollection)
+        where T : IInsertable
     {
         var openAiEmbedding = _openAiFactory.CreateEmbedding();
         var objectIds = new List<Guid>(insertableCollection.Items.Capacity);
@@ -56,13 +61,21 @@ public class WeaviateVectorizationService : IVectorizationService
 
         foreach (var item in insertableCollection.Items)
         {
-            await ProcessItemAsync(collectionName, insertableCollection, openAiEmbedding, item, objectIds);
+            await ProcessItemAsync(collectionName, correlationId, tenantId, usageType, insertableCollection, openAiEmbedding, item, objectIds);
         }
 
         return objectIds;
     }
 
-    private async Task ProcessItemAsync<T>(string collectionName, IInsertableCollection<T> insertableCollection, IOpenAiEmbedding openAiEmbedding, T item, List<Guid> objectIds)
+
+    private async Task ProcessItemAsync<T>(
+        string collectionName,
+        Guid correlationId,
+        string tenantId,
+        UsageType usageType,
+        IInsertableCollection<T> insertableCollection,
+        IOpenAiEmbedding openAiEmbedding,
+        T item, List<Guid> objectIds)
         where T : IInsertable
     {
         try
@@ -70,11 +83,19 @@ public class WeaviateVectorizationService : IVectorizationService
             object weaviateCreateObject = collectionName switch
             {
                 //TODO this is dirty casting
-                nameof(WebsitePage) => await _websitePageCreator.CreateRecordAsync(collectionName,
+                nameof(WebsitePage) => await _websitePageCreator.CreateRecordAsync(
+                    collectionName,
+                    correlationId,
+                    tenantId,
+                    usageType,
                     (insertableCollection as ChunkCollection)!,
                     openAiEmbedding,
                     (item as ChunkResult)!),
-                IndexingConstants.ImageClass => await _imageCreator.CreateRecordAsync(collectionName,
+                IndexingConstants.ImageClass => await _imageCreator.CreateRecordAsync(
+                    collectionName,
+                    correlationId,
+                    tenantId,
+                    usageType,
                     (insertableCollection as ImageCollection)!,
                     openAiEmbedding,
                     (item as ImageResult)!),
@@ -136,14 +157,16 @@ public class WeaviateVectorizationService : IVectorizationService
         return innerResponse.Deserialize<List<T>>() ?? new List<T>();
     }
 
-    private static async Task<float[]> GetVectorDataAsync(IOpenAiEmbedding openAiEmbeddingFactory, string content)
+    private async Task<float[]> GetVectorDataAsync(IOpenAiEmbedding openAiEmbeddingFactory, Guid correlationId, string tenantId, UsageType usageType, string content)
     {
         var embeddingResult = await openAiEmbeddingFactory
             .Request(content)
             .WithModel(EmbeddingModelType.AdaTextEmbedding)
-            .ExecuteAsync();
+            .ExecuteAndCalculateCostAsync();
 
-        return (embeddingResult.Data ?? new List<EmbeddingData>())
+        _telemetryService.RegisterEmbeddingUsage(correlationId, tenantId, embeddingResult.Result.Usage!, usageType);
+
+        return (embeddingResult.Result.Data ?? new List<EmbeddingData>())
                .Select(data => data.Embedding)
                .First() ??
                Array.Empty<float>();

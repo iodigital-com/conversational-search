@@ -6,6 +6,6 @@ namespace ConversationalSearchPlatform.BackOffice.Data.Entities;
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum ReferenceType
 {
-    Official = 0,
+    Manual = 0,
     Community = 1
 }

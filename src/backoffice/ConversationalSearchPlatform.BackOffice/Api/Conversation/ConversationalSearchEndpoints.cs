@@ -10,6 +10,7 @@ using ConversationalSearchPlatform.BackOffice.Exceptions;
 using ConversationalSearchPlatform.BackOffice.Models.Conversations;
 using ConversationalSearchPlatform.BackOffice.Services;
 using ConversationalSearchPlatform.BackOffice.Services.Models;
+using ConversationalSearchPlatform.BackOffice.Services.Models.ConversationDebug;
 using ConversationalSearchPlatform.BackOffice.Tenants;
 using Finbuckle.MultiTenant;
 using Microsoft.AspNetCore.Http.Features;
@@ -123,45 +124,6 @@ public static class ConversationalSearchEndpoints
             .Produces<ProblemDetails>((int)HttpStatusCode.InternalServerError)
             ;
 
-        innerGroup.MapPost("/conversation/simulation",
-                [SwaggerRequestExample(typeof(ConversationRequest), typeof(ConversationalSearchEndpointsExamples.SuccessExample))]
-                [SwaggerResponseExample(200, typeof(ConversationalSearchEndpointsExamples.ConversationSimulationResponseExample))]
-                [SwaggerResponseExample(404, typeof(ConversationalSearchEndpointsExamples.Error404Example))]
-                [SwaggerResponseExample(400, typeof(ConversationalSearchEndpointsExamples.Error400Example))]
-                [SwaggerResponseExample(500, typeof(ConversationalSearchEndpointsExamples.Error500Example))]
-                async (
-                    HttpContext httpContext,
-                    [FromServices] IConversationService conversationService,
-                    [FromServices] IMultiTenantStore<ApplicationTenantInfo> tenantStore,
-                    [FromBody] ConversationRequest request,
-                    CancellationToken cancellationToken
-                ) =>
-                {
-                    var tenantId = httpContext.GetTenantHeader();
-                    var tenant = await tenantStore.TryGetAsync(tenantId);
-
-                    if (tenant == null)
-                    {
-                        ThrowHelper.ThrowTenantNotFoundException(tenantId);
-                    }
-
-                    var startConversation = new StartConversation(tenant.ChatModel, tenant.AmountOfSearchReferences, (Language)request.Language);
-
-                    var conversationId = await conversationService.StartConversationAsync(startConversation, cancellationToken);
-
-                    var holdConversation = new HoldConversation(conversationId.Value, tenantId, request.Prompt, request.Context, (Language)request.Language);
-                    var response = await conversationService.SimulateAsync(holdConversation, cancellationToken);
-
-                    return new ConversationSimulationResponse(response.Prompt);
-                })
-            .WithName("SimulateConversation")
-            .WithDescription("Simulate a conversation, returning the prompt.")
-            .Produces<ConversationSimulationResponse>()
-            .Produces<ProblemDetails>((int)HttpStatusCode.NotFound)
-            .Produces<ProblemDetails>((int)HttpStatusCode.BadRequest)
-            .Produces<ProblemDetails>((int)HttpStatusCode.InternalServerError)
-            ;
-
         innerGroup.MapPost("/conversation/{conversationId}/streaming",
                 [SwaggerRequestExample(typeof(ConversationRequest), typeof(ConversationalSearchEndpointsExamples.SuccessExample))]
                 [SwaggerResponseExample(200, typeof(ConversationalSearchEndpointsExamples.ConversationReferencedResponseExample))]
@@ -180,7 +142,7 @@ public static class ConversationalSearchEndpoints
 
                     var tenantId = httpContext.GetTenantHeader();
 
-                    var holdConversation = new HoldConversation(conversationId, tenantId, request.Prompt, request.Context, (Language)request.Language);
+                    var holdConversation = new HoldConversation(conversationId, tenantId, request.Prompt, request.Context, request.Debug, (Language)request.Language);
 
                     await foreach (var crr in conversationService
                                        .ConverseStreamingAsync(
@@ -188,7 +150,8 @@ public static class ConversationalSearchEndpoints
                                            tenantId,
                                            cancellationToken))
                     {
-                        var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(crr));
+                        var mapped = MapToApiResponse(crr);
+                        var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(mapped));
                         await httpContextResponse.BodyWriter.WriteAsync(new ReadOnlyMemory<byte>(bytes), cancellationToken);
                         await httpContextResponse.BodyWriter.FlushAsync(cancellationToken);
                     }
@@ -206,7 +169,7 @@ public static class ConversationalSearchEndpoints
         IConversationService conversationService,
         CancellationToken cancellationToken)
     {
-        var holdConversation = new HoldConversation(conversationId, tenantId, request.Prompt, request.Context, (Language)request.Language);
+        var holdConversation = new HoldConversation(conversationId, tenantId, request.Prompt, request.Context, request.Debug, (Language)request.Language);
         var response = await conversationService.ConverseAsync(holdConversation, cancellationToken);
 
         return MapToApiResponse(response);
@@ -224,11 +187,40 @@ public static class ConversationalSearchEndpoints
     private static ConversationReferencedResponse MapToApiResponse(ConversationReferencedResult response)
     {
         var conversationReferencedResponse = new ConversationReferencedResponse(
-            new ConversationResponse(response.Result.ConversationId, response.Result.Answer, (LanguageDto)response.Result.Language),
-            response.References.Select(reference => new ConversationReferenceResponse(reference.Index, reference.Url, (ConversationReferenceTypeDto)reference.Type)).ToList()
+            MapConversationToApiResponse(response),
+            MapReferencesToApiResponse(response.References),
+            MapDebugInformationToApiResponse(response.DebugInformation)
         );
         return conversationReferencedResponse;
     }
+
+    private static ConversationResponse MapConversationToApiResponse(ConversationReferencedResult response) =>
+        new(response.Result.ConversationId, response.Result.Answer, (LanguageDto)response.Result.Language);
+
+    private static DebugInformationResponse? MapDebugInformationToApiResponse(DebugInformation? debugInformation)
+    {
+        if (debugInformation == null)
+        {
+            return null;
+        }
+
+        return new DebugInformationResponse(debugInformation.DebugRecords
+            .Select(record => new DebugRecordResponse
+            {
+                References = new ReferencesResponse
+                {
+                    Text = record.References.Text.Select(info => new TextDebugInfoResponse(info.InternalId, info.UsedInAnswer, info.Source, info.Content)).ToList(),
+                    Image = record.References.Image.Select(info => new ImageDebugInfoResponse(info.InternalId, info.UsedInAnswer, info.Source, info.AltDescription)).ToList()
+                },
+                ExecutedAt = record.ExecutedAt,
+                ReplacedContextVariables = record.ReplacedContextVariables,
+                FullPrompt = record.FullPrompt
+            })
+            .ToList());
+    }
+
+    private static List<ConversationReferenceResponse> MapReferencesToApiResponse(IEnumerable<ConversationReference> references) =>
+        references.Select(reference => new ConversationReferenceResponse(reference.Index, reference.Url, (ConversationReferenceTypeDto)reference.Type)).ToList();
 
     private static async Task HandleWebSocketMessage(byte[] buffer, int count, ILogger logger, ApplicationTenantInfo tenant, IConversationService conversationService, WebSocket ws)
     {
@@ -296,7 +288,7 @@ public static class ConversationalSearchEndpoints
         }
 
         var tenantId = tenant.Id!;
-        var holdConversation = new HoldConversation(request.ConversationId.Value, tenantId, request.Prompt, request.Context, (Language)request.Language);
+        var holdConversation = new HoldConversation(request.ConversationId.Value, tenantId, request.Prompt, request.Context, request.Debug, (Language)request.Language);
 
         await foreach (var crr in conversationService
                            .ConverseStreamingAsync(

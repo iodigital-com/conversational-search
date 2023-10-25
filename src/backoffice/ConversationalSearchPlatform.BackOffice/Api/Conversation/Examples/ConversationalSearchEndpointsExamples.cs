@@ -18,8 +18,9 @@ public static class ConversationalSearchEndpointsExamples
                 {
                     new(1,
                         "https://www.polestar.com/uk/manual/polestar-2/2022/article/Pedestrian-Protection-System",
-                        ConversationReferenceTypeDto.Official)
-                }
+                        ConversationReferenceTypeDto.Manual)
+                },
+                null
             );
         }
     }
@@ -59,6 +60,7 @@ public static class ConversationalSearchEndpointsExamples
                         "year", "2023"
                     }
                 },
+                false,
                 LanguageDto.English);
         }
     }

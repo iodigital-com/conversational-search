@@ -1,6 +1,7 @@
 using ConversationalSearchPlatform.BackOffice.Constants;
 using ConversationalSearchPlatform.BackOffice.Data;
 using ConversationalSearchPlatform.BackOffice.Data.Entities;
+using ConversationalSearchPlatform.BackOffice.Events;
 using ConversationalSearchPlatform.BackOffice.Services;
 using ConversationalSearchPlatform.BackOffice.Services.Models;
 using ConversationalSearchPlatform.BackOffice.Services.Models.Weaviate.Queries;
@@ -65,11 +66,11 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
                     await CreateEntry(db, tenantId, details);
                     break;
                 case IndexJobChangeType.UPDATE:
-                    await DeleteEntry(db, tenantId, details);
+                    await DeleteEntry(details);
                     await CreateEntry(db, tenantId, details);
                     break;
                 case IndexJobChangeType.DELETE:
-                    await DeleteEntry(db, tenantId, details);
+                    await DeleteEntry(details);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(details.ChangeType));
@@ -77,30 +78,18 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
         }
     }
 
-    private async Task DeleteEntry(ApplicationDbContext db, string tenantId, WebsitePageIndexingDetails details)
+    private async Task DeleteEntry(WebsitePageIndexingDetails details)
     {
-        var websitePage = await db.WebsitePages.FirstOrDefaultAsync(page => page.Id == details.Id);
-
-        if (websitePage == null)
-        {
-            Log.Error(
-                "Cannot find website page with id {WebsitePageId} for  {TenantId}",
-                details.Id,
-                tenantId
-            );
-            return;
-        }
-
-        await DeletePagesAsync(websitePage);
-        await DeleteImagesAsync(websitePage);
+        await DeletePagesAsync(details.Id);
+        await DeleteImagesAsync(details.Id);
     }
 
-    private async Task DeletePagesAsync(IIndexable indexable)
+    private async Task DeletePagesAsync(Guid indexableId)
     {
         var recordsLeftToDelete = true;
 
         var request = new GetWebsitePageByInternalIdForDeletion()
-            .Request(new GetWebsitePageByInternalIdForDeletion.GetByInternalIdForDeletionQueryParams(indexable.Id.ToString()));
+            .Request(new GetWebsitePageByInternalIdForDeletion.GetByInternalIdForDeletionQueryParams(indexableId.ToString()));
 
         do
         {
@@ -126,12 +115,12 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
         } while (recordsLeftToDelete);
     }
 
-    private async Task DeleteImagesAsync(IIndexable indexable)
+    private async Task DeleteImagesAsync(Guid indexable)
     {
         var recordsLeftToDelete = true;
 
         var request = new GetImagesByInternalIdForDeletion()
-            .Request(new GetImagesByInternalIdForDeletion.GetImagesByInternalIdForDeletionQueryParams(indexable.Id.ToString()));
+            .Request(new GetImagesByInternalIdForDeletion.GetImagesByInternalIdForDeletionQueryParams(indexable.ToString()));
 
         do
         {
@@ -184,10 +173,10 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
                 websitePage.TenantId
             )
         );
-        await _vectorizationService.BulkCreateAsync(nameof(WebsitePage), chunkCollection);
+        await _vectorizationService.BulkCreateAsync(nameof(WebsitePage), websitePage.Id, tenantId, UsageType.Indexing, chunkCollection);
 
         var imageCollection = await GetImageCollection(websitePage.Id, scrapeResult);
-        await _vectorizationService.BulkCreateAsync(IndexingConstants.ImageClass, imageCollection);
+        await _vectorizationService.BulkCreateAsync(IndexingConstants.ImageClass, websitePage.Id, tenantId, UsageType.Indexing, imageCollection);
 
 
         websitePage.IndexedAt = DateTimeOffset.UtcNow;

@@ -1,3 +1,4 @@
+using ConversationalSearchPlatform.BackOffice.Events;
 using ConversationalSearchPlatform.BackOffice.Services.Models;
 using ConversationalSearchPlatform.BackOffice.Services.Models.Weaviate;
 using Rystem.OpenAi;
@@ -11,36 +12,48 @@ public interface IWeaviateRecordCreator<TInsertable, TCollection, TWeaviateCreat
     where TWeaviateCreateRecord : IWeaviateCreateRecord
 
 {
-    Task<WeaviateCreateObject<TWeaviateCreateRecord>> CreateRecordAsync(string collectionName, TCollection collection, IOpenAiEmbedding openAiEmbedding,
+    Task<WeaviateCreateObject<TWeaviateCreateRecord>> CreateRecordAsync(
+        string collectionName,
+        Guid correlationId,
+        string tenantId,
+        UsageType usageType,
+        TCollection collection,
+        IOpenAiEmbedding openAiEmbedding,
         TInsertable item);
 }
 
-public abstract class BaseWeaviateRecordCreator
+public abstract class BaseWeaviateRecordCreator(IOpenAIUsageTelemetryService telemetryService)
 {
-    protected static async Task<float[]> GetVectorDataAsync(IOpenAiEmbedding openAiEmbeddingFactory, string content)
+
+    protected async Task<float[]> GetVectorDataAsync(IOpenAiEmbedding openAiEmbeddingFactory, Guid correlationId, string tenantId, UsageType usageType, string content)
     {
         var embeddingResult = await openAiEmbeddingFactory
             .Request(content)
             .WithModel(EmbeddingModelType.AdaTextEmbedding)
-            .ExecuteAsync();
+            .ExecuteAndCalculateCostAsync();
 
-        return (embeddingResult.Data ?? new List<EmbeddingData>())
+        telemetryService.RegisterEmbeddingUsage(correlationId, tenantId, embeddingResult.Result.Usage!, usageType);
+
+        return (embeddingResult.Result.Data ?? new List<EmbeddingData>())
                .Select(data => data.Embedding)
                .First() ??
                Array.Empty<float>();
     }
 }
 
-public sealed class WebsitePageRecordCreator<TInsertable, TCollection, TWeaviateCreateRecord> : BaseWeaviateRecordCreator,
-    IWeaviateRecordCreator<ChunkResult, ChunkCollection, WebsitePageWeaviateCreateRecord>
+public sealed class WebsitePageRecordCreator<TInsertable, TCollection, TWeaviateCreateRecord>(IOpenAIUsageTelemetryService telemetryService)
+    : BaseWeaviateRecordCreator(telemetryService), IWeaviateRecordCreator<ChunkResult, ChunkCollection, WebsitePageWeaviateCreateRecord>
 {
     public async Task<WeaviateCreateObject<WebsitePageWeaviateCreateRecord>> CreateRecordAsync(
         string collectionName,
+        Guid correlationId,
+        string tenantId,
+        UsageType usageType,
         ChunkCollection collection,
         IOpenAiEmbedding openAiEmbedding,
         ChunkResult item)
     {
-        var vectorData = await GetVectorDataAsync(openAiEmbedding, item.Text);
+        var vectorData = await this.GetVectorDataAsync(openAiEmbedding, correlationId, tenantId, usageType, item.Text);
 
         var record = new WebsitePageWeaviateCreateRecord(collection.TenantId,
             collection.InternalId,
@@ -59,11 +72,15 @@ public sealed class WebsitePageRecordCreator<TInsertable, TCollection, TWeaviate
     }
 }
 
-public sealed class ImageRecordCreator<TInsertable, TCollection, TWeaviateCreateRecord> : BaseWeaviateRecordCreator,
-    IWeaviateRecordCreator<ImageResult, ImageCollection, ImageWeaviateCreateRecord>
+public sealed class ImageRecordCreator<TInsertable, TCollection, TWeaviateCreateRecord>(IOpenAIUsageTelemetryService telemetryService)
+    : BaseWeaviateRecordCreator(telemetryService), IWeaviateRecordCreator<ImageResult, ImageCollection, ImageWeaviateCreateRecord>
 {
+
     public Task<WeaviateCreateObject<ImageWeaviateCreateRecord>> CreateRecordAsync(
         string collectionName,
+        Guid correlationId,
+        string tenantId,
+        UsageType usageType,
         ImageCollection collection,
         IOpenAiEmbedding openAiEmbedding,
         ImageResult item)

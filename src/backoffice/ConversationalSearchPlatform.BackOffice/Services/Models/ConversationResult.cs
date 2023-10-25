@@ -1,10 +1,14 @@
 using System.Text.Json.Serialization;
+using ConversationalSearchPlatform.BackOffice.Services.Models.ConversationDebug;
 
 namespace ConversationalSearchPlatform.BackOffice.Services.Models;
 
 public record ConversationResult(Guid ConversationId, string Answer, Language Language);
 
-public record ConversationReferencedResult(ConversationResult Result, List<ConversationReference> References);
+public record ConversationReferencedResult(ConversationResult Result, List<ConversationReference> References, DebugInformation? DebugInformation = default)
+{
+    public DebugInformation? DebugInformation { get; set; } = DebugInformation;
+}
 
 public record ConversationReference(int Index, string Url, ConversationReferenceType Type);
 
@@ -12,6 +16,6 @@ public record ConversationReference(int Index, string Url, ConversationReference
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum ConversationReferenceType
 {
-    Official = 0,
+    Manual = 0,
     Community = 1
 }

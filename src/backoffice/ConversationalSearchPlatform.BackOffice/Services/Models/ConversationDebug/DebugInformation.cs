@@ -1,26 +1,20 @@
 using System.Text.Json.Serialization;
 
-namespace ConversationalSearchPlatform.BackOffice.Models.Conversations;
+namespace ConversationalSearchPlatform.BackOffice.Services.Models.ConversationDebug;
 
-/// <summary>
-/// Response of a conversation
-/// </summary>
-/// <param name="Response">Inner response containing the answer</param>
-/// <param name="References"></param>
-public record ConversationReferencedResponse(ConversationResponse Response, List<ConversationReferenceResponse> References, DebugInformationResponse? DebugInformation = default);
-
-public record DebugInformationResponse
+public record DebugInformation
 {
-    public DebugInformationResponse(List<DebugRecordResponse> debugRecords)
+    public DebugInformation(List<DebugRecord> debugRecords)
     {
         DebugRecords = debugRecords;
     }
 
+    public int CurrentDebugRecordIndex { get; set; }
     [JsonPropertyName("debug")]
-    public List<DebugRecordResponse> DebugRecords { get; set; }
+    public List<DebugRecord> DebugRecords { get; set; }
 }
 
-public record DebugRecordResponse
+public record DebugRecord
 {
     [JsonPropertyName("executedAt")]
     public DateTimeOffset ExecutedAt { get; set; }
@@ -32,19 +26,25 @@ public record DebugRecordResponse
     public Dictionary<string, string> ReplacedContextVariables { get; set; }
 
     [JsonPropertyName("references")]
-    public ReferencesResponse References { get; set; }
+    public References References { get; set; }
 }
 
-public record ReferencesResponse
+public record References
 {
     [JsonPropertyName("text")]
-    public List<TextDebugInfoResponse> Text { get; set; }
+    public List<TextDebugInfo> Text { get; set; }
 
     [JsonPropertyName("image")]
-    public List<ImageDebugInfoResponse> Image { get; set; }
+    public List<ImageDebugInfo> Image { get; set; }
 }
 
-public record TextDebugInfoResponse(string InternalId, bool UsedInAnswer, string Source, string Content)
+interface IDebugInfo
+{
+    string InternalId { get; set; }
+    bool UsedInAnswer { get; set; }
+}
+
+public record TextDebugInfo(string InternalId, bool UsedInAnswer, string Source, string Content) : IDebugInfo
 {
 
     [JsonPropertyName("internalId")]
@@ -60,7 +60,7 @@ public record TextDebugInfoResponse(string InternalId, bool UsedInAnswer, string
     public string Content { get; set; } = Content;
 }
 
-public record ImageDebugInfoResponse(string InternalId, bool UsedInAnswer, string Source, string? AltDescription)
+public record ImageDebugInfo(string InternalId, bool UsedInAnswer, string Source, string? AltDescription) : IDebugInfo
 {
 
     [JsonPropertyName("internalId")]

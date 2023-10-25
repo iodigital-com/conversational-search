@@ -20,9 +20,6 @@
     <PackageReference Include="Microsoft.CodeAnalysis" Version="4.7.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.0-rc.2.23480.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.0-rc.2.23480.1" />
-    <PackageReference Include="Microsoft.SemanticKernel" Version="1.0.0-beta2" />
-    <PackageReference Include="Microsoft.SemanticKernel.Connectors.Memory.Weaviate" Version="1.0.0-beta2" />
-    <PackageReference Include="Microsoft.SemanticKernel.Plugins.Memory" Version="1.0.0-beta2" />
     <PackageReference Include="MudBlazor" Version="6.11.0" />
     <PackageReference Include="PuppeteerSharp" Version="12.0.0" />
     <PackageReference Include="Serilog.AspNetCore" Version="7.0.0" />
@@ -35,7 +32,6 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.0-rc.2.23480.2" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
     <PackageReference Include="Rystem.OpenAi" Version="3.3.4" />
-    <PackageReference Include="Azure.Search.Documents" Version="11.4.0" />
     <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="6.5.0" />
     <PackageReference Include="Swashbuckle.AspNetCore.Filters" Version="7.0.11" />
     <PackageReference Include="System.Linq.Async" Version="6.0.1" />
@@ -55,7 +51,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Api\Errors\" />
     <Folder Include="Data\Migrations\Tenant\" />
   </ItemGroup>
 

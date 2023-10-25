@@ -9,7 +9,14 @@ namespace ConversationalSearchPlatform.BackOffice.Models.Conversations;
 /// <param name="Prompt">The prompt. Usually just contains the question of the end user.</param>
 /// <param name="Context">Extra context related variables</param>
 /// <param name="Language">The language the conversation is in</param>
-public record ConversationRequest(Guid? ConversationId, string Prompt, IDictionary<string, string> Context, LanguageDto Language = LanguageDto.English) : TypedConversationRequest
+/// <param name="Debug">Whether or not we save the debug information</param>
+public record ConversationRequest
+(Guid? ConversationId,
+    string Prompt,
+    IDictionary<string, string> Context,
+    bool Debug = false,
+    LanguageDto Language = LanguageDto.English
+) : TypedConversationRequest
 {
     public ConversationEndpointType Type { get; set; } = ConversationEndpointType.HoldConversation;
 }

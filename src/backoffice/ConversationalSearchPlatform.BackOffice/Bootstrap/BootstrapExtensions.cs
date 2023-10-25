@@ -17,7 +17,6 @@ using GraphQL.Client.Serializer.SystemTextJson;
 using Hangfire;
 using Hangfire.Console;
 using Hangfire.SqlServer;
-using HangfireBasicAuthenticationFilter;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.OpenApi.Models;
 using Rystem.OpenAi;
@@ -127,6 +126,13 @@ internal static class BootstrapExtensions
         return builder.WithStore<EFCoreFactoryCreatingStore<TEFCoreStoreDbContext, TTenantInfo>>(ServiceLifetime.Scoped);
     }
 
+    internal static IServiceCollection AddOpenAITelemetry(this IServiceCollection services)
+    {
+        services.AddTransient<IOpenAIUsageTelemetryService, OpenAIUsageTelemetryService>();
+        return services;
+    }
+
+
     internal static IServiceCollection AddSwagger(this IServiceCollection services)
     {
         var securityScheme = CreateApiKeyHeaderSecurityScheme();
@@ -164,7 +170,11 @@ internal static class BootstrapExtensions
     internal static IApplicationBuilder UseSwaggerWithUi(this IApplicationBuilder application)
     {
         application.UseSwagger();
-        application.UseSwaggerUI(options => options.InjectStylesheet("/swagger-ui/SwaggerDark.css"));
+        application.UseSwaggerUI(options =>
+        {
+            options.EnableTryItOutByDefault();
+            options.InjectStylesheet("/swagger-ui/SwaggerDark.css");
+        });
         return application;
     }
 

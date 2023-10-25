@@ -6,6 +6,6 @@ namespace ConversationalSearchPlatform.BackOffice.Models.Conversations;
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum ConversationReferenceTypeDto
 {
-    Official = 0,
+    Manual = 0,
     Community = 1
 }

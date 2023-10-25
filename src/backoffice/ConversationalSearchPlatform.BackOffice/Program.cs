@@ -1,11 +1,9 @@
+using ConversationalSearchPlatform.BackOffice.Api.Errors;
 using ConversationalSearchPlatform.BackOffice.Api.Indexing;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace ConversationalSearchPlatform.BackOffice;
 
-using BackOffice;
-using Api;
 using Api.Conversation;
 using Bootstrap;
 using Components;
@@ -89,6 +87,7 @@ internal class Program
         builder.Services.AddConversationServices();
         builder.Services.AddUserServices();
         builder.Services.AddJobServices(builder.Configuration);
+        builder.Services.AddOpenAITelemetry();
 
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddHealthChecks();
@@ -101,6 +100,8 @@ internal class Program
                 .AllowCredentials())
         );
         builder.Services.AddProblemDetails();
+
+        builder.Services.AddExceptionHandler<ExceptionToProblemDetailsHandler>();
 
         var app = builder.Build();
 
@@ -128,7 +129,6 @@ internal class Program
         app.UseSwaggerWithUi();
         app.UseHangfireDashboard(builder.Configuration);
 // app.MapAdditionalIdentityEndpoints();
-
         app.Run();
     }
 }

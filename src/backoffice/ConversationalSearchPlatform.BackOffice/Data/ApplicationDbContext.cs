@@ -35,7 +35,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         modelBuilder.Entity<WebsitePage>().HasIndex(x => x.Name);
         modelBuilder.Entity<WebsitePage>().IsMultiTenant();
         modelBuilder.Entity<WebsitePage>().HasIndex(w => w.TenantId);
+        
         modelBuilder.Entity<UserInvite>().HasIndex(w => w.TenantId);
+        
+        modelBuilder.Entity<OpenAIConsumption>().HasIndex(oc => oc.TenantId);
+        modelBuilder.Entity<OpenAIConsumption>().HasIndex(oc => oc.ExecutedAt);
+        modelBuilder.Entity<OpenAIConsumption>().HasIndex(oc => oc.CorrelationId);
 
         UserAndRolesDatabaseSeeder.Seed(modelBuilder);
     }
@@ -56,6 +61,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
     public DbSet<WebsitePage> WebsitePages { get; set; }
     public DbSet<UserInvite> UserInvites { get; set; }
+
+    public DbSet<OpenAIConsumption> OpenAiConsumptions { get; set; }
 
     public ITenantInfo TenantInfo { get; set; }
     public TenantMismatchMode TenantMismatchMode { get; } = TenantMismatchMode.Ignore;
