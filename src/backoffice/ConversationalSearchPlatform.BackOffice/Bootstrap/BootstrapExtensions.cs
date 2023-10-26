@@ -18,6 +18,7 @@ using Hangfire;
 using Hangfire.Console;
 using Hangfire.SqlServer;
 using Microsoft.AspNetCore.HttpLogging;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 using Rystem.OpenAi;
 using Swashbuckle.AspNetCore.Filters;
@@ -73,25 +74,41 @@ internal static class BootstrapExtensions
         serviceCollection.AddTransient<IVectorizationService, WeaviateVectorizationService>();
 
 
-        var unstructuredUrl = configuration.GetRequiredSection("Unstructured")["BaseUrl"]!;
+        var unstructuredSection = configuration.GetSection("Unstructured");
+        serviceCollection.AddOptions<UnstructuredSettings>().Bind(unstructuredSection);
+
         serviceCollection.AddHttpClient<IChunkService, UnstructuredChunkService>()
-            .ConfigureHttpClient(client =>
+            .ConfigureHttpClient((sp, client) =>
             {
-                client.BaseAddress = new Uri(unstructuredUrl);
+                var unstructuredUrl = sp.GetRequiredService<IOptions<UnstructuredSettings>>().Value;
+                client.BaseAddress = new Uri(unstructuredUrl.BaseUrl);
             });
 
         var configurationSection = configuration.GetSection("Weaviate");
         serviceCollection.AddOptions<WeaviateSettings>().Bind(configurationSection);
 
-        var weaviateSettings = configurationSection.Get<WeaviateSettings>() ?? throw new InvalidOperationException("No WeaviateSettings found");
-        serviceCollection.AddHttpClient("Weaviate", client => ConfigureWeaviateClient(client, weaviateSettings));
+        serviceCollection.AddHttpClient("Weaviate",
+            (sp, client) =>
+            {
+                var weaviateSettings = sp.GetRequiredService<IOptions<WeaviateSettings>>().Value ?? throw new InvalidOperationException($"No {nameof(WeaviateSettings)} found");
+
+                client.BaseAddress = new Uri(weaviateSettings.BaseUrl);
+
+                if (!string.IsNullOrWhiteSpace(weaviateSettings.ApiKey))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", weaviateSettings.ApiKey);
+                }
+            });
 
         var graphQlWebsocketJsonSerializer = new SystemTextJsonSerializer();
 
         serviceCollection.AddScoped<IGraphQLClient>(sp =>
         {
+            var weaviateSettings = sp.GetRequiredService<IOptions<WeaviateSettings>>().Value ?? throw new InvalidOperationException($"No {nameof(WeaviateSettings)} found");
+
             var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
             var httpClient = httpClientFactory.CreateClient("Weaviate");
+
             return new GraphQLHttpClient(
                 new GraphQLHttpClientOptions
                 {
@@ -117,17 +134,31 @@ internal static class BootstrapExtensions
         return serviceCollection;
     }
 
+    // ReSharper disable once InconsistentNaming
     internal static FinbuckleMultiTenantBuilder<TTenantInfo> WithEFCoreFactoryCreatingStore<TEFCoreStoreDbContext, TTenantInfo>(
         this FinbuckleMultiTenantBuilder<TTenantInfo> builder)
         where TEFCoreStoreDbContext : EFCoreStoreDbContext<TTenantInfo>
         where TTenantInfo : class, ITenantInfo, new()
     {
-        builder.Services.AddDbContext<TEFCoreStoreDbContext>(); // Note, will not override existing context if already added.
+        builder.Services.AddDbContext<TEFCoreStoreDbContext>();
         return builder.WithStore<EFCoreFactoryCreatingStore<TEFCoreStoreDbContext, TTenantInfo>>(ServiceLifetime.Scoped);
     }
 
-    internal static IServiceCollection AddOpenAITelemetry(this IServiceCollection services)
+    internal static IServiceCollection AddOpenAITelemetry(this IServiceCollection services, IConfiguration configuration)
     {
+        var azurePricingSection = configuration.GetSection("AzurePricing");
+        services.AddOptions<AzurePricingSettings>().Bind(azurePricingSection);
+
+        services.AddTransient<IOpenAIPriceFetchingService, OpenAIPriceFetchingService>();
+
+        services.AddHttpClient<IOpenAIPriceFetchingService, OpenAIPriceFetchingService>((provider, client) =>
+        {
+            var azurePricingSettings = provider.GetRequiredService<IOptions<AzurePricingSettings>>().Value ??
+                                       throw new InvalidOperationException($"No {nameof(AzurePricingSettings)} found");
+            client.BaseAddress = new Uri(azurePricingSettings.BaseUrl);
+        });
+
+        services.AddTransient<IOpenAIPricingService, OpenAIPricingService>();
         services.AddTransient<IOpenAIUsageTelemetryService, OpenAIUsageTelemetryService>();
         return services;
     }
@@ -223,6 +254,12 @@ internal static class BootstrapExtensions
         return services;
     }
 
+    internal static IServiceCollection AddJobScheduler(this IServiceCollection services)
+    {
+        services.AddHostedService<RecurringJobScheduler>();
+        return services;
+    }
+
     public static IApplicationBuilder UseHangfireDashboard(this IApplicationBuilder app, IConfiguration config)
     {
         var dashboardOptions = config.GetRequiredSection("Hangfire:Dashboard").Get<DashboardOptions>() ?? throw new InvalidOperationException("");
@@ -264,13 +301,4 @@ internal static class BootstrapExtensions
         Description = $"Api Key",
     };
 
-    private static void ConfigureWeaviateClient(HttpClient client, WeaviateSettings weaviateSettings)
-    {
-        client.BaseAddress = new Uri(weaviateSettings.BaseUrl);
-
-        if (!string.IsNullOrWhiteSpace(weaviateSettings.ApiKey))
-        {
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", weaviateSettings.ApiKey);
-        }
-    }
 }

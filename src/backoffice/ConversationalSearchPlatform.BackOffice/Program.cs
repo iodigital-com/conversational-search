@@ -87,7 +87,8 @@ internal class Program
         builder.Services.AddConversationServices();
         builder.Services.AddUserServices();
         builder.Services.AddJobServices(builder.Configuration);
-        builder.Services.AddOpenAITelemetry();
+        builder.Services.AddOpenAITelemetry(builder.Configuration);
+        builder.Services.AddJobScheduler();
 
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddHealthChecks();

@@ -35,12 +35,16 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         modelBuilder.Entity<WebsitePage>().HasIndex(x => x.Name);
         modelBuilder.Entity<WebsitePage>().IsMultiTenant();
         modelBuilder.Entity<WebsitePage>().HasIndex(w => w.TenantId);
-        
+
         modelBuilder.Entity<UserInvite>().HasIndex(w => w.TenantId);
-        
+
         modelBuilder.Entity<OpenAIConsumption>().HasIndex(oc => oc.TenantId);
         modelBuilder.Entity<OpenAIConsumption>().HasIndex(oc => oc.ExecutedAt);
         modelBuilder.Entity<OpenAIConsumption>().HasIndex(oc => oc.CorrelationId);
+        modelBuilder.Entity<OpenAIConsumption>().Property(oc => oc.CompletionTokenCost).HasPrecision(18, 8);
+        modelBuilder.Entity<OpenAIConsumption>().Property(oc => oc.PromptTokenCost).HasPrecision(18, 8);
+        modelBuilder.Entity<OpenAIConsumption>().Property(oc => oc.ThousandUnitsCompletionCost).HasPrecision(18, 8);
+        modelBuilder.Entity<OpenAIConsumption>().Property(oc => oc.ThousandUnitsPromptCost).HasPrecision(18, 8);
 
         UserAndRolesDatabaseSeeder.Seed(modelBuilder);
     }

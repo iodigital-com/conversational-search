@@ -4,6 +4,7 @@ using ConversationalSearchPlatform.BackOffice.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ConversationalSearchPlatform.BackOffice.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20231026185537_AddOpenAICalculation")]
+    partial class AddOpenAICalculation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -95,15 +98,15 @@ namespace ConversationalSearchPlatform.BackOffice.Data.Migrations
                         {
                             Id = "68657A77-57AE-409D-A845-5ABAF7C1E633",
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "8cf44d81-080f-45bb-8276-a95c37f60589",
+                            ConcurrencyStamp = "f7805266-646c-4915-9e79-cfc1775ba15f",
                             Email = "user@test.com",
                             EmailConfirmed = true,
                             LockoutEnabled = false,
                             NormalizedEmail = "USER@TEST.COM",
                             NormalizedUserName = "USER",
-                            PasswordHash = "AQAAAAIAAYagAAAAELJm0O9EhZ41kP/yM1qArQv+wILcJlkkUNgaYlyf7LH1PaSs1CZBdNFVsJgMTh72wg==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEEhZHOIiqwh8z189ECx7rbb2bUgcBx/E4r/+tX7brnXn4xz8/M39e1axsxeJYhi2eg==",
                             PhoneNumberConfirmed = false,
-                            SecurityStamp = "fd0fd16a-ca2a-46b4-b01c-02f9a54cf445",
+                            SecurityStamp = "21735eaa-beac-43df-9831-5c1cc18bcb6c",
                             TenantId = "D2FA78CE-3185-458E-964F-8FD0052B4330",
                             TwoFactorEnabled = false,
                             UserName = "user"
@@ -112,15 +115,15 @@ namespace ConversationalSearchPlatform.BackOffice.Data.Migrations
                         {
                             Id = "8D4540D4-D50F-48D0-9508-503883712B1A",
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "22d608f9-adc4-4123-ad38-a79bc8e9eff0",
+                            ConcurrencyStamp = "d726508b-d0ec-4e40-8bc4-604cfd2ec307",
                             Email = "user2@test.com",
                             EmailConfirmed = true,
                             LockoutEnabled = false,
                             NormalizedEmail = "USER2@TEST.COM",
                             NormalizedUserName = "USER2",
-                            PasswordHash = "AQAAAAIAAYagAAAAEJdbFtkbSt1PvGkGkxeneO+0oCUzwToNX+mwZfwB7jqEjqldVNC/WI7Qqz9Iuv0Rlw==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEILlLYbDsvHcNWMxV9/QEvTKZTc/ZHL3w1O3UkJ2F4BvpnX491gOxF6vSR/fh2R74g==",
                             PhoneNumberConfirmed = false,
-                            SecurityStamp = "c48c67ac-c88e-45c8-9399-6ff7b88c4530",
+                            SecurityStamp = "a69be2ae-c422-4bbc-90a5-3fd3e7d97a69",
                             TenantId = "D2FA78CE-3185-458E-964F-8FD0052B4330",
                             TwoFactorEnabled = false,
                             UserName = "user2"
@@ -129,15 +132,15 @@ namespace ConversationalSearchPlatform.BackOffice.Data.Migrations
                         {
                             Id = "61581AFC-FC42-41BF-A483-F9863B8E4693",
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "1128472d-a18d-451f-bb74-5159673acab2",
+                            ConcurrencyStamp = "dc581531-0f10-4d56-a1ee-e1abf7cf999b",
                             Email = "admin@test.com",
                             EmailConfirmed = true,
                             LockoutEnabled = false,
                             NormalizedEmail = "ADMIN@TEST.com",
                             NormalizedUserName = "admin",
-                            PasswordHash = "AQAAAAIAAYagAAAAEOdQs4uHIaSylSaWPCXsvsP7ANS2ZwKQaRPnspgkRUavUjNiWdmAqt8Qgozny0nooA==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEN3Pkc59Gi5Lrw6DOKgSK+70G6onPsGWwNYQEAsDiJPIh7bYhtGRNpRbffvwxDKXsA==",
                             PhoneNumberConfirmed = false,
-                            SecurityStamp = "ecacce01-9a91-4792-8756-dc859fb06eaa",
+                            SecurityStamp = "4a87005a-dcef-44eb-8c14-82128c542bbf",
                             TenantId = "CCFA9314-ABE6-403A-9E21-2B31D95A5258",
                             TwoFactorEnabled = false,
                             UserName = "admin"
@@ -236,8 +239,8 @@ namespace ConversationalSearchPlatform.BackOffice.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal>("CompletionTokenCost")
-                        .HasPrecision(18, 8)
-                        .HasColumnType("decimal(18,8)");
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
 
                     b.Property<int>("CompletionTokens")
                         .HasColumnType("int");
@@ -249,8 +252,8 @@ namespace ConversationalSearchPlatform.BackOffice.Data.Migrations
                         .HasColumnType("datetimeoffset");
 
                     b.Property<decimal>("PromptTokenCost")
-                        .HasPrecision(18, 8)
-                        .HasColumnType("decimal(18,8)");
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
 
                     b.Property<int>("PromptTokens")
                         .HasColumnType("int");
@@ -260,12 +263,12 @@ namespace ConversationalSearchPlatform.BackOffice.Data.Migrations
                         .HasColumnType("nvarchar(450)");
 
                     b.Property<decimal>("ThousandUnitsCompletionCost")
-                        .HasPrecision(18, 8)
-                        .HasColumnType("decimal(18,8)");
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
 
                     b.Property<decimal>("ThousandUnitsPromptCost")
-                        .HasPrecision(18, 8)
-                        .HasColumnType("decimal(18,8)");
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
 
                     b.Property<int>("UsageType")
                         .HasColumnType("int");

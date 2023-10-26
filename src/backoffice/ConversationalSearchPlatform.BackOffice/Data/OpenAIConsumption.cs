@@ -10,7 +10,7 @@ public class OpenAIConsumption
         ConsumptionType usageType,
         int completionTokens,
         int promptTokens,
-        DateTimeOffset executedAt)
+        DateTimeOffset executedAt, decimal thousandUnitsPromptCost, decimal thousandUnitsCompletionCost, decimal promptTokenCost, decimal completionTokenCost)
     {
         CorrelationId = correlationId;
         TenantId = tenantId;
@@ -20,6 +20,10 @@ public class OpenAIConsumption
         CompletionTokens = completionTokens;
         PromptTokens = promptTokens;
         ExecutedAt = executedAt;
+        ThousandUnitsPromptCost = thousandUnitsPromptCost;
+        ThousandUnitsCompletionCost = thousandUnitsCompletionCost;
+        PromptTokenCost = promptTokenCost;
+        CompletionTokenCost = completionTokenCost;
     }
 
     public Guid Id { get; set; }
@@ -30,6 +34,11 @@ public class OpenAIConsumption
     public ConsumptionType UsageType { get; set; }
     public int CompletionTokens { get; set; }
     public int PromptTokens { get; set; }
+
+    public decimal ThousandUnitsPromptCost { get; set; }
+    public decimal ThousandUnitsCompletionCost { get; set; }
+    public decimal PromptTokenCost { get; set; }
+    public decimal CompletionTokenCost { get; set; }
 
     public DateTimeOffset ExecutedAt { get; set; }
 }

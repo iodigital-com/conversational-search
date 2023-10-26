@@ -1,4 +1,3 @@
-using ConversationalSearchPlatform.BackOffice.Events;
 using ConversationalSearchPlatform.BackOffice.Services.Models.ConversationDebug;
 using Microsoft.Extensions.Caching.Memory;
 using Rystem.OpenAi.Chat;

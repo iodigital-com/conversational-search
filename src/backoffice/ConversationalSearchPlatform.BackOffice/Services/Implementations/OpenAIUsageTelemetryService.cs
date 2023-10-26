@@ -1,4 +1,5 @@
-using ConversationalSearchPlatform.BackOffice.Events;
+using ConversationalSearchPlatform.BackOffice.Jobs;
+using ConversationalSearchPlatform.BackOffice.Jobs.Models;
 using ConversationalSearchPlatform.BackOffice.Services.Models;
 using Hangfire;
 using Rystem.OpenAi;
@@ -18,7 +19,7 @@ public class OpenAIUsageTelemetryService(IBackgroundJobClient backgroundJobClien
             correlationId,
             tenantId,
             CallType.Embedding,
-            (CallModel)model,
+            Enum.Parse<CallModel>(model.ToString()),
             usageType,
             0,
             usage.PromptTokens!.Value,

@@ -1,4 +1,4 @@
-using ConversationalSearchPlatform.BackOffice.Events;
+using ConversationalSearchPlatform.BackOffice.Jobs.Models;
 using ConversationalSearchPlatform.BackOffice.Services.Models;
 using ConversationalSearchPlatform.BackOffice.Services.Models.Weaviate.Queries;
 using GraphQL;

@@ -1,7 +1,7 @@
 using ConversationalSearchPlatform.BackOffice.Constants;
 using ConversationalSearchPlatform.BackOffice.Data;
 using ConversationalSearchPlatform.BackOffice.Data.Entities;
-using ConversationalSearchPlatform.BackOffice.Events;
+using ConversationalSearchPlatform.BackOffice.Jobs.Models;
 using ConversationalSearchPlatform.BackOffice.Services;
 using ConversationalSearchPlatform.BackOffice.Services.Models;
 using ConversationalSearchPlatform.BackOffice.Services.Models.Weaviate.Queries;
