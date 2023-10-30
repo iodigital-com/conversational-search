@@ -264,16 +264,16 @@ internal static class BootstrapExtensions
     {
         var dashboardOptions = config.GetRequiredSection("Hangfire:Dashboard").Get<DashboardOptions>() ?? throw new InvalidOperationException("");
 
-#if !DEBUG
-              dashboardOptions.Authorization = new[]
-        {
-            new HangfireCustomBasicAuthenticationFilter
-            {
-                User = config.GetSection("Hangfire:Credentials:User").Value,
-                Pass = config.GetSection("Hangfire:Credentials:Password").Value
-            }
-        };
-#endif
+// #if !DEBUG
+//               dashboardOptions.Authorization = new[]
+//         {
+//             new HangfireCustomBasicAuthenticationFilter
+//             {
+//                 User = config.GetSection("Hangfire:Credentials:User").Value,
+//                 Pass = config.GetSection("Hangfire:Credentials:Password").Value
+//             }
+//         };
+// #endif
         return app.UseHangfireDashboard(config["Hangfire:Route"], dashboardOptions);
     }
 

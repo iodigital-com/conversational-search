@@ -66,3 +66,12 @@ services:
     ports:
       - "8060:8060"
     restart: always
+    
+  application:
+    container_name: csp-app
+    build:
+      context: ./src/backoffice/ConversationalSearchPlatform.BackOffice
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+      - "5001:5001"

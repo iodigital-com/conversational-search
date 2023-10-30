@@ -1,5 +1,6 @@
 const express = require('express');
 const puppeteer = require('puppeteer');
+
 const app = express();
 
 async function scrapeUrl(url) {
@@ -7,7 +8,12 @@ async function scrapeUrl(url) {
     let browser = undefined;
     try {
         const args = ["--disable-gpu", "--disable-dev-shm-usage", "--disable-setuid-sandbox", "--no-sandbox"]
-        browser = await puppeteer.launch({headless: 'new', args: args});
+
+        browser = await puppeteer.launch({
+            executablePath: '/usr/bin/chromium',
+            headless: 'new',
+            args: args
+        });
         console.log("Started browser")
         const page = await browser.newPage();
         await page.setJavaScriptEnabled(true);
@@ -35,7 +41,7 @@ app.get('/scrape', async function (req, res) {
     const content = await scrapeUrl(url);
     if (content === undefined) {
         res.status(500).send({error: "something went wrong trying to start "});
-        
+
     } else {
         console.log("Got some content, outputting html");
         res.setHeader("Content-Type", "text/html");
@@ -43,6 +49,10 @@ app.get('/scrape', async function (req, res) {
 
     }
 });
+
+app.get('/healthz', function (req, res) {
+    res.sendStatus(200)
+})
 
 app.listen(8060, function () {
     console.log('Running on port 8060.');
