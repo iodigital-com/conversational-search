@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: csp-chunker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: csp-chunker
+  template:
+    metadata:
+      labels:
+        app: csp-chunker
+    spec:
+      containers:
+        - name: csp-chunker
+          image: 'downloads.unstructured.io/unstructured-io/unstructured-api:0.0.53' 
+          ports:
+            - containerPort: 8000
+          resources:
+            limits:
+              memory: 1280Mi
+            requests:
+              memory: 500Mi
+              cpu: "0.5"
+          livenessProbe:
+            httpGet:
+              path: /healthcheck'
+              port: 8000
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 50
+          readinessProbe:
+            httpGet:
+              path: '/healthcheck'
+              port: 8000
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 50
