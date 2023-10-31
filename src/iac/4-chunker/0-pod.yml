@@ -25,7 +25,7 @@ spec:
               cpu: "0.5"
           livenessProbe:
             httpGet:
-              path: /healthcheck'
+              path: '/healthcheck'
               port: 8000
             initialDelaySeconds: 60
             periodSeconds: 15
