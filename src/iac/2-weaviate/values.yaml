@@ -142,6 +142,7 @@ authentication:
   apikey:
     enabled: true
     allowed_keys:
+      - 'a$JwcM60w*DiNbd5'
     users:
       - iogpt@iodigital.com
 
@@ -390,7 +391,6 @@ modules:
     enabled: true
     # You can set directly an inference URL of this module without deploying it with this release.
     # You can do so by setting a value for the `inferenceUrl` here AND by setting the `enable` to `false`
-    inferenceUrl: {'http://t2v-ada-pca.weaviate-staging.svc.cluster.local:8080'}
     # inferenceUrl: {}
     # The configuration below is ignored if enabled==false
 
@@ -631,7 +631,7 @@ modules:
 
     # enable if you want to use transformers instead of the
     # text2vec-contextionary module
-    enabled: false
+    enabled: true
     # You can set directly an inference URL of this module without deploying it with this release.
     # You can do so by setting a value for the `inferenceUrl` here AND by setting the `enable` to `false`
     inferenceUrl: {}
@@ -669,14 +669,14 @@ modules:
 
     resources:
       requests:
-        cpu: '1000m'
-        memory: '3000Mi'
+        cpu: '100m'
+        memory: '768Mi'
 
         # enable if running with CUDA support
         # nvidia.com/gpu: 1
       limits:
-        cpu: '1000m'
-        memory: '5000Mi'
+        cpu: '200m'
+        memory: '2000Mi'
 
         # enable if running with CUDA support
         # nvidia.com/gpu: 1

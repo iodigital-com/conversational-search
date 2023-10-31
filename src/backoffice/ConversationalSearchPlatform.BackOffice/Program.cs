@@ -121,6 +121,7 @@ internal class Program
         app.UseStaticFiles();
         app.UseAntiforgery();
         app.UseWebSockets();
+        app.MapHealthCheck();
         app.MapConversationalSearchWebSocket();
         app.MapGroup(ApiConstants.ApiV1Path)
             .MapConversationalSearchGroup()

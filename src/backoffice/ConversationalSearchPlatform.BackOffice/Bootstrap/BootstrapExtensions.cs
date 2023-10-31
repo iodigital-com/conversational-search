@@ -40,6 +40,9 @@ internal static class BootstrapExtensions
 #endif
         return services;
     }
+    
+    internal static IEndpointConventionBuilder MapHealthCheck(this IEndpointRouteBuilder endpoints) =>
+        endpoints.MapHealthChecks("/health");
 
     internal static IServiceCollection AddIndexingServices(this IServiceCollection serviceCollection)
     {
