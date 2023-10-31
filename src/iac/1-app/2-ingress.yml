@@ -11,10 +11,10 @@ metadata:
 spec:
   tls:
     - hosts:
-        - '' #TODO fix a domain
+        - 'polestar-poc.antwerp.io-internal.dev ' #TODO fix a domain
       secretName: 'secret' #TODO fix secret
   rules:
-    - host: '' #TODO fix domain again
+    - host: 'polestar-poc.antwerp.io-internal.dev' #TODO fix domain again
       http:
         paths:
           - path: /

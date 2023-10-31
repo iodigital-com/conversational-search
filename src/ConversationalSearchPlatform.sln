@@ -3,7 +3,8 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{33CCB6E3-745D-42A7-A75B-C9B30AD359E4}"
 	ProjectSection(SolutionItems) = preProject
 		docker-compose.yml = ../docker-compose.yml
-		docker-compose.yml = ../.github/workflows/application.yml
+		application.yml = ../.github/workflows/application.yml
+		scraper.yml = ../.github/workflows/scraper.yml
 		README.md = ../README.md
 	EndProjectSection
 EndProject

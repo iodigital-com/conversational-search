@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: csp-app
-          image: 'iopolestarpocacr.azurecr.io/csp-app:SOMETAG' #TODO tag 
+          image: 'iopolestarpocacr.azurecr.io/csp-app:32711ae0cac28ae29f486cad894c4efaeeabe7c1' #TODO tag 
           ports:
             - containerPort: 5000
           resources:
@@ -22,7 +22,7 @@ spec:
               memory: 1280Mi
             requests:
               memory: 500Mi
-              cpu: "1.5"
+              cpu: "1"
           livenessProbe:
             httpGet:
               path: '/health'
