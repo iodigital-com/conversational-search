@@ -4,16 +4,12 @@ metadata:
   name: csp-app
   labels:
     app: csp-app
-  annotations:
-    prometheus.io/path: '/actuator/prometheus'
-    prometheus.io/port: '8080'
-    prometheus.io/scrape: 'true'
 spec:
   type: ClusterIP
   ports:
     - port: 80
       protocol: TCP
-      targetPort: 8080
+      targetPort: 5000
       name: external
   selector:
     app: csp-app

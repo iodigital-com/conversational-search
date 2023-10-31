@@ -4,6 +4,7 @@ metadata:
   name: 'csp-app-ingress'
   namespace: 'default'
   annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
     kubernetes.io/ingress.class: nginx
     nginx.org/proxy-buffering: "false"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
@@ -11,10 +12,10 @@ metadata:
 spec:
   tls:
     - hosts:
-        - 'polestar-poc.antwerp.io-internal.dev ' #TODO fix a domain
-      secretName: 'secret' #TODO fix secret
+        - 'polestar-poc.antwerp.io-internal.dev'
+      secretName: 'letsencrypt-prod' 
   rules:
-    - host: 'polestar-poc.antwerp.io-internal.dev' #TODO fix domain again
+    - host: 'polestar-poc.antwerp.io-internal.dev'
       http:
         paths:
           - path: /
