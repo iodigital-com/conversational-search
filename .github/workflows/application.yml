@@ -31,8 +31,8 @@ name: Build and deploy app to AKS
 
 on:
   push:
-#    paths:
-#      - src/backoffice/**
+    paths:
+      - src/backoffice/**
     branches: [$default-branch]
   workflow_dispatch:
 

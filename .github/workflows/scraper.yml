@@ -31,8 +31,8 @@ name: Build and deploy scraper to AKS
 
 on:
   push:
-    #    paths:
-    #      - src/scraper/**
+    paths:
+      - src/scraper/**
     branches: [$default-branch]
   workflow_dispatch:
 
