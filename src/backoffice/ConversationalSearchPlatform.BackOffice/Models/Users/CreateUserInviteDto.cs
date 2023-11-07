@@ -20,9 +20,9 @@ public record CreateUserInviteDto
     }
 
     [EmailAddress]
-    public string Email { get; set; }
+    public string Email { get; set; } = default!;
 
-    public DateTime ExpirationDate { get; set; }
-    public ApplicationTenantInfo Tenant { get; set; }
+    public DateTime ExpirationDate { get; set; } = default!;
+    public ApplicationTenantInfo Tenant { get; set; } = default!;
 
 }

@@ -19,9 +19,14 @@ public class PuppeteerScraperService : BaseScraper, IScraperService
         htmlDoc.Load(stream);
 
         var imageScrapeParts = GetImageScrapeParts(htmlDoc);
+        var pageTitle = GetPageTitle(htmlDoc);
 
         var html = htmlDoc.DocumentNode.OuterHtml;
-        return new ScrapeResult(html ?? string.Empty, imageScrapeParts);
+        return new ScrapeResult(
+            html ?? string.Empty,
+            pageTitle ?? string.Empty,
+            imageScrapeParts
+        );
     }
 
 

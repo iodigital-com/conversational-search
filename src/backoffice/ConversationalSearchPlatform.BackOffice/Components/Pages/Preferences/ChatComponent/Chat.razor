@@ -1,0 +1,261 @@
+@using ConversationalSearchPlatform.BackOffice.Tenants
+@using Finbuckle.MultiTenant
+@using ConversationalSearchPlatform.BackOffice.Services
+@using ConversationalSearchPlatform.BackOffice.Services.Models
+@using ConversationalSearchPlatform.BackOffice.Services.Models.ConversationDebug
+@using ConversationalSearchPlatform.BackOffice.Components.Pages.Preferences.ChatComponent.State
+@inject ChatRefreshState ChatRefreshState;
+@implements IDisposable
+@inject ISnackbar Snackbar;
+@inject IMultiTenantContextAccessor<ApplicationTenantInfo> MultiTenantAccessor;
+@inject IMultiTenantStore<ApplicationTenantInfo> TenantStore; 
+@inject IConversationService ConversationService;
+
+<MudPaper Class="mt-3" Elevation="0">
+    <MudGrid Spacing="3">
+        <MudItem md="8" Style="min-height: 300px">
+            <MudText Typo="Typo.h4" Align="Align.Left" GutterBottom="true">Chat</MudText>
+            <div class="chat d-flex flex-column mud-input-outlined" style="padding: 12px">
+                @{
+                    foreach (var chatMessage in ChatMessages)
+                    {
+                        var position = chatMessage.Origin == ChatMessageOrigin.USER ? "bubble left" : "bubble right";
+                        <div class="@position">
+                            <p title="@chatMessage.TimeStamp.ToString("G")">@(new MarkupString(chatMessage.Content))</p>
+                        </div>
+                    }
+                }
+                @{
+                    if (Loading)
+                    {
+                        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="55px"/>
+                    }
+                }
+            </div>
+            @{
+                if (ChatMessages.Count > 0)
+                {
+                    <MudContainer Style="padding: 12px">
+                        <MudDivider Class="mt-2 mb-2" DividerType="DividerType.FullWidth"/>
+                        <MudText Typo="Typo.h5" Align="Align.Left" GutterBottom="true">References</MudText>
+                        <MudGrid Class="ml-4 mt-3 d-flex flex-column" Style="min-height: 100px">
+                            @{
+                                foreach (var reference in References)
+                                {
+                                    <MudLink Target="_blank" rel="noopener noreferrer" Href="@reference.Url">
+                                        <MudText Typo="Typo.body1" Align="Align.Left">@reference.Title [@reference.Index.ToString()]</MudText>
+                                    </MudLink>
+                                }
+                            }
+                        </MudGrid>
+                    </MudContainer>
+                }
+            }
+            <MudGrid Class="d-flex flex-row" Style="padding:12px;">
+                <MudItem md="9">
+                    <MudTextField T="string" Label="Prompt" Variant="Variant.Outlined" @bind-Value="@Prompt" Lines="4" Immediate="true"/>
+                </MudItem>
+                <MudItem md="3" Class="align-self-center">
+                    <MudButtonGroup Color="Color.Primary" Variant="Variant.Outlined" VerticalAlign="true">
+                        <MudButton StartIcon="@Icons.Material.Filled.Chat" IconColor="Color.Primary" OnClick="SendMessageAsync" Disabled="@(CurrentConversationId == null || string.IsNullOrWhiteSpace(Prompt))" FullWidth="true">Send</MudButton>
+                        <MudButton StartIcon="@Icons.Material.Filled.Refresh" IconColor="Color.Secondary" title="Resetting the chat also refetches the preferences listed above." Variant="Variant.Filled" FullWidth="true" OnClick="ResetChatAsync">Reset</MudButton>
+                    </MudButtonGroup>
+                </MudItem>
+            </MudGrid>
+        </MudItem>
+        <MudItem md="4" Class="d-inline-flex flex-column align-items-baseline">
+            <MudText Typo="Typo.h4" Align="Align.Left" GutterBottom="true">Context configuration</MudText>
+            <MudCheckBox @bind-Checked="Debug" LabelPosition="LabelPosition.Start" Label="Debug" Color="Color.Primary"></MudCheckBox>
+            <MudText>Prompt tags</MudText>
+            @{
+                foreach (var variable in ConversationContextVariables)
+                {
+                    <MudTextField @ref="@ConversationContextVariableReferences[variable.Key]"
+                                  Class="flex-grow-0" T="string" Label="@variable.Key"
+                                  bind-Value="@ConversationContextVariables[variable.Key]"
+                                  Variant="Variant.Outlined" Immediate="true"
+                                  TextChanged="newValue => ChangeContextVariableValue(newValue, variable.Key)"
+                                  Lines="1"/>
+                }
+            }
+            @{
+                if (Debug && DebugInformation.Count > 0)
+                {
+                    <div class="debug-information mt-4">
+                        @{
+                            <MudDivider Class="mt-2 mb-2" DividerType="@DividerType.FullWidth"/>
+                            <MudText Typo="Typo.h5" Align="Align.Left" GutterBottom="true">Debug information</MudText>
+
+                            foreach (var record in DebugInformation.SelectMany(di => di.DebugRecords).OrderBy(record => record.ExecutedAt))
+                            {
+                                <MudText>@record.ExecutedAt.ToString("G")</MudText>
+                                <MudExpansionPanels>
+                                    <MudExpansionPanel Text="References">
+                                        <MudExpansionPanels>
+                                            <MudExpansionPanel Text="Text" Style="word-break: break-word">
+                                                @foreach (var textRef in record.References.Text)
+                                                {
+                                                    <li>Source: @textRef.Source</li>
+                                                    <li>Content: @textRef.Content</li>
+                                                    {
+                                                        var usedInAnswer = textRef.UsedInAnswer ? "yes" : "no";
+                                                        <li>Used in answer: @usedInAnswer </li>
+                                                    }
+                                                    <MudDivider Class="mt-2 mb-2" DividerType="@DividerType.FullWidth"/>
+                                                }
+                                            </MudExpansionPanel>
+                                            <MudExpansionPanel Text="Image" Style="word-break: break-word">
+                                                @foreach (var imageRef in record.References.Image)
+                                                {
+                                                    <li>Source: @imageRef.Source</li>
+                                                    <li>Alt description: @imageRef.AltDescription</li>
+                                                    {
+                                                        var usedInAnswer = imageRef.UsedInAnswer ? "yes" : "no";
+                                                        <li>Used in answer: @usedInAnswer </li>
+                                                    }
+                                                    <MudDivider Class="mt-2 mb-2" DividerType="@DividerType.FullWidth"/>
+                                                }
+                                            </MudExpansionPanel>
+                                        </MudExpansionPanels>
+                                    </MudExpansionPanel>
+                                    <MudExpansionPanel Text="Prompt" Style="word-break: break-word">
+                                        <li>Prompt: @record.FullPrompt</li>
+                                    </MudExpansionPanel>
+                                    <MudExpansionPanel Text="Context variables">
+                                        @foreach (var contextVar in record.ReplacedContextVariables)
+                                        {
+                                            <li>Variable: @contextVar.Key</li>
+                                            <li>Value: @contextVar.Value</li>
+                                            <MudDivider Class="mt-2 mb-2" DividerType="@DividerType.FullWidth"/>
+                                        }
+                                    </MudExpansionPanel>
+                                </MudExpansionPanels>
+                            }
+                        }
+                    </div>
+                }
+            }
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@code {
+    private ApplicationTenantInfo TenantInfo { get; set; } = default!;
+
+    private bool Debug { get; set; }
+    private bool Loading { get; set; }
+    private Language Language { get; set; } = Language.English;
+    private Guid? CurrentConversationId { get; set; }
+    private string Prompt { get; set; } = string.Empty;
+    private Dictionary<string, string> ConversationContextVariables { get; set; } = new();
+    public Dictionary<string, MudTextField<string>?> ConversationContextVariableReferences { get; set; } = new();
+
+    private List<ChatMessage> ChatMessages { get; set; } = new();
+    private List<ConversationReference> References { get; set; } = new();
+    private List<DebugInformation> DebugInformation { get; set; } = new();
+
+
+    private void OnPreferencesChanged()
+    {
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+        ResetChatAsync();
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+        ChatRefreshState.SetRefreshed();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        ChatRefreshState.OnChange += OnPreferencesChanged;
+        ChatRefreshState.SetRefreshed();
+
+        TenantInfo = MultiTenantAccessor?.MultiTenantContext?.TenantInfo ?? throw new InvalidOperationException("Tenant could not be resolved");
+        var mapped = MapPromptTagsToContextVariables(TenantInfo.PromptTags);
+        InitializeContextVariableReferences(mapped);
+        ConversationContextVariables = mapped;
+
+        await StartChatAsync();
+    }
+
+    public void Dispose() => ChatRefreshState.OnChange -= OnPreferencesChanged;
+
+
+    private async Task StartChatAsync() =>
+        CurrentConversationId = (await ConversationService.StartConversationAsync(new StartConversation(TenantInfo.ChatModel, TenantInfo.AmountOfSearchReferences, Language))).Value;
+
+    private async Task SendMessageAsync()
+    {
+        var prompt = new string(Prompt);
+        Prompt = string.Empty;
+        ChatMessages.Add(new ChatMessage(ChatMessageOrigin.USER, prompt, DateTimeOffset.UtcNow));
+        var cleanedContextVariables = ConversationContextVariableReferences.ToDictionary(kvp => kvp.Key.TrimStart('{').TrimEnd('}'), kvp => kvp.Value?.Value ?? string.Empty);
+        ConversationReferencedResult conversationResult;
+        try
+        {
+            Loading = true;
+            conversationResult = await ConversationService.ConverseAsync(new HoldConversation(CurrentConversationId!.Value, TenantInfo.Id!, prompt, cleanedContextVariables, Debug, Language));
+        }
+        finally
+        {
+            Loading = false;
+        }
+
+        ChatMessages.Add(new ChatMessage(ChatMessageOrigin.SYSTEM, conversationResult.Result.Answer, DateTimeOffset.UtcNow));
+        References.AddRange(conversationResult.References);
+        if (conversationResult.DebugInformation != null)
+        {
+            DebugInformation.Clear();
+            DebugInformation.Add(conversationResult.DebugInformation);
+        }
+    }
+
+    private async Task ResetChatAsync()
+    {
+        ChatMessages = new List<ChatMessage>();
+        References = new List<ConversationReference>();
+        Prompt = string.Empty;
+        TenantInfo = await TenantStore.TryGetAsync(TenantInfo.Id!) ?? throw new InvalidOperationException("Cannot refetch tenant");
+        ResetContextValues();
+        DebugInformation = new List<DebugInformation>();
+
+        await StartChatAsync();
+
+        Snackbar.Add("Refreshed the chat", Severity.Info);
+        StateHasChanged();
+    }
+
+    private void ChangeContextVariableValue(string newValue, string key) =>
+        ConversationContextVariables[key] = newValue;
+
+    private void ResetContextValues()
+    {
+        ConversationContextVariables.Clear();
+
+        var mapped = MapPromptTagsToContextVariables(TenantInfo.PromptTags);
+        InitializeContextVariableReferences(mapped);
+        foreach (var newValues in mapped)
+        {
+            ConversationContextVariables.Add(newValues.Key, newValues.Value);
+        }
+    }
+
+    private void InitializeContextVariableReferences(Dictionary<string, string> mapped)
+    {
+        foreach (var keyValuePair in mapped)
+        {
+            ConversationContextVariableReferences.TryAdd(keyValuePair.Key, null);
+        }
+    }
+
+    private static Dictionary<string, string> MapPromptTagsToContextVariables(List<PromptTag>? promptTags) =>
+        promptTags?.Select(tag => tag.Value).ToDictionary(tag => tag) ?? new Dictionary<string, string>();
+
+    public record ChatMessage(ChatMessageOrigin Origin, string Content, DateTimeOffset TimeStamp);
+
+
+    public enum ChatMessageOrigin
+    {
+        USER,
+        SYSTEM
+    }
+
+}

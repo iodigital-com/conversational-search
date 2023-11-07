@@ -12,6 +12,6 @@ public class AzurePricingSettings
         RegionName = regionName;
     }
 
-    public string RegionName { get; set; }
-    public string BaseUrl { get; set; }
+    public string RegionName { get; set; } = default!;
+    public string BaseUrl { get; set; } = default!;
 }

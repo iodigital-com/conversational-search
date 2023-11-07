@@ -5,7 +5,7 @@
 
     if (MessageFromCookie is not null)
     {
-        HttpContext.Response.Cookies.Delete(IdentityRedirectManager.StatusCookieName);
+        HttpContext?.Response.Cookies.Delete(IdentityRedirectManager.StatusCookieName);
     }
 }
 

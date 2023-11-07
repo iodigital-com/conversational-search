@@ -40,6 +40,13 @@ public static class Schemas
                     {
                         "text"
                     },
+                    "Page title",
+                    "title"
+                ),
+                new(new List<string>
+                    {
+                        "text"
+                    },
                     "url",
                     "url"
                 ),
@@ -83,6 +90,13 @@ public static class Schemas
                     },
                     "text",
                     "text"
+                ),
+                new(new List<string>
+                    {
+                        "text"
+                    },
+                    "Page title",
+                    "title"
                 ),
                 new(new List<string>
                     {

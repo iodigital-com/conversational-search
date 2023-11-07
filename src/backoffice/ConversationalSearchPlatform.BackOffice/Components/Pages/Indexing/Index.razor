@@ -40,7 +40,16 @@
                  ServerData="@(new Func<GridState<WebsitePageDto>, Task<GridData<WebsitePageDto>>>(LoadDataAsync))">
         <Columns>
             <PropertyColumn T="WebsitePageDto" TProperty="string" Property="x => x.Name" Sortable="false"/>
-            <PropertyColumn T="WebsitePageDto" TProperty="string" Property="x => x.Url" Sortable="false"/>
+            <TemplateColumn CellStyle="min-width: 180px;" Title="Indexed at" Sortable="false">
+                <CellTemplate Context="cellContext">
+                    @{
+                        var websitePageDto = cellContext.Item as WebsitePageDto;
+                    }
+                    <MudLink Target="_blank" rel="noopener noreferrer" Href="@websitePageDto.Url">
+                        <MudText>@websitePageDto.Url</MudText>
+                    </MudLink>
+                </CellTemplate>
+            </TemplateColumn>
             <PropertyColumn T="WebsitePageDto" TProperty="ConversationReferenceTypeDto" Title="Reference type" Property="x => x.ReferenceType" Sortable="false"/>
             <PropertyColumn T="WebsitePageDto" TProperty="LanguageDto" Title="Language" Property="x => x.Language" Sortable="false"/>
             <TemplateColumn CellStyle="min-width: 180px;" Title="Indexed at" Sortable="false">

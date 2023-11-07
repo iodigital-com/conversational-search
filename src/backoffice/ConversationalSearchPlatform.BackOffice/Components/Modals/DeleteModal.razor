@@ -21,7 +21,7 @@
 @code {
 
     [CascadingParameter]
-    MudDialogInstance MudDialog { get; set; }
+    MudDialogInstance MudDialog { get; set; } = default!;
 
     [Parameter]
     public DeleteModalProps? Props { get; set; }
@@ -41,10 +41,10 @@
         bool success = false;
         try
         {
-            await Props.DeleteFunction?.Invoke();
+            await Props.DeleteFunction?.Invoke()!;
             success = true;
         }
-        catch (Exception e)
+        catch (Exception)
         {
             Snackbar.Add($"Something went wrong trying to execute this action." , Severity.Error);
         }

@@ -16,6 +16,7 @@ public interface IWeaviateRecordCreator<TInsertable, TCollection, TWeaviateCreat
         string collectionName,
         Guid correlationId,
         string tenantId,
+        string title,
         UsageType usageType,
         TCollection collection,
         IOpenAiEmbedding openAiEmbedding,
@@ -48,6 +49,7 @@ public sealed class WebsitePageRecordCreator<TInsertable, TCollection, TWeaviate
         string collectionName,
         Guid correlationId,
         string tenantId,
+        string title,
         UsageType usageType,
         ChunkCollection collection,
         IOpenAiEmbedding openAiEmbedding,
@@ -57,6 +59,7 @@ public sealed class WebsitePageRecordCreator<TInsertable, TCollection, TWeaviate
 
         var record = new WebsitePageWeaviateCreateRecord(collection.TenantId,
             collection.InternalId,
+            title,
             item.Text,
             collection.Url,
             collection.Language,
@@ -80,22 +83,26 @@ public sealed class ImageRecordCreator<TInsertable, TCollection, TWeaviateCreate
         string collectionName,
         Guid correlationId,
         string tenantId,
+        string title,
         UsageType usageType,
         ImageCollection collection,
         IOpenAiEmbedding openAiEmbedding,
         ImageResult item)
     {
+        var record = new ImageWeaviateCreateRecord(
+            item.FileName,
+            item.InternalId,
+            item.AltDescription,
+            item.NearByText,
+            item.Url,
+            title,
+            item.ImageBlob
+        );
+
         var weaviateCreateObject = new WeaviateCreateObject<ImageWeaviateCreateRecord>(
             collectionName,
             null,
-            new ImageWeaviateCreateRecord(
-                item!.FileName,
-                item.InternalId,
-                item.AltDescription,
-                item.NearByText,
-                item.Url,
-                item.ImageBlob
-            )
+            record
         );
         return Task.FromResult(weaviateCreateObject);
     }

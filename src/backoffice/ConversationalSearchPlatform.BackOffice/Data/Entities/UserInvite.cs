@@ -28,7 +28,7 @@ public class UserInvite : IMultiTenant
 
     public string Code { get; set; } = default!;
 
-    public string TenantId { get; set; }
+    public string TenantId { get; set; } = default!;
 
     public DateTimeOffset? RedeemDate { get; set; }
     

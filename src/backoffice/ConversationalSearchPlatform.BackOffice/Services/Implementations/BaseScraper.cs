@@ -5,6 +5,10 @@ namespace ConversationalSearchPlatform.BackOffice.Services.Implementations;
 
 public abstract class BaseScraper
 {
+
+    protected static string? GetPageTitle(HtmlDocument htmlDoc) =>
+        htmlDoc.DocumentNode.SelectSingleNode("//title")?.InnerText.Trim();
+
     protected static List<ImageScrapePart> GetImageScrapeParts(HtmlDocument htmlDoc)
     {
         var imageScrapeParts = new List<ImageScrapePart>();

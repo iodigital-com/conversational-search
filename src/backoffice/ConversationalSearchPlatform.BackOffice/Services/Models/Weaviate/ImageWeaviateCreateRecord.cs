@@ -6,4 +6,5 @@ public record ImageWeaviateCreateRecord(
     string? AltDescription,
     string? NearByText,
     string Url,
+    string Title,
     string Image) : IWeaviateCreateRecord;

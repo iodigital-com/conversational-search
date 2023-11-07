@@ -311,7 +311,12 @@ public partial class ConversationService : IConversationService
             if (parsed)
             {
                 var sortedSearchReference = textReferences.First(reference => reference.Index == parsedIdx);
-                var reference = new ConversationReference(parsedIdx, sortedSearchReference.TextSearchReference.Source, sortedSearchReference.TextSearchReference.Type);
+                var reference = new ConversationReference(
+                    parsedIdx,
+                    sortedSearchReference.TextSearchReference.Source,
+                    sortedSearchReference.TextSearchReference.Type,
+                    sortedSearchReference.TextSearchReference.Title
+                );
 
                 if (validReferences.All(conversationReference => conversationReference.Index != parsedIdx))
                 {
@@ -432,6 +437,7 @@ public partial class ConversationService : IConversationService
                 {
                     Content = result.Text,
                     Source = result.Source,
+                    Title = result.Title,
                     Type = refType,
                     Certainty = result.Additional?.Certainty,
                     Language = lang,

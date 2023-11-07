@@ -9,7 +9,7 @@ public interface IVectorizationService
 {
     Task<float[]> CreateVectorAsync(Guid correlationId, string tenantId, UsageType usageType, string content);
 
-    Task<List<Guid>> BulkCreateAsync<T>(string collectionName, Guid correlationId, string tenantId, UsageType usageType, IInsertableCollection<T> insertableCollection) where T : IInsertable;
+    Task<List<Guid>> BulkCreateAsync<T>(string collectionName, Guid correlationId, string title, string tenantId, UsageType usageType, IInsertableCollection<T> insertableCollection) where T : IInsertable;
 
     Task<List<R>> SearchAsync<T, R>(string key, GraphQLRequest graphQLRequest, CancellationToken cancellationToken = default)
         where T : IQueryParams

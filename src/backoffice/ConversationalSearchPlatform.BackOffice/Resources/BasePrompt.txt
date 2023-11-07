@@ -10,7 +10,8 @@ Below are the image sources related to the text sources.
 
 Whenever you give an answer that references these sources, you must end the sentence with the document number between square parentheses.
 
-The following image sources are related to the text sources above. The image sources are correlated by their document number to the text reference. If you use a text reference, try to include the images related to this text reference in the form of an HTML <img> tag. It is also possible that there are no images related to the text reference.
+The following image sources are related to the text sources above. The image sources are correlated by their document number to the text reference. If you use a text reference, try to include the images related to this text reference. When using an image, always render it in an <IMG> tag with an alt attribute.
+It is also possible that there are no images related to the text reference.
 
 For example if you have following fictitious document sources:
 

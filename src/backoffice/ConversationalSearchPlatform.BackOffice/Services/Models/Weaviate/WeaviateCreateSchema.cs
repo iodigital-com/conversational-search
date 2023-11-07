@@ -33,13 +33,13 @@ public record WeaviateCreateSchema(
 
 public record Multi2VecClip
 {
-    public List<string> ImageFields { get; set; }
+    public List<string> ImageFields { get; set; } = default!;
 }
 
 public record ModuleConfig
 {
     [JsonPropertyName("multi2vec-clip")]
-    public Multi2VecClip Multi2VecClip { get; set; }
+    public Multi2VecClip Multi2VecClip { get; set; } = default!;
 }
 
 public record SchemaProperty(List<string> DataType, string Description, string Name)

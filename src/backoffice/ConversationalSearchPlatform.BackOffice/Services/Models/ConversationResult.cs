@@ -10,7 +10,7 @@ public record ConversationReferencedResult(ConversationResult Result, List<Conve
     public DebugInformation? DebugInformation { get; set; } = DebugInformation;
 }
 
-public record ConversationReference(int Index, string Url, ConversationReferenceType Type);
+public record ConversationReference(int Index, string Url, ConversationReferenceType Type, string Title);
 
 [Serializable]
 [JsonConverter(typeof(JsonStringEnumConverter))]

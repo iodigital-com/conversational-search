@@ -220,7 +220,7 @@ public static class ConversationalSearchEndpoints
     }
 
     private static List<ConversationReferenceResponse> MapReferencesToApiResponse(IEnumerable<ConversationReference> references) =>
-        references.Select(reference => new ConversationReferenceResponse(reference.Index, reference.Url, (ConversationReferenceTypeDto)reference.Type)).ToList();
+        references.Select(reference => new ConversationReferenceResponse(reference.Index, reference.Url, (ConversationReferenceTypeDto)reference.Type, reference.Title)).ToList();
 
     private static async Task HandleWebSocketMessage(byte[] buffer, int count, ILogger logger, ApplicationTenantInfo tenant, IConversationService conversationService, WebSocket ws)
     {

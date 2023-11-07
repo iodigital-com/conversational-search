@@ -1,0 +1,61 @@
+.bubble {
+    flex: 1 1 auto;
+    clear: both;
+}
+
+.bubble p {
+    border-radius: 5px;
+    padding: 8px;
+    margin: 8px 12px;
+    max-width: 80%; /* this will make it not exceed 80% and then wrap */
+    position: relative;
+    transition: background-color 0.5s;
+}
+
+.left p {
+    float: left;
+}
+
+.right p {
+    float: right;
+}
+
+.left p::before {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 0;
+    left: -8px;
+    top: 8px;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+}
+
+.right p::after {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 0;
+    right: -8px;
+    bottom: 8px;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+}
+
+.container {
+    flex: 1 1 90%;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #ccc;
+    overflow: auto;
+}
+
+p > img {
+    max-height: 200px;
+}
+
+.debug-information {
+    flex-grow: 0;
+    max-width: 100%;
+    flex-basis: 100%
+}

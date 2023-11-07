@@ -18,40 +18,40 @@ public record ChunkCollection(string TenantId, string InternalId, string Url, st
 public record ChunkResult : IInsertable
 {
     [JsonPropertyName("type")]
-    public string ElementType { get; set; }
+    public string ElementType { get; set; } = default!;
 
     [JsonPropertyName("element_id")]
-    public string ElementId { get; set; }
+    public string ElementId { get; set; } = default!;
 
     [JsonPropertyName("metadata")]
-    public ChunkMetadata MetaData { get; set; }
+    public ChunkMetadata MetaData { get; set; } = default!;
 
     [JsonPropertyName("text")]
-    public string Text { get; set; }
+    public string Text { get; set; } = default!;
 }
 
 public record ChunkMetadata
 {
     [JsonPropertyName("filename")]
-    public string Filename { get; set; }
+    public string Filename { get; set; } = default!;
 
     [JsonPropertyName("filetype")]
-    public string ChunkFileType { get; set; }
+    public string ChunkFileType { get; set; } = default!;
 
     [JsonPropertyName("page_number")]
     public long PageNumber { get; set; }
 
     [JsonPropertyName("links")]
-    public List<Link> Links { get; set; }
+    public List<Link> Links { get; set; } = default!;
 }
 
 public record Link
 {
     [JsonPropertyName("text")]
-    public string Text { get; set; }
+    public string Text { get; set; } = default!;
 
     [JsonPropertyName("url")]
-    public string Url { get; set; }
+    public string Url { get; set; } = default!;
 
     [JsonPropertyName("start_index")]
     public long StartIndex { get; set; }

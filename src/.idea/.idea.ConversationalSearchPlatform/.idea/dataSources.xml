@@ -11,5 +11,15 @@
         <property name="trustServerCertificate" value="true" />
       </driver-properties>
     </data-source>
+    <data-source source="LOCAL" name="Prod" uuid="9dc29270-4947-4041-99bb-bc39adb26c2d">
+      <driver-ref>azure.ms</driver-ref>
+      <synchronize>true</synchronize>
+      <jdbc-driver>com.microsoft.sqlserver.jdbc.SQLServerDriver</jdbc-driver>
+      <jdbc-url>jdbc:sqlserver://iopolestarpocdb.database.windows.net:1433;database=iopolestarpocdb</jdbc-url>
+      <jdbc-additional-properties>
+        <property name="com.intellij.clouds.kubernetes.db.enabled" value="false" />
+      </jdbc-additional-properties>
+      <working-dir>$ProjectFileDir$</working-dir>
+    </data-source>
   </component>
 </project>

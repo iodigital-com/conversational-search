@@ -13,7 +13,7 @@ public record WeaviateSettings
     }
 
     public string? ApiKey { get; init; }
-    public string BaseUrl { get; init; }
+    public string BaseUrl { get; init; } = default!;
 
     public void Deconstruct(out string? ApiKey, out string BaseUrl)
     {

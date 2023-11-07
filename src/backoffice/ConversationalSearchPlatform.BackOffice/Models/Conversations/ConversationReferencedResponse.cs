@@ -6,7 +6,8 @@ namespace ConversationalSearchPlatform.BackOffice.Models.Conversations;
 /// Response of a conversation
 /// </summary>
 /// <param name="Response">Inner response containing the answer</param>
-/// <param name="References"></param>
+/// <param name="References">References used in the answer</param>
+/// <param name="DebugInformation">Optional debug information about the answer given</param>
 public record ConversationReferencedResponse(ConversationResponse Response, List<ConversationReferenceResponse> References, DebugInformationResponse? DebugInformation = default);
 
 public record DebugInformationResponse
@@ -26,22 +27,22 @@ public record DebugRecordResponse
     public DateTimeOffset ExecutedAt { get; set; }
 
     [JsonPropertyName("fullPrompt")]
-    public string FullPrompt { get; set; }
+    public string FullPrompt { get; set; } = default!;
 
     [JsonPropertyName("replacedContextVariables")]
-    public Dictionary<string, string> ReplacedContextVariables { get; set; }
+    public Dictionary<string, string> ReplacedContextVariables { get; set; } = default!;
 
     [JsonPropertyName("references")]
-    public ReferencesResponse References { get; set; }
+    public ReferencesResponse References { get; set; } = default!;
 }
 
 public record ReferencesResponse
 {
     [JsonPropertyName("text")]
-    public List<TextDebugInfoResponse> Text { get; set; }
+    public List<TextDebugInfoResponse> Text { get; set; } = default!;
 
     [JsonPropertyName("image")]
-    public List<ImageDebugInfoResponse> Image { get; set; }
+    public List<ImageDebugInfoResponse> Image { get; set; } = default!;
 }
 
 public record TextDebugInfoResponse(string InternalId, bool UsedInAnswer, string Source, string Content)

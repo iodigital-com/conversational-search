@@ -1,5 +1,6 @@
 using ConversationalSearchPlatform.BackOffice.Api.Errors;
 using ConversationalSearchPlatform.BackOffice.Api.Indexing;
+using ConversationalSearchPlatform.BackOffice.Components.Pages.Preferences.ChatComponent.State;
 using Microsoft.AspNetCore.Authorization;
 
 namespace ConversationalSearchPlatform.BackOffice;
@@ -103,6 +104,8 @@ internal class Program
         builder.Services.AddProblemDetails();
 
         builder.Services.AddExceptionHandler<ExceptionToProblemDetailsHandler>();
+        
+        builder.Services.AddScoped<ChatRefreshState>();
 
         var app = builder.Build();
 

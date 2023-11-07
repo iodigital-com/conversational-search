@@ -11,6 +11,6 @@ public record PuppeteerSettings
         this.BaseUrl = BaseUrl;
     }
 
-    public string BaseUrl { get; set; }
+    public string BaseUrl { get; set; } = default!;
 
 }

@@ -21,8 +21,8 @@ public record CreateTenantDto
         this.AmountOfSearchReferences = AmountOfSearchReferences;
     }
 
-    public string Identifier { get; set; }
-    public string Name { get; set; }
+    public string Identifier { get; set; } = default!;
+    public string Name { get; set; } = default!;
     public ChatModel ChatModel { get; set; } = ChatModel.Gpt4_32K;
     public string? BasePrompt { get; set; }
     public int AmountOfSearchReferences { get; set; }

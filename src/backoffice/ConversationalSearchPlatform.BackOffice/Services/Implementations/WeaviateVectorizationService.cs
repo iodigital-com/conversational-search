@@ -48,7 +48,8 @@ public class WeaviateVectorizationService : IVectorizationService
         return await GetVectorDataAsync(openAiEmbedding, correlationId, tenantId, usageType, content);
     }
 
-    public async Task<List<Guid>> BulkCreateAsync<T>(string collectionName, Guid correlationId, string tenantId, UsageType usageType, IInsertableCollection<T> insertableCollection)
+    public async Task<List<Guid>> BulkCreateAsync<T>(string collectionName, Guid correlationId, string title, string tenantId, UsageType usageType,
+        IInsertableCollection<T> insertableCollection)
         where T : IInsertable
     {
         var openAiEmbedding = _openAiFactory.CreateEmbedding();
@@ -61,7 +62,7 @@ public class WeaviateVectorizationService : IVectorizationService
 
         foreach (var item in insertableCollection.Items)
         {
-            await ProcessItemAsync(collectionName, correlationId, tenantId, usageType, insertableCollection, openAiEmbedding, item, objectIds);
+            await ProcessItemAsync(collectionName, correlationId, tenantId, title, usageType, insertableCollection, openAiEmbedding, item, objectIds);
         }
 
         return objectIds;
@@ -72,6 +73,7 @@ public class WeaviateVectorizationService : IVectorizationService
         string collectionName,
         Guid correlationId,
         string tenantId,
+        string title,
         UsageType usageType,
         IInsertableCollection<T> insertableCollection,
         IOpenAiEmbedding openAiEmbedding,
@@ -87,6 +89,7 @@ public class WeaviateVectorizationService : IVectorizationService
                     collectionName,
                     correlationId,
                     tenantId,
+                    title,
                     usageType,
                     (insertableCollection as ChunkCollection)!,
                     openAiEmbedding,
@@ -95,6 +98,7 @@ public class WeaviateVectorizationService : IVectorizationService
                     collectionName,
                     correlationId,
                     tenantId,
+                    title,
                     usageType,
                     (insertableCollection as ImageCollection)!,
                     openAiEmbedding,

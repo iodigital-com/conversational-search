@@ -36,7 +36,8 @@ public class GetImagesFiltered
                       		    internalId
                       		    fileName
                       			altDescription
-                      			url,
+                      			url
+                      			title
                       			_additional {
                       	            id,
                       	            certainty,
@@ -56,13 +57,13 @@ public class GetImagesFiltered
         }
 
         [JsonPropertyName("internalId")]
-        public string InternalId { get; set; }
+        public string InternalId { get; set; } = default!;
 
         [JsonPropertyName("url")]
-        public string Url { get; set; }
+        public string Url { get; set; } = default!;
 
         [JsonPropertyName("fileName")]
-        public string FileName { get; set; }
+        public string FileName { get; set; } = default!;
 
         [JsonPropertyName("altDescription")]
         public string? AltDescription { get; set; }

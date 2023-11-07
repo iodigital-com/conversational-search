@@ -20,22 +20,22 @@ public record DebugRecord
     public DateTimeOffset ExecutedAt { get; set; }
 
     [JsonPropertyName("fullPrompt")]
-    public string FullPrompt { get; set; }
+    public string FullPrompt { get; set; } = default!;
 
     [JsonPropertyName("replacedContextVariables")]
-    public Dictionary<string, string> ReplacedContextVariables { get; set; }
+    public Dictionary<string, string> ReplacedContextVariables { get; set; } = default!;
 
     [JsonPropertyName("references")]
-    public References References { get; set; }
+    public References References { get; set; } = default!;
 }
 
 public record References
 {
     [JsonPropertyName("text")]
-    public List<TextDebugInfo> Text { get; set; }
+    public List<TextDebugInfo> Text { get; set; } = default!;
 
     [JsonPropertyName("image")]
-    public List<ImageDebugInfo> Image { get; set; }
+    public List<ImageDebugInfo> Image { get; set; } = default!;
 }
 
 interface IDebugInfo

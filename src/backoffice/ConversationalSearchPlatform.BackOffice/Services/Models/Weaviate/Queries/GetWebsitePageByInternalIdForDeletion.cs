@@ -32,7 +32,7 @@ public class GetWebsitePageByInternalIdForDeletion
                       		    internalId
                       			_additional {
                       	            id,
-                      	            certainty,
+                      	            certainty
                       	            distance
                                 }
                       		}

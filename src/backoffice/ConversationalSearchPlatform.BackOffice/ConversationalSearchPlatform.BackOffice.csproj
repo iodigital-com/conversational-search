@@ -10,6 +10,10 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <NoWarn>1591</NoWarn>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Finbuckle.MultiTenant.AspNetCore" Version="6.12.0" />
     <PackageReference Include="Finbuckle.MultiTenant.EntityFrameworkCore" Version="6.12.0" />
@@ -42,6 +46,8 @@
   <ItemGroup>
     <AdditionalFiles Include="Components\App.razor" />
     <AdditionalFiles Include="Components\App.razor.cs" />
+    <AdditionalFiles Include="Components\Pages\ApiDocumentation\TryItOut.razor" />
+    <AdditionalFiles Include="Components\Pages\Preferences\ChatComponent\Chat.razor" />
   </ItemGroup>
 
   <ItemGroup>
@@ -52,6 +58,10 @@
 
   <ItemGroup>
     <Folder Include="Data\Migrations\Tenant\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <_ContentIncludedByDefault Remove="Components\TryItOut\TryItOut.razor" />
   </ItemGroup>
 
 </Project>

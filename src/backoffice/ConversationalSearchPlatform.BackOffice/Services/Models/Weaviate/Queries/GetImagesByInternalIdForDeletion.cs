@@ -31,7 +31,7 @@ public class GetImagesByInternalIdForDeletion
                       		    internalId
                       			_additional {
                       	            id,
-                      	            certainty,
+                      	            certainty
                       	            distance
                                 }
                       		}

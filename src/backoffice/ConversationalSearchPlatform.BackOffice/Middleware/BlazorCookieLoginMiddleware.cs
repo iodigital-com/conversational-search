@@ -52,7 +52,8 @@ public class BlazorCookieLoginMiddleware
 
     private static async Task HandleLoginAsync(HttpContext context, SignInManager<ApplicationUser> signInMgr)
     {
-        var key = Guid.Parse(context.Request.Query["key"]);
+        var unparsedKey = context.Request.Query["key"];
+        var key = Guid.Parse(unparsedKey!);
         var info = Logins[key];
 
         var result = await signInMgr.PasswordSignInAsync(info.UserName, info.Password!, info.RememberMe, lockoutOnFailure: true);

@@ -30,7 +30,7 @@ public class WebsitePage : IIndexable, IHaveUrl, IMultiTenant, IReference
     public IndexableType IndexableType { get; init; }
     public DateTimeOffset? IndexedAt { get; set; }
     public string Url { get; set; }
-    public string TenantId { get; set; }
+    public string TenantId { get; set; } = default!;
 
     public ReferenceType ReferenceType { get; set; }
 

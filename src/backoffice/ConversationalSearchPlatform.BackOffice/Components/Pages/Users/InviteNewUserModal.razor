@@ -58,7 +58,7 @@
     private IEnumerable<ApplicationTenantInfo> Tenants { get; set; } = new List<ApplicationTenantInfo>();
 
     private bool Valid { get; set; }
-    private string ModalTitle { get; set; }
+    private string ModalTitle { get; set; } = default!;
 
     [CascadingParameter]
     MudDialogInstance MudDialog { get; set; } = null!;

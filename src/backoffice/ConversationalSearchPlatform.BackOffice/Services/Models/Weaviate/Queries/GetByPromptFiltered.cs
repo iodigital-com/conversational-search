@@ -38,9 +38,10 @@ public class GetByPromptFiltered
                       		    internalId
                       		    tenantId
                       			text
-                      			source,
-                      			language,
-                      			referenceType,
+                      			title
+                      			source
+                      			language
+                      			referenceType
                       			_additional {
                       	            id,
                       	            certainty,
@@ -61,24 +62,25 @@ public class GetByPromptFiltered
 
         [JsonPropertyName("internalId")]
 
-        public string InternalId { get; set; }
+        public string InternalId { get; set; } = default!;
 
         [JsonPropertyName("tenantId")]
 
-        public string TenantId { get; set; }
+        public string TenantId { get; set; } = default!;
 
         [JsonPropertyName("text")]
-        public string Text { get; set; }
+        public string Text { get; set; } = default!;
 
         [JsonPropertyName("source")]
-        public string Source { get; set; }
+        public string Source { get; set; } = default!;
 
         [JsonPropertyName("language")]
-        public string Language { get; set; }
+        public string Language { get; set; } = default!;
 
         [JsonPropertyName("referenceType")]
-        public string ReferenceType { get; set; }
+        public string ReferenceType { get; set; } = default!;
 
+        [JsonPropertyName("title")]
+        public string Title { get; set; } = default!;
     }
-
 }

@@ -173,10 +173,10 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
                 websitePage.TenantId
             )
         );
-        await _vectorizationService.BulkCreateAsync(nameof(WebsitePage), websitePage.Id, tenantId, UsageType.Indexing, chunkCollection);
+        await _vectorizationService.BulkCreateAsync(nameof(WebsitePage), websitePage.Id, scrapeResult.PageTitle, tenantId, UsageType.Indexing, chunkCollection);
 
         var imageCollection = await GetImageCollection(websitePage.Id, scrapeResult);
-        await _vectorizationService.BulkCreateAsync(IndexingConstants.ImageClass, websitePage.Id, tenantId, UsageType.Indexing, imageCollection);
+        await _vectorizationService.BulkCreateAsync(IndexingConstants.ImageClass, websitePage.Id, scrapeResult.PageTitle, tenantId, UsageType.Indexing, imageCollection);
 
 
         websitePage.IndexedAt = DateTimeOffset.UtcNow;

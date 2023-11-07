@@ -7,15 +7,15 @@ namespace ConversationalSearchPlatform.BackOffice.Models.Indexing;
 public record CreateWebsitePageDto
 {
     [Required]
-    public string Name { get; set; }
+    public string Name { get; set; } = default!;
 
     [Required]
     [UrlValidation]
-    public string Url { get; set; }
+    public string Url { get; set; } = default!;
 
     [Required]
     public ConversationReferenceTypeDto ReferenceType { get; set; }
-   
+
     [Required]
-    public LanguageDto Language { get; set; } 
+    public LanguageDto Language { get; set; }
 }

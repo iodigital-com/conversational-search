@@ -4,8 +4,8 @@ public record OpenAISettings
 {
     public OpenAISettings()
     {
-        
     }
+
     public OpenAISettings(bool UseAzure, string ApiKey, string ResourceName, string VersionForChat)
     {
         this.UseAzure = UseAzure;
@@ -15,9 +15,9 @@ public record OpenAISettings
     }
 
     public bool UseAzure { get; init; }
-    public string ApiKey { get; init; }
-    public string ResourceName { get; init; }
-    public string VersionForChat { get; init; }
+    public string ApiKey { get; init; } = default!;
+    public string ResourceName { get; init; } = default!;
+    public string VersionForChat { get; init; } = default!;
 
     public void Deconstruct(out bool UseAzure, out string ApiKey, out string ResourceName, out string VersionForChat)
     {

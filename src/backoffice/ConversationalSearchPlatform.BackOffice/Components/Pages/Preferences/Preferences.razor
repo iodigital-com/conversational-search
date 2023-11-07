@@ -4,12 +4,14 @@
 @using ConversationalSearchPlatform.BackOffice.Models.Preferences
 @using ConversationalSearchPlatform.BackOffice.Models.Tenants
 @using ConversationalSearchPlatform.BackOffice.Services.Models
-
+@using ConversationalSearchPlatform.BackOffice.Components.Pages.Preferences.ChatComponent.State
+@using ConversationalSearchPlatform.BackOffice.Components.Pages.Preferences.ChatComponent;
 @inject ISnackbar Snackbar;
 @inject IMultiTenantStore<ApplicationTenantInfo> TenantStore; 
 @inject IMultiTenantContextAccessor<ApplicationTenantInfo> TenantAccessor;
 @inject ILogger<Preferences> Logger;
 @attribute [RenderModeInteractiveServer]
+@inject ChatRefreshState ChatRefreshState;
 
 <PageTitle>Preferences</PageTitle>
 
@@ -97,7 +99,41 @@
     </MudGrid>
 </MudForm>
 
+<MudDrawer @bind-Open="@DrawerOpen"
+           ClipMode="DrawerClipMode.Always"
+           Breakpoint="Breakpoint.None"
+           Width="80%"
+           Style="background-color: var(--mud-palette-surface);
+            justify-content: center; border-radius: 5px 5px 5px 5px;
+            -webkit-border-radius: 5px 5px 5px 5px;
+            -moz-border-radius: 5px 5px 5px 5px;
+            border: 1px solid #a9a9a9;
+"
+           PreserveOpenState="false"
+           Elevation="1"
+           Anchor="Anchor.Right"
+           Variant="@DrawerVariant.Responsive">
+    <MudPaper Class="m-3" Elevation="0">
+        <MudFab Color="Color.Primary"
+                Style="position:fixed; top:50px;right:5px;"
+                StartIcon="@DrawerIcon"
+                OnClick="@ToggleDrawer"
+                Title="Try out chat"
+                />
+        <Chat/>
+    </MudPaper>
+</MudDrawer>
+
 @code{
+    private bool DrawerOpen { get; set; }
+    private string DrawerIcon { get; set; } = Icons.Material.Filled.Chat;
+
+    private void ToggleDrawer()
+    {
+        DrawerOpen = !DrawerOpen;
+        DrawerIcon = DrawerOpen ? Icons.Material.Filled.ArrowBack : Icons.Material.Filled.Chat;
+    }
+
     private TenantPreferenceDto Model { get; set; } = new();
     private ApplicationTenantInfo? Tenant { get; set; }
     private string? NewPromptTag { get; set; }
@@ -151,6 +187,7 @@
         if (success)
         {
             Snackbar.Add(snackbarMessage, Severity.Success);
+            ChatRefreshState.SetNeedsRefresh();
         }
     }
 

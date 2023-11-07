@@ -11,5 +11,5 @@ public class UnstructuredSettings
         BaseUrl = baseUrl;
     }
 
-    public string BaseUrl { get; set; }
+    public string BaseUrl { get; set; } = default!;
 }

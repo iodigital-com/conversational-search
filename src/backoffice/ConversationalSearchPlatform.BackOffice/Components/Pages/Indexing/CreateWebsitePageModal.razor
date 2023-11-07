@@ -87,7 +87,7 @@
     private CreateWebsitePageDto Model { get; set; } = new();
 
     private bool Valid { get; set; }
-    private string ModalTitle { get; set; }
+    private string ModalTitle { get; set; } = default!;
 
     [CascadingParameter]
     MudDialogInstance MudDialog { get; set; } = null!;
