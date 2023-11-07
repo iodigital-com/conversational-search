@@ -41,7 +41,7 @@ env:
   CONTAINER_NAME: "csp-app"
   RESOURCE_GROUP: "io_polestar_poc_rg"
   CLUSTER_NAME: "io_polestar_poc_aks"
-  DEPLOYMENT_MANIFEST_PATH: "./src/iac/1-app/0-pod.yml"
+  DEPLOYMENT_MANIFEST_PATH: "./src/iac/1-app/1-pod.yml"
 
 jobs:
   buildImage:
