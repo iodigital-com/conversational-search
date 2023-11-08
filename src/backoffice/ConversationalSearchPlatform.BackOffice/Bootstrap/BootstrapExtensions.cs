@@ -40,7 +40,7 @@ internal static class BootstrapExtensions
 #endif
         return services;
     }
-    
+
     internal static IEndpointConventionBuilder MapHealthCheck(this IEndpointRouteBuilder endpoints) =>
         endpoints.MapHealthChecks("/health");
 
@@ -252,7 +252,14 @@ internal static class BootstrapExtensions
                     UseRecommendedIsolationLevel = true,
                     DisableGlobalLocks = true
                 }));
-        services.AddHangfireServer();
+        services.AddHangfireServer(options =>
+        {
+            options.WorkerCount = 5; // TODO: might need to change this later. This is to not choke the parser for now
+            options.Queues = new[]
+            {
+                QueueConstants.DailyPricingQueue, QueueConstants.IndexingQueue, QueueConstants.TelemetryQueue
+            };
+        });
 
         return services;
     }

@@ -5,8 +5,7 @@ namespace ConversationalSearchPlatform.BackOffice.Services.Models;
 
 public class PromptBuilder(StringBuilder stringBuilder)
 {
-
-    private List<(string key, string value)> ReplacedPromptTags = new();
+    private readonly List<(string key, string value)> _replacedPromptTags = new();
 
     public PromptBuilder ReplaceTenantPrompt(string tenantPrompt)
     {
@@ -36,14 +35,14 @@ public class PromptBuilder(StringBuilder stringBuilder)
             if (value != null)
             {
                 stringBuilder = stringBuilder.Replace(promptTag.Value, value);
-                ReplacedPromptTags.Add(new ValueTuple<string, string>(promptTag.Value, value));
+                _replacedPromptTags.Add(new ValueTuple<string, string>(promptTag.Value, value));
             }
         }
 
         return this;
     }
 
-    public IEnumerable<(string key, string value)> GetReplacedPromptTags() => ReplacedPromptTags;
+    public IEnumerable<(string key, string value)> GetReplacedPromptTags() => _replacedPromptTags;
 
     public string Build() => stringBuilder.ToString();
 }

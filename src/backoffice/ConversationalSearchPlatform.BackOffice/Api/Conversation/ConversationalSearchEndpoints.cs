@@ -151,13 +151,31 @@ public static class ConversationalSearchEndpoints
                                            cancellationToken))
                     {
                         var mapped = MapToApiResponse(crr);
-                        var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(mapped));
+                        var bytes = JsonSerializer.SerializeToUtf8Bytes(mapped);
                         await httpContextResponse.BodyWriter.WriteAsync(new ReadOnlyMemory<byte>(bytes), cancellationToken);
                         await httpContextResponse.BodyWriter.FlushAsync(cancellationToken);
                     }
                 }).WithName("ContinueConversationStreaming")
             .WithDescription("Used for continuing a conversation after getting a conversationId in a streaming manner.")
             .Produces<ConversationReferencedResult>()
+            .Produces<ProblemDetails>((int)HttpStatusCode.NotFound)
+            .Produces<ProblemDetails>((int)HttpStatusCode.BadRequest)
+            .Produces<ProblemDetails>((int)HttpStatusCode.InternalServerError);
+
+        innerGroup.MapGet("/conversation/context",
+                [SwaggerResponseExample(200, typeof(ConversationalSearchEndpointsExamples.ConversationReferencedResponseExample))]
+                [SwaggerResponseExample(404, typeof(ConversationalSearchEndpointsExamples.Error404Example))]
+                [SwaggerResponseExample(400, typeof(ConversationalSearchEndpointsExamples.Error400Example))]
+                [SwaggerResponseExample(500, typeof(ConversationalSearchEndpointsExamples.Error500Example))]
+                async ([FromServices] IConversationService conversationService, HttpContext httpContext) =>
+                {
+                    var tenantId = httpContext.GetTenantHeader();
+
+                    var conversationContext = await conversationService.GetConversationContext(new GetConversationContext(tenantId));
+                    return new ConversationContextResponse(conversationContext.Variables);
+                }).WithName("GetConversationContext")
+            .WithDescription("Used to get context variables which can be used to replace parts of the prompt")
+            .Produces<ConversationContextResponse>()
             .Produces<ProblemDetails>((int)HttpStatusCode.NotFound)
             .Produces<ProblemDetails>((int)HttpStatusCode.BadRequest)
             .Produces<ProblemDetails>((int)HttpStatusCode.InternalServerError);

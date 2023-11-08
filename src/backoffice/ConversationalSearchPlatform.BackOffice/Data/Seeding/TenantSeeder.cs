@@ -1,6 +1,5 @@
 using ConversationalSearchPlatform.BackOffice.Services.Models;
 using ConversationalSearchPlatform.BackOffice.Tenants;
-using Finbuckle.MultiTenant;
 using Microsoft.EntityFrameworkCore;
 
 namespace ConversationalSearchPlatform.BackOffice.Data.Seeding;
@@ -27,11 +26,21 @@ public class TenantSeeder : IDatabaseSeeder
             AmountOfSearchReferences = 8
         };
 
+        var iodigitalDemo = new ApplicationTenantInfo
+        {
+            Id = "4903E29F-D633-4A4C-9065-FE3DD8F27E40",
+            Identifier = "iodigitalDemo",
+            Name = "iODigitalDemo",
+            ChatModel = ChatModel.Gpt35Turbo,
+            AmountOfSearchReferences = 8
+        };
+
         modelBuilder.Entity<ApplicationTenantInfo>()
             .HasData(
                 TenantConstants.DefaultTenant,
                 polestar,
-                iodigital
+                iodigital,
+                iodigitalDemo
             );
     }
 }

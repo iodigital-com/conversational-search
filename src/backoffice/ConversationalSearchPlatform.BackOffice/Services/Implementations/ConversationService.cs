@@ -117,6 +117,19 @@ public partial class ConversationService : IConversationService
         }
     }
 
+    public async Task<ConversationContext> GetConversationContext(GetConversationContext getConversationContext)
+    {
+        var tenant = await _tenantStore.TryGetAsync(getConversationContext.TenantId);
+
+        if (tenant == null)
+        {
+            return new ConversationContext(Enumerable.Empty<string>().ToList());
+        }
+
+        var tags = tenant.PromptTags?.Select(tag => tag.Value.TrimStart('{').TrimEnd('}')) ?? Enumerable.Empty<string>();
+        return new ConversationContext(tags.ToList());
+    }
+
 
     private ValueTask<StreamResult<ConversationReferencedResult>> ProcessStreamedChatChunk(HoldConversation holdConversation,
         CostResult<StreamingChatResult> streamEntry,
@@ -381,6 +394,11 @@ public partial class ConversationService : IConversationService
         List<string> textReferenceInternalIds,
         CancellationToken cancellationToken = default)
     {
+        if (textReferenceInternalIds.Count == 0)
+        {
+            return new List<ImageSearchReference>();
+        }
+
         var request = new GetImagesFiltered()
             .Request(new GetImagesFiltered.ImageQueryParams(
                 collectionName,

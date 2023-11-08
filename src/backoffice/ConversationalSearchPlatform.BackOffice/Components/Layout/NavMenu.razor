@@ -1,58 +1,66 @@
 ﻿@using ConversationalSearchPlatform.BackOffice.Components.Identity
+@using ConversationalSearchPlatform.BackOffice.Components.Layout.Helper
 @using ConversationalSearchPlatform.BackOffice.Constants
 @using ConversationalSearchPlatform.BackOffice.Tenants
 @using Finbuckle.MultiTenant
 @inject IMultiTenantContextAccessor<ApplicationTenantInfo> MultiTenantContextAccessor
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager;
 
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">Backoffice @TenantName </a>
+@if (ShouldShowNavMenu)
+{
+    <div>
+        <div class="top-row ps-3 navbar navbar-dark">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="">Backoffice @TenantName </a>
+            </div>
+        </div>
+
+        <input type="checkbox" title="Navigation menu" class="navbar-toggler"/>
+
+        <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+            <nav class="flex-column">
+                <MudNavLink Href="" Match="NavLinkMatch.All">
+                    <span class="bi bi-house-door-fill" aria-hidden="true"></span> Home
+                </MudNavLink>
+                <AuthorizeView>
+                    <Authorized>
+                        <MudNavLink Href="index" Match="NavLinkMatch.Prefix">
+                            <span class="bi bi-list-nested" aria-hidden="true"></span> Index content
+                        </MudNavLink>
+                        <MudNavLink Href="preferences" Match="NavLinkMatch.Prefix">
+                            <span class="bi bi-plus-square-fill" aria-hidden="true"></span> Preferences
+                        </MudNavLink>
+                        <MudNavLink Href="apidocs" Match="NavLinkMatch.Prefix">
+                            <span class="bi bi-arrow-bar-left" aria-hidden="true"></span> API documentation
+                        </MudNavLink>
+                    </Authorized>
+                    <NotAuthorized>
+                        <MudNavLink Href="/Account/Login" Match="NavLinkMatch.Prefix">
+                            <span class="bi bi-person-badge" aria-hidden="true"></span> Login
+                        </MudNavLink>
+                    </NotAuthorized>
+                </AuthorizeView>
+                <AuthorizeView Roles="@RoleConstants.Administrator">
+                    <MudNavLink Href="users" Match="NavLinkMatch.Prefix">
+                        <span class="bi bi-person" aria-hidden="true"></span> Users
+                    </MudNavLink>
+                    <MudNavLink Href="tenants" Match="NavLinkMatch.Prefix">
+                        <span class="bi bi-person" aria-hidden="true"></span> Tenants
+                    </MudNavLink>
+                </AuthorizeView>
+                <AuthorizeView>
+                    <Authorized>
+                        <MudNavLink Href="/logout" Match="NavLinkMatch.Prefix">
+                            <LogoutForm id="logout-form"/>
+                            <span class="bi bi bi-arrow-bar-left" aria-hidden="true"></span> Logout
+                        </MudNavLink>
+                    </Authorized>
+                </AuthorizeView>
+            </nav>
+        </div>
     </div>
-</div>
-
-<input type="checkbox" title="Navigation menu" class="navbar-toggler"/>
-
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="flex-column">
-        <MudNavLink Href="" Match="NavLinkMatch.All">
-            <span class="bi bi-house-door-fill" aria-hidden="true"></span> Home
-        </MudNavLink>
-        <AuthorizeView>
-            <Authorized>
-                <MudNavLink Href="index" Match="NavLinkMatch.Prefix">
-                    <span class="bi bi-list-nested" aria-hidden="true"></span> Index content
-                </MudNavLink>
-                <MudNavLink Href="preferences" Match="NavLinkMatch.Prefix">
-                    <span class="bi bi-plus-square-fill" aria-hidden="true"></span> Preferences
-                </MudNavLink>
-                <MudNavLink Href="apidocs" Match="NavLinkMatch.Prefix">
-                    <span class="bi bi-arrow-bar-left" aria-hidden="true"></span> API documentation
-                </MudNavLink>
-            </Authorized>
-            <NotAuthorized>
-                <MudNavLink Href="/Account/Login" Match="NavLinkMatch.Prefix">
-                    <span class="bi bi-person-badge" aria-hidden="true"></span> Login
-                </MudNavLink>
-            </NotAuthorized>
-        </AuthorizeView>
-        <AuthorizeView Roles="@RoleConstants.Administrator">
-            <MudNavLink Href="users" Match="NavLinkMatch.Prefix">
-                <span class="bi bi-person" aria-hidden="true"></span> Users
-            </MudNavLink>
-            <MudNavLink Href="tenants" Match="NavLinkMatch.Prefix">
-                <span class="bi bi-person" aria-hidden="true"></span> Tenants
-            </MudNavLink>
-        </AuthorizeView>
-        <AuthorizeView>
-            <Authorized>
-                <MudNavLink Href="/logout" Match="NavLinkMatch.Prefix">
-                    <LogoutForm id="logout-form"/>
-                    <span class="bi bi bi-arrow-bar-left" aria-hidden="true"></span> Logout
-                </MudNavLink>
-            </Authorized>
-        </AuthorizeView>
-    </nav>
-</div>
+}
 
 @code
 {
@@ -68,4 +76,19 @@
             return name == TenantConstants.DefaultTenant.Name ? string.Empty : name;
         }
     }
+
+    private bool ShouldShowNavMenu { get; set; } = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        // ShouldShowNavMenu = DemoHelper.DetermineNavbarVisible(authState);
+        //
+        // var currentPath = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        // if (DemoHelper.ShouldNavigateToDemoPage(ShouldShowNavMenu, currentPath))
+        // {
+        //     NavigationManager.NavigateTo("/demo");
+        // }
+    }
+    
 }

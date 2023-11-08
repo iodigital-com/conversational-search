@@ -1,5 +1,8 @@
 ﻿@using MudBlazor.Utilities
+@using ConversationalSearchPlatform.BackOffice.Components.Layout.Helper
 @inherits LayoutComponentBase
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager 
 
 <div class="page">
     <MudThemeProvider @bind-IsDarkMode="@_isDarkMode" Theme="_theme"/>
@@ -13,7 +16,7 @@
         CloseOnEscapeKey="true"/>
     <MudSnackbarProvider/>
     <MudLayout>
-        @if (!Preview.GetValueOrDefault(false))
+        @if (ShouldShowNavMenu)
         {
             <MudDrawer @bind-Open="@_drawerOpen">
                 <NavMenu/>
@@ -39,9 +42,20 @@
 
 @code
 {
-    [Parameter]
-    [SupplyParameterFromQuery]
-    public bool? Preview { get; set; }
+    private bool ShouldShowNavMenu { get; set; } = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        ShouldShowNavMenu = DemoHelper.DetermineNavbarVisible(authState);
+
+
+        var currentPath = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        if (DemoHelper.ShouldNavigateToDemoPage(ShouldShowNavMenu, currentPath))
+        {
+            NavigationManager.NavigateTo("/demo");
+        }
+    }
 
     private bool _isDarkMode = true;
     bool _drawerOpen = true;

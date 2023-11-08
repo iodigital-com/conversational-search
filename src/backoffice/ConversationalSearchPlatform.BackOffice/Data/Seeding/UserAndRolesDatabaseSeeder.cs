@@ -21,9 +21,17 @@ public class UserAndRolesDatabaseSeeder : IDatabaseSeeder
             NormalizedName = RoleConstants.Administrator.ToUpper()
         };
 
-        modelBuilder.Entity<IdentityRole>().HasData(adminRole, userRole);
+        var readonlyRole = new IdentityRole
+        {
+            Id = "0AD168F8-45F8-441C-878A-E14B8F019229",
+            Name = RoleConstants.Readonly,
+            NormalizedName = RoleConstants.Readonly.ToUpper()
+        };
 
-        var iODigitalTenant = "CCFA9314-ABE6-403A-9E21-2B31D95A5258";
+        modelBuilder.Entity<IdentityRole>().HasData(adminRole, userRole, readonlyRole);
+
+        var iODigitalAdminTenant = "CCFA9314-ABE6-403A-9E21-2B31D95A5258";
+        var iODigitalDemoTenant = "4903E29F-D633-4A4C-9065-FE3DD8F27E40";
         var polestarTenant = "D2FA78CE-3185-458E-964F-8FD0052B4330";
 
         var hasher = new PasswordHasher<ApplicationUser>();
@@ -31,13 +39,13 @@ public class UserAndRolesDatabaseSeeder : IDatabaseSeeder
         var user = new ApplicationUser
         {
             Id = "68657A77-57AE-409D-A845-5ABAF7C1E633",
-            UserName = "user",
-            NormalizedUserName = "USER",
+            UserName = "user@polestar.com",
+            NormalizedUserName = "polestaruser",
             PasswordHash = hasher.HashPassword(null!, "iamauser2023"),
             TenantId = polestarTenant,
             EmailConfirmed = true,
             Email = "user@test.com",
-            NormalizedEmail = "USER@TEST.COM"
+            NormalizedEmail = "USER@POLESTAR.COM"
         };
 
         var user2 = new ApplicationUser
@@ -57,16 +65,42 @@ public class UserAndRolesDatabaseSeeder : IDatabaseSeeder
             UserName = "admin",
             NormalizedUserName = "admin",
             PasswordHash = hasher.HashPassword(null!, "lPt5i9LxdNeE4h*E"),
-            TenantId = iODigitalTenant,
+            TenantId = iODigitalAdminTenant,
             EmailConfirmed = true,
             Email = "admin@test.com",
             NormalizedEmail = "ADMIN@TEST.com"
         };
 
+        var demo = new ApplicationUser
+        {
+            Id = "DBC834A9-2561-4381-BADA-15CF89F0F8A8",
+            UserName = "iodigitalDemo",
+            NormalizedUserName = "IODIGITALDEMO",
+            PasswordHash = hasher.HashPassword(null!, "demo"),
+            TenantId = iODigitalDemoTenant,
+            EmailConfirmed = true,
+            Email = "demo@iodigital.com",
+            NormalizedEmail = "DEMO@IODIGITAL.COM"
+        };
+
+        var demoAdmin = new ApplicationUser
+        {
+            Id = "01F243C2-C08C-412F-B2C0-EAB2BCEB4C38",
+            UserName = "iodigitalDemoAdmin",
+            NormalizedUserName = "IODIGITALDEMOADMIN",
+            PasswordHash = hasher.HashPassword(null!, "demoadmin"),
+            TenantId = iODigitalDemoTenant,
+            EmailConfirmed = true,
+            Email = "demoadmin@iodigital.com",
+            NormalizedEmail = "DEMOADMIN@IODIGITAL.COM"
+        };
+
         modelBuilder.Entity<ApplicationUser>().HasData(
             user,
             user2,
-            admin
+            admin,
+            demo,
+            demoAdmin
         );
 
 
@@ -85,6 +119,16 @@ public class UserAndRolesDatabaseSeeder : IDatabaseSeeder
             {
                 RoleId = adminRole.Id,
                 UserId = admin.Id,
+            },
+            new IdentityUserRole<string>
+            {
+                RoleId = adminRole.Id,
+                UserId = demoAdmin.Id,
+            },
+            new IdentityUserRole<string>
+            {
+                RoleId = readonlyRole.Id,
+                UserId = demo.Id,
             }
         );
     }

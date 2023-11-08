@@ -104,9 +104,15 @@ internal class Program
         builder.Services.AddProblemDetails();
 
         builder.Services.AddExceptionHandler<ExceptionToProblemDetailsHandler>();
-        
         builder.Services.AddScoped<ChatRefreshState>();
 
+        builder.Services.AddCors(options => options.AddDefaultPolicy(
+            x => x
+                .AllowAnyMethod()
+                .AllowAnyHeader()
+                .SetIsOriginAllowed(origin => true)
+                .AllowCredentials())
+        );
         var app = builder.Build();
 
         if (!app.Environment.IsDevelopment())
@@ -116,6 +122,7 @@ internal class Program
 
         app.UseExceptionHandler();
         app.UseStatusCodePages();
+        app.UseCors();
 
         app.UseHttpsRedirection();
         app.UseMiddleware<BlazorCookieLoginMiddleware>();

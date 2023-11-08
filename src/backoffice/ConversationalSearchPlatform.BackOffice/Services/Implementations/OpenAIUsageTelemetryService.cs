@@ -1,3 +1,4 @@
+using ConversationalSearchPlatform.BackOffice.Constants;
 using ConversationalSearchPlatform.BackOffice.Jobs;
 using ConversationalSearchPlatform.BackOffice.Jobs.Models;
 using ConversationalSearchPlatform.BackOffice.Services.Models;
@@ -25,7 +26,7 @@ public class OpenAIUsageTelemetryService(IBackgroundJobClient backgroundJobClien
             usage.PromptTokens!.Value,
             DateTimeOffset.UtcNow
         );
-        backgroundJobClient.Enqueue<OpenAICallExecutedHandler>(handler => handler.Handle(evt));
+        backgroundJobClient.Enqueue<OpenAICallExecutedHandler>(QueueConstants.TelemetryQueue, handler => handler.Handle(evt));
     }
 
     public void RegisterGPTUsage(
@@ -44,6 +45,6 @@ public class OpenAIUsageTelemetryService(IBackgroundJobClient backgroundJobClien
             usage.PromptTokens!.Value,
             DateTimeOffset.UtcNow
         );
-        backgroundJobClient.Enqueue<OpenAICallExecutedHandler>(handler => handler.Handle(evt));
+        backgroundJobClient.Enqueue<OpenAICallExecutedHandler>(QueueConstants.TelemetryQueue, handler => handler.Handle(evt));
     }
 }

@@ -1,4 +1,5 @@
 using ConversationalSearchPlatform.BackOffice.Api.Extensions;
+using ConversationalSearchPlatform.BackOffice.Constants;
 using ConversationalSearchPlatform.BackOffice.Exceptions;
 using ConversationalSearchPlatform.BackOffice.Jobs;
 using ConversationalSearchPlatform.BackOffice.Services;
@@ -61,8 +62,9 @@ public static class IndexingEndpoints
             ThrowHelper.ThrowTenantNotFoundException(tenantId);
         }
 
-        backgroundJobClient.Enqueue<WebsitePageIndexingJob>(job =>
-            job.Execute(tenantId, new WebsitePageIndexingDetails(websitePageId, type))
+        backgroundJobClient.Enqueue<WebsitePageIndexingJob>(QueueConstants.IndexingQueue,
+            job =>
+                job.Execute(tenantId, new WebsitePageIndexingDetails(websitePageId, type))
         );
     }
 }

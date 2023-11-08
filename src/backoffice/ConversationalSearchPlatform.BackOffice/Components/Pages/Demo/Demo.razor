@@ -1,0 +1,16 @@
+@page "/demo"
+<h3>Demo</h3>
+@* todo put this top right *@
+<AuthorizeView>
+    <Authorized>
+        <MudNavLink Href="/logout" Match="NavLinkMatch.Prefix">
+            <LogoutForm id="logout-form"/>
+            <span class="bi bi bi-arrow-bar-left" aria-hidden="true"></span> Logout
+        </MudNavLink>
+    </Authorized>
+</AuthorizeView>
+
+<div chat ></div>
+@code {
+
+}

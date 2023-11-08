@@ -1,3 +1,4 @@
+using ConversationalSearchPlatform.BackOffice.Constants;
 using Hangfire;
 
 namespace ConversationalSearchPlatform.BackOffice.Jobs;
@@ -31,7 +32,7 @@ public class RecurringJobScheduler : BackgroundService
         const string recurringJobId = $"{nameof(OpenAIPricingJob)}-recurring";
         _logger.LogInformation("Scheduling {JobName}", recurringJobId);
         
-        _backgroundJobClient.Enqueue<OpenAIPricingJob>(x => x.Execute());
+        _backgroundJobClient.Enqueue<OpenAIPricingJob>(QueueConstants.DailyPricingQueue,x => x.Execute());
         _recurringJobManager.AddOrUpdate<OpenAIPricingJob>(
             recurringJobId,
             x => x.Execute(),

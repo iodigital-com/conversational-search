@@ -128,7 +128,7 @@
                                 var tenantId = TenantAccessor.MultiTenantContext?.TenantInfo?.Id;
                                 if (tenantId != null)
                                 {
-                                    BackgroundJobClient.Enqueue<WebsitePageIndexingJob>(job =>
+                                    BackgroundJobClient.Enqueue<WebsitePageIndexingJob>(QueueConstants.IndexingQueue, job =>
                                         job.Execute(tenantId, new WebsitePageIndexingDetails(websitePageDto.Id, IndexJobChangeType.UPDATE)));
                                     Snackbar.Add("Enqueued job to reindex page", Severity.Success);
                                 }
