@@ -1,5 +1,5 @@
 import {useEffect, useState} from "preact/hooks";
-import {Configuration, Context, HoldConversationReference, HoldConversationResponse, Message} from "@/types/types";
+import {Configuration, HoldConversationReference, HoldConversationResponse, Message} from "@/types/types";
 import styles from "@/components/Chat.module.css";
 import {JSX} from "preact";
 import {getConversationContext, holdConversation, startConversation} from "@/services/ConversationApiService.ts";
