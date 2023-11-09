@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@types/node": "^20.9.0",
     "preact": "^10.16.0",
     "preactement": "^1.8.5"
   },
