@@ -1,0 +1,73 @@
+@page "/statistics"
+@using ConversationalSearchPlatform.BackOffice.Tenants
+@using Finbuckle.MultiTenant
+@using ConversationalSearchPlatform.BackOffice.Services.Models.Statistics
+@using ConversationalSearchPlatform.BackOffice.Constants
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IMultiTenantContextAccessor<ApplicationTenantInfo> MultiTenantAccessor;
+
+
+<h3>Statistics</h3>
+<MudSelect
+    @bind-Value="SelectedStatisticView"
+    For="@(() => SelectedStatisticView)"
+
+    T="StatisticViewType"
+    Label="Statistics"
+    Variant="Variant.Outlined"
+    AnchorOrigin="Origin.BottomCenter">
+    @foreach (var vt in GetFilteredStatisticViewTypes())
+    {
+        <MudSelectItem T="StatisticViewType" Value="vt">@vt.ToString()</MudSelectItem>
+    }
+</MudSelect>
+
+<MudContainer>
+    @switch (SelectedStatisticView)
+    {
+        case StatisticViewType.None:
+            break;
+        case StatisticViewType.CurrentTenantCost:
+            <TenantCost TenantId=@TenantId StatisticsUsageType="StatisticsUsageType.SingularTenant"/>
+            break;
+        case StatisticViewType.AllTenantsCost:
+            <TenantCost StatisticsUsageType="StatisticsUsageType.All"/>
+            break;
+        default:
+            throw new ArgumentOutOfRangeException();
+    }
+</MudContainer>
+
+@code
+{
+    private StatisticViewType SelectedStatisticView { get; set; }
+    private string? TenantId { get; set; }
+    private bool IsAdmin { get; set; }
+
+    public enum StatisticViewType
+    {
+        None,
+        CurrentTenantCost,
+        AllTenantsCost
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        IsAdmin = authState.User.IsInRole(RoleConstants.Administrator);
+        TenantId = MultiTenantAccessor.MultiTenantContext?.TenantInfo?.Id;
+    }
+
+    private IEnumerable<StatisticViewType> GetFilteredStatisticViewTypes()
+    {
+        var viewTypes = Enum.GetValues<StatisticViewType>();
+    //     .AsEnumerable();
+    //
+    // if (!IsAdmin)
+    // {
+    //     viewTypes = viewTypes.Where(type => type != StatisticViewType.AllTenantsCost);
+    // }
+
+        return viewTypes;
+    }
+}

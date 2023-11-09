@@ -130,6 +130,12 @@ internal static class BootstrapExtensions
         serviceCollection.AddTransient<IConversationService, ConversationService>();
         return serviceCollection;
     }
+    
+    internal static IServiceCollection AddStatisticsServices(this IServiceCollection serviceCollection)
+    {
+        serviceCollection.AddTransient<IStatisticsService, StatisticsService>();
+        return serviceCollection;
+    }
 
     internal static IServiceCollection AddUserServices(this IServiceCollection serviceCollection)
     {

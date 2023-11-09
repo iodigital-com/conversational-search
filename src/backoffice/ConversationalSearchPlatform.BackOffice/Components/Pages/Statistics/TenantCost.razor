@@ -1,0 +1,134 @@
+@using ConversationalSearchPlatform.BackOffice.Services.Models.Statistics
+@using ApexCharts
+@using ConversationalSearchPlatform.BackOffice.Services
+@using ConversationalSearchPlatform.BackOffice.Tenants
+@using Finbuckle.MultiTenant
+@inject IMultiTenantStore<ApplicationTenantInfo> TenantStore; 
+@inject IStatisticsService StatisticsService;
+
+<h3 class="my-3">
+    Cost per model grouped by
+    @if (StatisticsDimension == StatisticsDimension.Month)
+    {
+        <span> month</span>
+    }
+    else
+    {
+        <span> week number</span>
+    }
+
+    @if (StatisticsUsageType == StatisticsUsageType.SingularTenant && TenantName != null)
+    {
+        <span> for @TenantName</span>
+    }
+    else
+    {
+        <span> for all tenants</span>
+    }
+</h3>
+
+@if (CostReports == null)
+{
+    <StatisticsLoading/>
+}
+else
+{
+    <MudStack Row="true" Class="my-3">
+        <MudDateRangePicker
+            @bind-DateRange="_dateRange"
+            Label="Date range"
+            Editable="true"/>
+        <MudSelect
+            @bind-Value="StatisticsDimension"
+            For="@(() => StatisticsDimension)"
+            T="StatisticsDimension"
+            Label="Over time"
+            >
+            @foreach (var sd in Enum.GetValues<StatisticsDimension>())
+            {
+                <MudSelectItem T="StatisticsDimension" Value="sd">@sd.ToString()</MudSelectItem>
+            }
+        </MudSelect>
+        <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary"
+                   OnClick="OnFilterChange">
+            Change filters
+        </MudButton>
+    </MudStack>
+
+    <ApexChart TItem="CostReport"
+               Title="Total cost per model"
+               Options="Options"
+               @ref="Chart">
+
+        @{
+            var availableCallModels = CostReports.Select(report => report.CallModel).Distinct();
+        }
+        @foreach (var callModel in availableCallModels)
+        {
+            <ApexPointSeries TItem="CostReport"
+                             Items="CostReports.Where(u => u.CallModel == callModel)"
+                             Name="@callModel.ToString()"
+                             XValue="@(DetermineXValue())"
+                             YAggregate="@(e => e.Where(u => u.CallModel == callModel).Sum(u => u.TokenSum))"
+                             SeriesType="SeriesType.Bar"
+                             ShowDataLabels="true"/>
+        }
+
+    </ApexChart>
+}
+
+@code {
+
+    [Parameter]
+    public StatisticsUsageType StatisticsUsageType { get; set; }
+
+    private StatisticsDimension StatisticsDimension { get; set; } = StatisticsDimension.Week;
+
+    [Parameter]
+    public string? TenantId { get; set; }
+
+    private string? TenantName { get; set; }
+
+    private ApexChart<CostReport> Chart { get; set; } = default!;
+    private ApexChartOptions<CostReport> Options { get; set; } = default!;
+
+    private MudDateRangePicker Picker { get; set; } = default!;
+
+    private DateRange _dateRange = new(
+        DateTimeOffset.UtcNow.AddMonths(-1).DateTime,
+        DateTimeOffset.UtcNow.DateTime
+        );
+
+
+    private List<CostReport>? CostReports { set; get; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Options = StatisticsHelper.CreateBarChartOptions<CostReport>();
+        TenantName = await StatisticsHelper.InitializeTenantName(TenantId, TenantStore);
+        CostReports = await FetchDataAsync(StatisticsUsageType, TenantId, _dateRange.Start!.Value, _dateRange.End!.Value);
+    }
+
+    private async Task OnFilterChange()
+    {
+        CostReports = await FetchDataAsync(StatisticsUsageType, TenantId, _dateRange.Start!.Value, _dateRange.End!.Value);
+        await Chart.UpdateOptionsAsync(true, true, true);
+    }
+
+    private async Task<List<CostReport>> FetchDataAsync(
+        StatisticsUsageType statisticsUsageType,
+        string? tenantId,
+        DateTimeOffset from,
+        DateTimeOffset to
+        ) => statisticsUsageType switch
+        {
+            StatisticsUsageType.All => await StatisticsService.GetCostReportForAllTenantsAsync(from, to),
+            StatisticsUsageType.SingularTenant => await StatisticsService.GetCostReportForTenantAsync(tenantId!, from, to),
+            _ => throw new ArgumentOutOfRangeException(nameof(statisticsUsageType), statisticsUsageType, null)
+            };
+
+    private Func<CostReport, object> DetermineXValue() => StatisticsDimension == StatisticsDimension.Month
+        ? e => e.Month.ToString()
+        : e => e.WeekNumber.ToString();
+
+}
