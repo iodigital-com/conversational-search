@@ -34,6 +34,9 @@
                         <MudNavLink Href="apidocs" Match="NavLinkMatch.Prefix">
                             <span class="bi bi-arrow-bar-left" aria-hidden="true"></span> API documentation
                         </MudNavLink>
+                        <MudNavLink Href="statistics" Match="NavLinkMatch.Prefix">
+                            <span class="bi bi-arrow-bar-left" aria-hidden="true"></span> Statistics
+                        </MudNavLink>
                     </Authorized>
                     <NotAuthorized>
                         <MudNavLink Href="/Account/Login" Match="NavLinkMatch.Prefix">
@@ -81,14 +84,14 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        // ShouldShowNavMenu = DemoHelper.DetermineNavbarVisible(authState);
-        //
-        // var currentPath = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
-        // if (DemoHelper.ShouldNavigateToDemoPage(ShouldShowNavMenu, currentPath))
-        // {
-        //     NavigationManager.NavigateTo("/demo");
-        // }
+    // var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+    // ShouldShowNavMenu = DemoHelper.DetermineNavbarVisible(authState);
+    //
+    // var currentPath = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+    // if (DemoHelper.ShouldNavigateToDemoPage(ShouldShowNavMenu, currentPath))
+    // {
+    //     NavigationManager.NavigateTo("/demo");
+    // }
     }
-    
+
 }

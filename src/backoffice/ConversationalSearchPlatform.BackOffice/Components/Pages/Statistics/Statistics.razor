@@ -5,33 +5,61 @@
 @using ConversationalSearchPlatform.BackOffice.Constants
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IMultiTenantContextAccessor<ApplicationTenantInfo> MultiTenantAccessor;
+@inject IMultiTenantStore<ApplicationTenantInfo> MultiTenantStore;
 
 
 <h3>Statistics</h3>
-<MudSelect
-    @bind-Value="SelectedStatisticView"
-    For="@(() => SelectedStatisticView)"
-
-    T="StatisticViewType"
-    Label="Statistics"
-    Variant="Variant.Outlined"
-    AnchorOrigin="Origin.BottomCenter">
-    @foreach (var vt in GetFilteredStatisticViewTypes())
+<MudStack Row="true" Class="my-3">
+    <MudSelect
+        @bind-Value="SelectedStatisticView"
+        For="@(() => SelectedStatisticView)"
+        T="StatisticViewType"
+        Label="Statistic"
+        Variant="Variant.Outlined"
+        AnchorOrigin="Origin.BottomCenter">
+        @foreach (var vt in GetFilteredStatisticViewTypes(IsAdmin))
+        {
+            <MudSelectItem T="StatisticViewType" Value="vt">@vt.ToString()</MudSelectItem>
+        }
+    </MudSelect>
+    @if (TenantItems != null && IsSingularTenantView())
     {
-        <MudSelectItem T="StatisticViewType" Value="vt">@vt.ToString()</MudSelectItem>
+        <MudSelect
+            @bind-Value="TenantId"
+            For="@(() => TenantId)"
+            T="string"
+            Label="Tenant"
+            Variant="Variant.Outlined"
+            AnchorOrigin="Origin.BottomCenter">
+            @foreach (var ti in TenantItems)
+            {
+                <MudSelectItem T="string" Value="ti.TenantId">@ti.TenantName</MudSelectItem>
+            }
+        </MudSelect>
+        <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary"
+                   OnClick="OnFetchData">
+            Fetch data
+        </MudButton>
     }
-</MudSelect>
+</MudStack>
+
 
 <MudContainer>
     @switch (SelectedStatisticView)
     {
         case StatisticViewType.None:
             break;
-        case StatisticViewType.CurrentTenantCost:
+        case StatisticViewType.SingularTenantCost:
             <TenantCost TenantId=@TenantId StatisticsUsageType="StatisticsUsageType.SingularTenant"/>
             break;
         case StatisticViewType.AllTenantsCost:
             <TenantCost StatisticsUsageType="StatisticsUsageType.All"/>
+            break;
+        case StatisticViewType.SingularTenantAverageConversationCost:
+            <ConversationCost TenantId=@TenantId StatisticsUsageType="StatisticsUsageType.SingularTenant"/>
+            break;
+        case StatisticViewType.AllTenantsAverageConversationCost:
+            <ConversationCost StatisticsUsageType="StatisticsUsageType.All"/>
             break;
         default:
             throw new ArgumentOutOfRangeException();
@@ -43,12 +71,15 @@
     private StatisticViewType SelectedStatisticView { get; set; }
     private string? TenantId { get; set; }
     private bool IsAdmin { get; set; }
+    private List<TenantSelectItem>? TenantItems { get; set; }
 
     public enum StatisticViewType
     {
         None,
-        CurrentTenantCost,
-        AllTenantsCost
+        SingularTenantCost,
+        AllTenantsCost,
+        SingularTenantAverageConversationCost,
+        AllTenantsAverageConversationCost
     }
 
     protected override async Task OnInitializedAsync()
@@ -56,18 +87,41 @@
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         IsAdmin = authState.User.IsInRole(RoleConstants.Administrator);
         TenantId = MultiTenantAccessor.MultiTenantContext?.TenantInfo?.Id;
+        if (IsAdmin)
+        {
+            TenantItems = await GetTenantsAsync(MultiTenantStore);
+        }
     }
 
-    private IEnumerable<StatisticViewType> GetFilteredStatisticViewTypes()
+    private Task OnFetchData()
     {
-        var viewTypes = Enum.GetValues<StatisticViewType>();
-    //     .AsEnumerable();
-    //
-    // if (!IsAdmin)
-    // {
-    //     viewTypes = viewTypes.Where(type => type != StatisticViewType.AllTenantsCost);
-    // }
-
-        return viewTypes;
+        StateHasChanged();
+        return Task.CompletedTask;
     }
+
+    private static List<StatisticViewType> GetFilteredStatisticViewTypes(bool isAdmin)
+    {
+        var viewTypes = Enum.GetValues<StatisticViewType>().AsEnumerable();
+
+        if (!isAdmin)
+        {
+            viewTypes = viewTypes.Where(type =>
+                type != StatisticViewType.AllTenantsCost &&
+                type != StatisticViewType.AllTenantsAverageConversationCost
+                );
+        }
+
+        return viewTypes.ToList();
+    }
+
+    public record TenantSelectItem(string TenantId, string TenantName);
+
+    private async Task<List<TenantSelectItem>> GetTenantsAsync(IMultiTenantStore<ApplicationTenantInfo> multiTenantStore) =>
+        (await multiTenantStore.GetAllAsync())
+            .Where(info => info.Name != TenantConstants.DefaultTenant.Name)
+            .Select(info => new TenantSelectItem(info.Id!, info.Name!))
+            .ToList();
+
+    private bool IsSingularTenantView() =>
+        SelectedStatisticView is StatisticViewType.SingularTenantCost or StatisticViewType.SingularTenantAverageConversationCost;
 }
