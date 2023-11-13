@@ -32,6 +32,7 @@
     - Vite
 - Contains:
     - A (for now) unstyled chat component developed in Preact that gets built into a WebComponent.
+      - Take a look at `webcomponent.html` for consumer usage
     - The goal is for this component is to be used for consumers and client demo purposes.
 
 ## Local development - BackOffice
@@ -45,11 +46,11 @@ The following command will boot up:
 - Weaviate vector database with text2vec transformers and multi2vec-clip modules
 - Scraper docker container using puppeteer
 
-#### Windows / Intel Mac
+#### Windows / OSX Intel Mac
 
 - `docker-compose up -d csp-db-amd64 unstructured weaviate t2v-transformers multi2vec-clip scraper`
 
-#### OSX
+#### OSX Apple Silicon
 
 - `docker-compose up -d csp-db-arm unstructured weaviate t2v-transformers multi2vec-clip scraper`
 
