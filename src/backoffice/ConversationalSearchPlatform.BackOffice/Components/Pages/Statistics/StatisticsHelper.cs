@@ -50,8 +50,11 @@ public static class StatisticsHelper
     private static string MoneyFormatter() =>
         """
         function (value) {
-                    if (value === undefined) {return '';}
-                        return value + 'EUR';
-                }
+            if (value === undefined)
+             {
+                return '';
+             }
+            return value + 'EUR';
+        }
         """;
 }

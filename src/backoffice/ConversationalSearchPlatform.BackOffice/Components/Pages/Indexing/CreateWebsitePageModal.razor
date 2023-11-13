@@ -8,6 +8,7 @@
 
 @inject ISnackbar Snackbar;
 @inject IIndexingService<WebsitePage> IndexingService;
+@inject ISitemapParsingService SitemapParsingService;
 @inject ILogger<CreateWebsitePageModal> Logger;
 @attribute [RenderModeInteractiveServer]
 
@@ -19,7 +20,7 @@
         </MudText>
     </TitleContent>
     <DialogContent>
-        <MudForm @ref="Form" @bind-IsValid="@Valid" ReadOnly="false">
+        <MudForm @ref="Form" Model="Model" @bind-IsValid="@Valid" ReadOnly="false">
             <MudGrid Justify="Justify.SpaceEvenly">
                 <MudItem Class="flex-grow-1">
                     <MudCard>
@@ -33,7 +34,19 @@
                                 Label="The url of the page"
                                 Class="mt-3"
                                 @bind-Value="Model.Url"
+                                OnBlur="@DiscoverSiteMapUrl"
                                 For="@(() => Model.Url)"/>
+                            <MudFileUpload T="IBrowserFile" Accept=".xml" bind-Files="Model.SiteMapFile" MaximumFileCount="100">
+                                <ButtonTemplate>
+                                    <MudButton HtmlTag="label"
+                                               Variant="Variant.Filled"
+                                               Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.CloudUpload"
+                                               for="@context">
+                                        Sitemap XML
+                                    </MudButton>
+                                </ButtonTemplate>
+                            </MudFileUpload>
                             <MudSelect
                                 Required
                                 Class="mt-3"
@@ -101,6 +114,22 @@
     private void Cancel()
     {
         MudDialog.Cancel();
+    }
+
+    private async Task DiscoverSiteMapUrl()
+    {
+        switch (Form?.IsValid)
+        {
+            case true when !string.IsNullOrWhiteSpace(Model.Url):
+            {
+                var discoveryResult = await SitemapParsingService.DiscoverFromUrlAsync(Model.Url);
+                Model.SiteMapAvailable = discoveryResult.DiscoveredAny();
+                break;
+            }
+            case true when string.IsNullOrWhiteSpace(Model.Url):
+                Model.SiteMapAvailable = null;
+                break;
+        }
     }
 
     private async Task ExecuteCreate()

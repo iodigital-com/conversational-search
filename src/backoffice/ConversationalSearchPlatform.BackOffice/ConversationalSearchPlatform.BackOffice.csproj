@@ -42,6 +42,7 @@
     <PackageReference Include="System.Linq.Async" Version="6.0.1" />
     <PackageReference Include="GraphQL.Client" Version="6.0.0" />
     <PackageReference Include="GraphQL.Client.Serializer.SystemTextJson" Version="6.0.0" />
+    <PackageReference Include="TurnerSoftware.SitemapTools" Version="0.7.2" />
   </ItemGroup>
 
   <ItemGroup>

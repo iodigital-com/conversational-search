@@ -22,6 +22,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 using Rystem.OpenAi;
 using Swashbuckle.AspNetCore.Filters;
+using TurnerSoftware.SitemapTools;
 using ReferenceType = Microsoft.OpenApi.Models.ReferenceType;
 
 namespace ConversationalSearchPlatform.BackOffice.Bootstrap;
@@ -130,10 +131,17 @@ internal static class BootstrapExtensions
         serviceCollection.AddTransient<IConversationService, ConversationService>();
         return serviceCollection;
     }
-    
+
     internal static IServiceCollection AddStatisticsServices(this IServiceCollection serviceCollection)
     {
         serviceCollection.AddTransient<IStatisticsService, StatisticsService>();
+        return serviceCollection;
+    }
+
+    internal static IServiceCollection AddSitemapServices(this IServiceCollection serviceCollection)
+    {
+        serviceCollection.AddTransient<SitemapQuery>();
+        serviceCollection.AddTransient<ISitemapParsingService, SitemapParsingService>();
         return serviceCollection;
     }
 
