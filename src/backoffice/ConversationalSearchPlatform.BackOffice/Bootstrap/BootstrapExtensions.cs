@@ -60,7 +60,7 @@ internal static class BootstrapExtensions
 
         var puppeteerSection = configuration.GetSection("Puppeteer");
         serviceCollection.AddOptions<PuppeteerSettings>().Bind(puppeteerSection);
-        var puppeteerSettings = puppeteerSection.Get<PuppeteerSettings>() ?? throw new InvalidOperationException("No WeaviateSettings found");
+        var puppeteerSettings = puppeteerSection.Get<PuppeteerSettings>() ?? throw new InvalidOperationException("No Puppeteersettings found");
 
         serviceCollection.AddHttpClient<IScraperService, PuppeteerScraperService>()
             .ConfigureHttpClient(client =>
@@ -138,10 +138,16 @@ internal static class BootstrapExtensions
         return serviceCollection;
     }
 
-    internal static IServiceCollection AddSitemapServices(this IServiceCollection serviceCollection)
+    internal static IServiceCollection AddSitemapServices(this IServiceCollection serviceCollection, IConfiguration configuration)
     {
+        var sitemapStorageSection = configuration.GetSection("SitemapStorage");
+        serviceCollection.AddOptions<SitemapStorageSettings>().Bind(sitemapStorageSection);
+        _ = sitemapStorageSection.Get<SitemapStorageSettings>() ?? throw new InvalidOperationException("No Puppeteersettings found");
+
+        serviceCollection.AddTransient<IAzureBlobStorage, SitemapBlobStorageService>();
         serviceCollection.AddTransient<SitemapQuery>();
         serviceCollection.AddTransient<ISitemapParsingService, SitemapParsingService>();
+        serviceCollection.AddHostedService<AzureRegisterStorageContainerJob>();
         return serviceCollection;
     }
 
@@ -269,10 +275,7 @@ internal static class BootstrapExtensions
         services.AddHangfireServer(options =>
         {
             options.WorkerCount = 5; // TODO: might need to change this later. This is to not choke the parser for now
-            options.Queues = new[]
-            {
-                QueueConstants.DailyPricingQueue, QueueConstants.IndexingQueue, QueueConstants.TelemetryQueue
-            };
+            options.Queues = QueueConstants.Queues;
         });
 
         return services;

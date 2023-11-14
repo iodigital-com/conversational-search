@@ -75,3 +75,9 @@ services:
     ports:
       - "5000:5000"
       - "5001:5001"
+        
+  azurite:
+    ports:
+      - "10000:10000"
+    image: mcr.microsoft.com/azure-storage/azurite
+    command: azurite-blob --blobHost 0.0.0.0 --blobPort 10000

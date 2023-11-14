@@ -399,8 +399,7 @@ public partial class ConversationService : IConversationService
             return new List<ImageSearchReference>();
         }
 
-        var request = new GetImagesFiltered()
-            .Request(new GetImagesFiltered.ImageQueryParams(
+        var request = GetImagesFiltered.Request(new GetImagesFiltered.ImageQueryParams(
                 collectionName,
                 conversationHistory.AmountOfSearchReferences,
                 prompt,
@@ -430,8 +429,7 @@ public partial class ConversationService : IConversationService
         float[] vector,
         CancellationToken cancellationToken = default)
     {
-        var request = new GetByPromptFiltered()
-            .Request(new GetByPromptFiltered.WebsitePageQueryParams(
+        var request = GetByPromptFiltered.Request(new GetByPromptFiltered.WebsitePageQueryParams(
                 collectionName,
                 tenantId,
                 language,

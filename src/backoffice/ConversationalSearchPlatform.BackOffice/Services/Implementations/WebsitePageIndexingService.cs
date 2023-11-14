@@ -1,3 +1,4 @@
+using ConversationalSearchPlatform.BackOffice.Constants;
 using ConversationalSearchPlatform.BackOffice.Data;
 using ConversationalSearchPlatform.BackOffice.Data.Entities;
 using ConversationalSearchPlatform.BackOffice.Jobs;
@@ -43,11 +44,31 @@ public class WebsitePageIndexingService : IIndexingService<WebsitePage>
         {
             db.Set<WebsitePage>().Add(indexable);
             await db.SaveChangesAsync(cancellationToken);
-            _backgroundJobClient.Enqueue<WebsitePageIndexingJob>(job =>
-                job.Execute(indexable.TenantId, new WebsitePageIndexingDetails(indexable.Id, IndexJobChangeType.CREATE))
+            _backgroundJobClient.Enqueue<WebsitePageIndexingJob>(
+                QueueConstants.IndexingQueue,
+                job => job.Execute(indexable.TenantId, new WebsitePageIndexingDetails(indexable.Id, IndexJobChangeType.CREATE))
             );
 
             return indexable;
+        }
+    }
+
+    public async Task<List<WebsitePage>> CreateBulkAsync(List<WebsitePage> indexables, CancellationToken cancellationToken = default)
+    {
+        using (var db = await _dbContextFactory.CreateDbContextAsync(cancellationToken))
+        {
+            db.Set<WebsitePage>().AddRange(indexables);
+            await db.SaveChangesAsync(cancellationToken);
+
+            foreach (var indexable in indexables)
+            {
+                _backgroundJobClient.Enqueue<WebsitePageIndexingJob>(
+                    QueueConstants.IndexingQueue,
+                    job => job.Execute(indexable.TenantId, new WebsitePageIndexingDetails(indexable.Id, IndexJobChangeType.CREATE))
+                );
+            }
+
+            return indexables;
         }
     }
 
@@ -57,8 +78,9 @@ public class WebsitePageIndexingService : IIndexingService<WebsitePage>
         {
             db.Set<WebsitePage>().Update(indexable);
             await db.SaveChangesAsync(cancellationToken);
-            _backgroundJobClient.Enqueue<WebsitePageIndexingJob>(job =>
-                job.Execute(indexable.TenantId, new WebsitePageIndexingDetails(indexable.Id, IndexJobChangeType.UPDATE))
+            _backgroundJobClient.Enqueue<WebsitePageIndexingJob>(
+                QueueConstants.IndexingQueue,
+                job => job.Execute(indexable.TenantId, new WebsitePageIndexingDetails(indexable.Id, IndexJobChangeType.UPDATE))
             );
 
             return indexable;
@@ -76,8 +98,9 @@ public class WebsitePageIndexingService : IIndexingService<WebsitePage>
             {
                 db.Remove(indexable);
                 await db.SaveChangesAsync(cancellationToken);
-                _backgroundJobClient.Enqueue<WebsitePageIndexingJob>(job =>
-                    job.Execute(indexable.TenantId, new WebsitePageIndexingDetails(id, IndexJobChangeType.DELETE))
+                _backgroundJobClient.Enqueue<WebsitePageIndexingJob>(
+                    QueueConstants.IndexingQueue,
+                    job => job.Execute(indexable.TenantId, new WebsitePageIndexingDetails(id, IndexJobChangeType.DELETE))
                 );
             }
         }

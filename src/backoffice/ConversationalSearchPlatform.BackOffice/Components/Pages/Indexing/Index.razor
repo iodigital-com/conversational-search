@@ -40,7 +40,7 @@
                  ServerData="@(new Func<GridState<WebsitePageDto>, Task<GridData<WebsitePageDto>>>(LoadDataAsync))">
         <Columns>
             <PropertyColumn T="WebsitePageDto" TProperty="string" Property="x => x.Name" Sortable="false"/>
-            <TemplateColumn CellStyle="min-width: 180px;" Title="Indexed at" Sortable="false">
+            <TemplateColumn CellStyle="min-width: 180px;" Title="Url / Sitemap" Sortable="false">
                 <CellTemplate Context="cellContext">
                     @{
                         var websitePageDto = cellContext.Item as WebsitePageDto;
@@ -128,8 +128,9 @@
                                 var tenantId = TenantAccessor.MultiTenantContext?.TenantInfo?.Id;
                                 if (tenantId != null)
                                 {
-                                    BackgroundJobClient.Enqueue<WebsitePageIndexingJob>(QueueConstants.IndexingQueue, job =>
-                                        job.Execute(tenantId, new WebsitePageIndexingDetails(websitePageDto.Id, IndexJobChangeType.UPDATE)));
+                                    BackgroundJobClient.Enqueue<WebsitePageIndexingJob>(
+                                        QueueConstants.IndexingQueue,
+                                        job => job.Execute(tenantId, new WebsitePageIndexingDetails(websitePageDto.Id, IndexJobChangeType.UPDATE)));
                                     Snackbar.Add("Enqueued job to reindex page", Severity.Success);
                                 }
                                 else
@@ -191,7 +192,14 @@
                 "props", createModalProps
             }
         };
-        await DialogService.ShowAsync<CreateWebsitePageModal>("Index new page", dialogParameters, ModalSettings.Default);
+        var dialogOptions = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            CloseButton = true,
+            NoHeader = false,
+            MaxWidth = MaxWidth.Medium
+        };
+        await DialogService.ShowAsync<CreateWebsitePageModal>("Index new page", dialogParameters, dialogOptions);
     }
 
     private static WebsitePageDto ToWebsitePageDto(WebsitePage websitePage) =>

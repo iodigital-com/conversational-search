@@ -90,7 +90,7 @@ internal class Program
         builder.Services.AddJobServices(builder.Configuration);
         builder.Services.AddOpenAITelemetry(builder.Configuration);
         builder.Services.AddStatisticsServices();
-        builder.Services.AddSitemapServices();
+        builder.Services.AddSitemapServices(builder.Configuration);
         builder.Services.AddJobScheduler();
 
         builder.Services.AddEndpointsApiExplorer();

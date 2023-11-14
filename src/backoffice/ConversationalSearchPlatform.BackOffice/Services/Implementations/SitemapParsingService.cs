@@ -28,20 +28,23 @@ public class SitemapParsingService(SitemapQuery sitemapQuery, HttpClient httpCli
     public async Task<SiteMapDiscoveryResult> DiscoverFromUrlAsync(string url, CancellationToken cancellationToken = default)
     {
         var uris = await DiscoverInternal(url, cancellationToken);
-        return new SiteMapDiscoveryResult(new List<Uri>());
+        return new SiteMapDiscoveryResult(uris);
     }
 
-    private async Task<HashSet<Uri>> DiscoverInternal(string token, CancellationToken cancellationToken)
+    public async Task<Stream> DownloadAsStreamAsync(string url, CancellationToken cancellationToken = default)
     {
-        var uriBuilder = new UriBuilder("http", string.Empty);
-        var baseUri = uriBuilder.Uri;
+        var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
+        return await response.Content.ReadAsStreamAsync(cancellationToken);
+    }
 
-        uriBuilder.Path = "sitemap.xml";
-        var defaultSitemapUri = uriBuilder.Uri;
+    private async Task<HashSet<Uri>> DiscoverInternal(string url, CancellationToken cancellationToken)
+    {
+        var baseUri = ConstructBaseUri(url);
 
         var sitemapUris = new List<Uri>
         {
-            defaultSitemapUri
+            baseUri
         };
 
         var robotsFile = await new RobotsFileParser(httpClient).FromUriAsync(baseUri, cancellationToken);
@@ -77,17 +80,30 @@ public class SitemapParsingService(SitemapQuery sitemapQuery, HttpClient httpCli
                     }
                 }
             }
-            catch (WebException ex)
+            catch (WebException)
             {
-                if (ex.Response != null)
-                {
-                    continue;
-                }
-
-                throw;
+                // we're simply not adding it if it errors out
             }
         }
 
         return result;
+    }
+
+    private static Uri ConstructBaseUri(string url)
+    {
+        Uri baseUri;
+
+        if (url.Contains("sitemap.xml"))
+        {
+            baseUri = new UriBuilder(url).Uri;
+        }
+        else
+        {
+            var uriBuilder = new UriBuilder(url);
+            uriBuilder.Path = "sitemap.xml";
+            baseUri = uriBuilder.Uri;
+        }
+
+        return baseUri;
     }
 }

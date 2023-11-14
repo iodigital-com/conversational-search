@@ -6,7 +6,7 @@
         <entry key="Common:72303287-c899-41ce-95a2-09534f6b3066:dbContext" value="ConversationalSearchPlatform.BackOffice.Data.ApplicationDbContext" />
         <entry key="Common:buildConfiguration" value="Debug" />
         <entry key="Common:noBuild" value="false" />
-        <entry key="Common:outputFolder" value="Data/Migrations/" />
+        <entry key="Common:outputFolder" value="Data/Migrations" />
         <entry key="Common:useDefaultConnection" value="true" />
       </map>
     </option>

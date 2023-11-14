@@ -12,7 +12,7 @@ public class GetImagesFiltered
 
     public record ImageQueryParams(string CollectionName, int Limit, string Prompt, List<string> textReferenceIds) : IQueryParams;
 
-    public GraphQLRequest Request<T>(T @params) where T : IQueryParams
+    public static GraphQLRequest Request<T>(T @params) where T : IQueryParams
     {
         if (@params is not ImageQueryParams queryParams)
             throw new ArgumentNullException(nameof(queryParams));

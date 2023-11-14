@@ -8,4 +8,6 @@ public interface ISitemapParsingService
     Task<SitemapFile> ParseFromFileAsync(Stream xmlStream, CancellationToken cancellationToken = default);
     Task<SitemapFile> ParseFromUrlAsync(string url, CancellationToken cancellationToken = default);
     Task<SiteMapDiscoveryResult> DiscoverFromUrlAsync(string url, CancellationToken cancellationToken = default);
+    Task<Stream> DownloadAsStreamAsync(string url, CancellationToken cancellationToken = default);
+
 }

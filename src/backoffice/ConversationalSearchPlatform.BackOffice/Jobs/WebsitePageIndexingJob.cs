@@ -1,6 +1,7 @@
 using ConversationalSearchPlatform.BackOffice.Constants;
 using ConversationalSearchPlatform.BackOffice.Data;
 using ConversationalSearchPlatform.BackOffice.Data.Entities;
+using ConversationalSearchPlatform.BackOffice.Exceptions;
 using ConversationalSearchPlatform.BackOffice.Jobs.Models;
 using ConversationalSearchPlatform.BackOffice.Services;
 using ConversationalSearchPlatform.BackOffice.Services.Models;
@@ -22,16 +23,21 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
     private readonly IScraperService _scraperService;
     private readonly IChunkService _chunkService;
     private readonly IVectorizationService _vectorizationService;
+    private readonly IAzureBlobStorage _azureBlobStorage;
+    private readonly ISitemapParsingService _sitemapParsingService;
+    private readonly IIndexingService<WebsitePage> _websitePageIndexingService;
     private readonly HttpClient _httpClient;
     private readonly ILogger<WebsitePageIndexingJob> _logger;
 
-    public WebsitePageIndexingJob(
-        IDbContextFactory<ApplicationDbContext> dbContextFactory,
+    public WebsitePageIndexingJob(IDbContextFactory<ApplicationDbContext> dbContextFactory,
         IMultiTenantContextAccessor<ApplicationTenantInfo> tenantContextAccessor,
         IMultiTenantStore<ApplicationTenantInfo> multiTenantStore,
         IScraperService scraperService,
         IChunkService chunkService,
         IVectorizationService vectorizationService,
+        IAzureBlobStorage azureBlobStorage,
+        ISitemapParsingService sitemapParsingService,
+        IIndexingService<WebsitePage> websitePageIndexingService,
         HttpClient httpClient,
         ILogger<WebsitePageIndexingJob> logger)
     {
@@ -41,6 +47,9 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
         _scraperService = scraperService;
         _chunkService = chunkService;
         _vectorizationService = vectorizationService;
+        _azureBlobStorage = azureBlobStorage;
+        _sitemapParsingService = sitemapParsingService;
+        _websitePageIndexingService = websitePageIndexingService;
         _httpClient = httpClient;
         _logger = logger;
     }
@@ -88,8 +97,7 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
     {
         var recordsLeftToDelete = true;
 
-        var request = new GetWebsitePageByInternalIdForDeletion()
-            .Request(new GetWebsitePageByInternalIdForDeletion.GetByInternalIdForDeletionQueryParams(indexableId.ToString()));
+        var request = GetWebsitePageByInternalIdForDeletion.Request(new GetWebsitePageByInternalIdForDeletion.GetByInternalIdForDeletionQueryParams(indexableId.ToString()));
 
         do
         {
@@ -119,8 +127,7 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
     {
         var recordsLeftToDelete = true;
 
-        var request = new GetImagesByInternalIdForDeletion()
-            .Request(new GetImagesByInternalIdForDeletion.GetImagesByInternalIdForDeletionQueryParams(indexable.ToString()));
+        var request = GetImagesByInternalIdForDeletion.Request(new GetImagesByInternalIdForDeletion.GetImagesByInternalIdForDeletionQueryParams(indexable.ToString()));
 
         do
         {
@@ -157,6 +164,22 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
                 details.Id,
                 tenantId
             );
+            ThrowHelper.ThrowWebsitePageNotFoundException(details.Id);
+            return;
+        }
+
+        if (websitePage.IsSitemapParent &&
+            websitePage is { SitemapFileName: not null, SitemapFileReference: not null })
+        {
+            _logger.LogInformation("Found a SitemapParent record, will be creating child records and not processing this record any further");
+            await CreateChildPages(_azureBlobStorage, _sitemapParsingService, _websitePageIndexingService, websitePage);
+            return;
+        }
+
+        if (websitePage.Url == null)
+        {
+            _logger.LogError("Cannot parse this record as it has no url");
+            ThrowHelper.ThrowInvalidWebsitePageUrl(websitePage.Id);
             return;
         }
 
@@ -182,6 +205,35 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
         websitePage.IndexedAt = DateTimeOffset.UtcNow;
 
         await db.SaveChangesAsync();
+    }
+
+    private static async Task CreateChildPages(
+        IAzureBlobStorage azureBlobStorage,
+        ISitemapParsingService sitemapParsingService,
+        IIndexingService<WebsitePage> websitePageIndexingService,
+        WebsitePage parentPage)
+    {
+        var blob = await azureBlobStorage.DownloadAsync(parentPage.SitemapFileName!);
+        var sitemap = await sitemapParsingService.ParseFromFileAsync(blob?.Content!);
+
+        var childPages = sitemap.Urls
+            .Select(sitemapEntry => sitemapEntry.Location)
+            .Select(uri => new WebsitePage(
+                    parentPage.Name,
+                    uri.ToString(),
+                    parentPage.ReferenceType,
+                    parentPage.Language,
+                    false,
+                    null,
+                    null)
+                {
+                    ParentId = parentPage.Id,
+                    Parent = parentPage
+                }
+            )
+            .ToList();
+
+        await websitePageIndexingService.CreateBulkAsync(childPages);
     }
 
     private async Task<ImageCollection> GetImageCollection(Guid websitePageId, ScrapeResult scrapeResult)

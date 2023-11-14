@@ -10,7 +10,7 @@ public class GetWebsitePageByInternalIdForDeletion
 
     public record GetByInternalIdForDeletionQueryParams(string InternalId) : IQueryParams;
 
-    public GraphQLRequest Request<T>(T @params) where T : IQueryParams
+    public static GraphQLRequest Request<T>(T @params) where T : IQueryParams
     {
         if (@params is not GetByInternalIdForDeletionQueryParams queryParams)
             throw new ArgumentNullException(nameof(queryParams));

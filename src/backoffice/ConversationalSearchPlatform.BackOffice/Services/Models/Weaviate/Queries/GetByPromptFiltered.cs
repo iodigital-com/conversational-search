@@ -11,7 +11,7 @@ public class GetByPromptFiltered
 
     public record WebsitePageQueryParams(string CollectionName, string TenantId, string Language, string ReferenceType, float[] Vector, int Limit) : IQueryParams;
 
-    public GraphQLRequest Request<T>(T @params) where T : IQueryParams
+    public static GraphQLRequest Request<T>(T @params) where T : IQueryParams
     {
         if (@params is not WebsitePageQueryParams queryParams)
             throw new ArgumentNullException(nameof(queryParams));

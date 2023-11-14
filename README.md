@@ -49,11 +49,11 @@ The following command will boot up:
 
 #### Windows / OSX Intel Mac
 
-- `docker-compose up -d csp-db-amd64 unstructured weaviate t2v-transformers multi2vec-clip scraper`
+- `docker-compose up -d csp-db-amd64 unstructured weaviate t2v-transformers multi2vec-clip scraper azurite`
 
 #### OSX Apple Silicon
 
-- `docker-compose up -d csp-db-arm unstructured weaviate t2v-transformers multi2vec-clip scraper`
+- `docker-compose up -d csp-db-arm unstructured weaviate t2v-transformers multi2vec-clip scraper azurite`
 
 ### Execute database migrations
 

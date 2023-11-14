@@ -1,14 +1,14 @@
-@using ConversationalSearchPlatform.BackOffice.Models
 @using ConversationalSearchPlatform.BackOffice.Services
 @using ConversationalSearchPlatform.BackOffice.Data.Entities
-@using ConversationalSearchPlatform.BackOffice.Components.Modals
 @using ConversationalSearchPlatform.BackOffice.Models.Conversations
 @using ConversationalSearchPlatform.BackOffice.Models.Indexing
 @using ConversationalSearchPlatform.BackOffice.Services.Models
+@using ConversationalSearchPlatform.BackOffice.Services.Models.Sitemap
 
 @inject ISnackbar Snackbar;
 @inject IIndexingService<WebsitePage> IndexingService;
 @inject ISitemapParsingService SitemapParsingService;
+@inject IAzureBlobStorage AzureBlobStorage;
 @inject ILogger<CreateWebsitePageModal> Logger;
 @attribute [RenderModeInteractiveServer]
 
@@ -30,23 +30,36 @@
                                 Class="mt-3"
                                 @bind-Value="Model.Name"
                                 For="@(() => Model.Name)"/>
-                            <MudTextField
-                                Label="The url of the page"
-                                Class="mt-3"
-                                @bind-Value="Model.Url"
-                                OnBlur="@DiscoverSiteMapUrl"
-                                For="@(() => Model.Url)"/>
-                            <MudFileUpload T="IBrowserFile" Accept=".xml" bind-Files="Model.SiteMapFile" MaximumFileCount="100">
-                                <ButtonTemplate>
-                                    <MudButton HtmlTag="label"
-                                               Variant="Variant.Filled"
-                                               Color="Color.Primary"
-                                               StartIcon="@Icons.Material.Filled.CloudUpload"
-                                               for="@context">
-                                        Sitemap XML
-                                    </MudButton>
-                                </ButtonTemplate>
-                            </MudFileUpload>
+                            <MudStack Row="true" Spacing="3" Class="flex-wrap justify-content-between align-baseline mt-2">
+                                <MudStack>
+                                    <MudTextField
+                                        Label="The url of the page"
+                                        Class="mt-3"
+                                        @bind-Value="Model.Url"
+                                        OnBlur="@DiscoverSiteMapUrl"
+                                        For="@(() => Model.Url)"/>
+                                    @if (Model.SiteMapAvailable == true)
+                                    {
+                                        <div>
+                                            <MudText Typo="Typo.body1">Looks like we found a sitemap on this URL. Do you want to use it?</MudText>
+                                            <MudCheckBox @bind-Checked="@Model.UseUrlSiteMap" Color="Color.Primary" Label="Use the sitemap"></MudCheckBox>
+                                        </div>
+                                    }
+                                </MudStack>
+                                <MudDivider Vertical="true" FlexItem="true" DividerType="DividerType.Inset" Style="height: auto"/>
+
+                                <MudFileUpload T="IBrowserFile" Accept=".xml" bind-Files="Model.SiteMapFile" MaximumFileCount="100">
+                                    <ButtonTemplate>
+                                        <MudButton HtmlTag="label"
+                                                   Variant="Variant.Filled"
+                                                   Color="Color.Primary"
+                                                   StartIcon="@Icons.Material.Filled.CloudUpload"
+                                                   for="@context">
+                                            Upload a sitemap
+                                        </MudButton>
+                                    </ButtonTemplate>
+                                </MudFileUpload>
+                            </MudStack>
                             <MudSelect
                                 Required
                                 Class="mt-3"
@@ -98,6 +111,7 @@
 
 
     private CreateWebsitePageDto Model { get; set; } = new();
+    private SiteMapDiscoveryResult SiteMapDiscoveryResult { get; set; } = new(Enumerable.Empty<Uri>());
 
     private bool Valid { get; set; }
     private string ModalTitle { get; set; } = default!;
@@ -122,11 +136,12 @@
         {
             case true when !string.IsNullOrWhiteSpace(Model.Url):
             {
-                var discoveryResult = await SitemapParsingService.DiscoverFromUrlAsync(Model.Url);
-                Model.SiteMapAvailable = discoveryResult.DiscoveredAny();
+                SiteMapDiscoveryResult = await SitemapParsingService.DiscoverFromUrlAsync(Model.Url);
+                Model.SiteMapAvailable = SiteMapDiscoveryResult.DiscoveredAny();
                 break;
             }
             case true when string.IsNullOrWhiteSpace(Model.Url):
+                SiteMapDiscoveryResult = new SiteMapDiscoveryResult(Enumerable.Empty<Uri>());
                 Model.SiteMapAvailable = null;
                 break;
         }
@@ -156,8 +171,7 @@
 
         try
         {
-            var websitePage = new WebsitePage(Model.Name, Model.Url, (ReferenceType)Model.ReferenceType, (Language)Model.Language);
-            await IndexingService.CreateAsync(websitePage, new CancellationToken());
+            await IndexAsync();
             success = true;
         }
         catch (Exception e)
@@ -176,6 +190,62 @@
             MudDialog.Close();
         }
     }
+
+    private async Task IndexAsync()
+    {
+        var url = string.Empty;
+        var isSitemapParent = false;
+        string? sitemapFileReference = null;
+        string? sitemapFileName = null;
+
+        if (HasUrlSiteMap())
+        {
+            url = SiteMapDiscoveryResult.SiteMaps.First().ToString();
+            isSitemapParent = true;
+            
+            var stream = await SitemapParsingService.DownloadAsStreamAsync(url);
+            var blobResponseDto = await AzureBlobStorage.UploadAsync(Guid.NewGuid().ToString(), stream);
+            
+            if (!blobResponseDto.Error)
+            {
+                sitemapFileReference = blobResponseDto.Blob.Uri;
+                sitemapFileName = blobResponseDto.Blob.Name;
+            }
+        }
+        else if (HasFileSitemap())
+        {
+            var blobResponseDto = await AzureBlobStorage.UploadAsync(Model.SiteMapFile!);
+
+            if (!blobResponseDto.Error)
+            {
+                sitemapFileReference = blobResponseDto.Blob.Uri;
+                sitemapFileName = blobResponseDto.Blob.Name;
+            }
+        }
+        else if (HasDefaultUrl())
+        {
+            url = Model.Url;
+        }
+
+
+        var websitePage = new WebsitePage(
+            Model.Name,
+            url,
+            (ReferenceType)Model.ReferenceType,
+            (Language)Model.Language,
+            isSitemapParent,
+            sitemapFileReference,
+            sitemapFileName
+            );
+
+        await IndexingService.CreateAsync(websitePage);
+    }
+
+    private bool HasFileSitemap() => Model.SiteMapFile != null;
+
+    private bool HasDefaultUrl() => Model.Url != null;
+
+    private bool HasUrlSiteMap() => Model.UseUrlSiteMap && SiteMapDiscoveryResult.DiscoveredAny();
 
     protected override Task OnInitializedAsync()
     {
