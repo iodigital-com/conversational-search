@@ -14,6 +14,7 @@
         - Scraping
         - Holding conversations
         - Consumption cost
+        - Multitenancy
 
 ### ConversationalSearchPlatform.Scraper
 
@@ -32,7 +33,7 @@
     - Vite
 - Contains:
     - A (for now) unstyled chat component developed in Preact that gets built into a WebComponent.
-      - Take a look at `webcomponent.html` for consumer usage
+        - Take a look at `webcomponent.html` for consumer usage
     - The goal is for this component is to be used for consumers and client demo purposes.
 
 ## Local development - BackOffice
@@ -115,7 +116,8 @@ dotnet ef database update --project backoffice/ConversationalSearchPlatform.Back
     - `scraper.yml`: deployment for the application, should be triggered on pushes on `main` + changes in
       the `scraper/**` folder
 - Some remarks for if this project ever gets moved to another resource group:
-    - Make sure that `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` exist in Github secrets (and are valid).
+    - Make sure that `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` exist in Github secrets (and are
+      valid).
     - Make sure there is a new service principal which can be used to pull and push images (AcrPull, AcrPush roles) to
       the container registry which is bound the AKS cluster.
 
@@ -146,8 +148,33 @@ You will only have to execute these steps once to save the kubeconfig credential
 #### Applying changes
 
 - In the `iac` folder, manifests can be found per application which can be applied with `kubectl apply -f ./foldername'
-- The weaviate folder does not use plain old Kubernetes objects, but uses helm instead. Read the readme in
+- The following resources reside in the iac folder:
+
+##### 0-ingress
+
+- Contains the nginx loadbalancer controller and cert manager CRDs. These should be deployed first as the other
+  applications might need an ingress or a certificate.
+
+##### 1-app
+
+- Contains a SecretProvider that allows secrets from Azure Key Vault to be mounted in pods.
+- Has a pod declaration which defines which Docker image is used, which resources are allowed and also uses the SecretProvider mentioned above.
+- Has a service declaration which defines on how to expose the pod internally.
+- Has an ingress which refers to a ClusterIssuer (needed for a certificate) and configures which domain should be used.
+- Contains a ClusterIssuer which defines the way how the certificate should be generated and validated using DNS.
+
+##### 2-weaviate
+
+- The weaviate folder does not use plain old Kubernetes objects, but uses helm instead. Read the README.md in
   the `2-weaviate` folder to understand how to (re)deploy weaviate.
+
+##### 3-scraper
+
+- Only contains a pod declaration and a service declaration as the scraper will not be exposed to the outside world.
+
+##### 4-chunker
+
+- Only contains a pod declaration and a service declaration as the chunker will not be exposed to the outside world.
 
 #### Remarks Azure move
 
