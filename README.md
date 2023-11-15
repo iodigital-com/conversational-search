@@ -5,7 +5,7 @@
 ### ConversationalSearchPlatform.BackOffice
 
 - Built with:
-    - .NET 8 RC 2 (can, and should be updated to .NET 8)
+    - .NET 8 (LTS, not RC version, Visual Studio 17.8.0 or later required)
     - Blazor server
 - Contains:
     - Contains all application logic, services and jobs concerning:
