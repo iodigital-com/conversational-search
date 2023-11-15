@@ -65,4 +65,6 @@ public class WebsitePage : IIndexable, IHaveUrl, IMultiTenant, IReference
     public ReferenceType ReferenceType { get; set; }
 
     public Language Language { get; set; }
+
+    public bool IsValidSitemapParent() => IsSitemapParent && this is { SitemapFileName: not null, SitemapFileReference: not null };
 }

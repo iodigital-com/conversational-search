@@ -65,7 +65,7 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
             return;
         }
 
-        InitializeTenantInfo(tenant);
+        _tenantContextAccessor.InitializeForJob(tenant);
 
         using (var db = await _dbContextFactory.CreateDbContextAsync())
         {
@@ -75,8 +75,7 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
                     await CreateEntry(db, tenantId, details);
                     break;
                 case IndexJobChangeType.UPDATE:
-                    await DeleteEntry(details);
-                    await CreateEntry(db, tenantId, details);
+                    await UpdateEntry(tenantId, details, db);
                     break;
                 case IndexJobChangeType.DELETE:
                     await DeleteEntry(details);
@@ -87,8 +86,27 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
         }
     }
 
+    private async Task UpdateEntry(string tenantId, WebsitePageIndexingDetails details, ApplicationDbContext db)
+    {
+        var websitePage = await db.WebsitePages.FirstOrDefaultAsync(page => page.Id == details.Id);
+
+        //TODO implement update flow for every child
+        if (websitePage != null && websitePage.IsValidSitemapParent())
+        {
+            
+        }
+        else
+        {
+            
+        }
+
+        await DeleteEntry(details);
+        await CreateEntry(db, tenantId, details);
+    }
+
     private async Task DeleteEntry(WebsitePageIndexingDetails details)
     {
+        //TODO implement delete flow for every child
         await DeletePagesAsync(details.Id);
         await DeleteImagesAsync(details.Id);
     }
@@ -168,10 +186,11 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
             return;
         }
 
-        if (websitePage.IsSitemapParent &&
-            websitePage is { SitemapFileName: not null, SitemapFileReference: not null })
+        if (websitePage.IsValidSitemapParent())
         {
             _logger.LogInformation("Found a SitemapParent record, will be creating child records and not processing this record any further");
+            db.Entry(websitePage).State = EntityState.Detached;
+
             await CreateChildPages(_azureBlobStorage, _sitemapParsingService, _websitePageIndexingService, websitePage);
             return;
         }
@@ -207,6 +226,7 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
         await db.SaveChangesAsync();
     }
 
+
     private static async Task CreateChildPages(
         IAzureBlobStorage azureBlobStorage,
         ISitemapParsingService sitemapParsingService,
@@ -228,7 +248,7 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
                     null)
                 {
                     ParentId = parentPage.Id,
-                    Parent = parentPage
+                    // Parent = parentPage
                 }
             )
             .ToList();
@@ -272,20 +292,5 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
         }
 
         return new ImageCollection(internalId, imageResults);
-    }
-
-    private void InitializeTenantInfo(ApplicationTenantInfo tenant)
-    {
-        if (_tenantContextAccessor.MultiTenantContext == null)
-        {
-            _tenantContextAccessor.MultiTenantContext = new MultiTenantContext<ApplicationTenantInfo>
-            {
-                TenantInfo = tenant,
-            };
-        }
-        else
-        {
-            _tenantContextAccessor.MultiTenantContext.TenantInfo = tenant;
-        }
     }
 }

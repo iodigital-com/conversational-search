@@ -5,6 +5,10 @@ namespace ConversationalSearchPlatform.BackOffice.Tenants;
 
 public class ApplicationTenantInfo : TenantInfo
 {
+    public ApplicationTenantInfo()
+    {
+    }
+
     public ChatModel ChatModel { get; set; }
     public string? BasePrompt { get; set; }
     public int AmountOfSearchReferences { get; set; } = 5;

@@ -206,7 +206,7 @@
     private static WebsitePageDto ToWebsitePageDto(WebsitePage websitePage) =>
         new(websitePage.Id,
             websitePage.Name,
-            websitePage.Url,
+            websitePage.Url ?? websitePage.SitemapFileReference ?? string.Empty,
             websitePage.IndexedAt?.DateTime,
             (ConversationReferenceTypeDto)websitePage.ReferenceType,
             (LanguageDto)websitePage.Language
