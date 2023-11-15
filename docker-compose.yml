@@ -66,7 +66,22 @@ services:
     ports:
       - "8060:8060"
     restart: always
-    
+  
+  scraper-arm:
+    container_name: csp-scraper
+    environment:
+      ARCH: 'arm64'
+      TARGETPLATFORM: 'linux/arm64'
+    build:
+      context: ./src/scraper/ConversationalSearchPlatform.Scraper
+      args:
+        ARCH: 'arm64'
+        TARGETPLATFORM: 'linux/arm64'
+      dockerfile: Dockerfile
+    ports:
+      - "8060:8060"
+    restart: always
+  
   application:
     container_name: csp-app
     build:
@@ -75,7 +90,7 @@ services:
     ports:
       - "5000:5000"
       - "5001:5001"
-        
+  
   azurite:
     ports:
       - "10000:10000"

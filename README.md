@@ -53,7 +53,7 @@ The following command will boot up:
 
 #### OSX Apple Silicon
 
-- `docker-compose up -d csp-db-arm unstructured weaviate t2v-transformers multi2vec-clip scraper azurite`
+- `docker-compose up -d csp-db-arm unstructured weaviate t2v-transformers multi2vec-clip scraper-arm azurite`
 
 ### Execute database migrations
 
