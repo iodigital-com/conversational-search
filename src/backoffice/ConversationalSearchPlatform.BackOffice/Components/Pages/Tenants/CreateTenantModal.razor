@@ -11,7 +11,8 @@
 @inject ISnackbar Snackbar;
 @inject IMultiTenantStore<ApplicationTenantInfo> TenantStore;
 @inject ILogger<CreateTenantModal> Logger;
-@attribute [RenderModeInteractiveServer]
+@rendermode InteractiveServer
+
 
 <MudDialog>
     <TitleContent>

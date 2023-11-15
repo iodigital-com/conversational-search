@@ -10,8 +10,7 @@
 @inject ISitemapParsingService SitemapParsingService;
 @inject IAzureBlobStorage AzureBlobStorage;
 @inject ILogger<CreateWebsitePageModal> Logger;
-@attribute [RenderModeInteractiveServer]
-
+@rendermode InteractiveServer
 <MudDialog>
     <TitleContent>
         <MudText Typo="Typo.h6">

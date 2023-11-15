@@ -9,7 +9,8 @@
 @using ConversationalSearchPlatform.BackOffice.Tenants
 @using Finbuckle.MultiTenant
 @using Microsoft.AspNetCore.Authorization
-@attribute [RenderModeInteractiveServer]
+@rendermode InteractiveServer
+
 
 @inject IDialogService DialogService;
 @inject IUserInviteService UserInviteService;

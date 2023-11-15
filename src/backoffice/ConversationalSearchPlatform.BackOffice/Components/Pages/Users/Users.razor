@@ -1,7 +1,8 @@
 @page "/users"
 @using ConversationalSearchPlatform.BackOffice.Constants
 @using Microsoft.AspNetCore.Authorization
-@attribute [RenderModeInteractiveServer]
+@rendermode InteractiveServer
+
 
 @inject IDialogService DialogService;
 @attribute [Authorize]

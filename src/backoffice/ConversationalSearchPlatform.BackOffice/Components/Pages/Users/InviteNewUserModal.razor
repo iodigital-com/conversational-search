@@ -9,7 +9,8 @@
 @inject IUserInviteService UserInviteService;
 @inject IMultiTenantStore<ApplicationTenantInfo> TenantStore; 
 @inject ILogger<InviteNewUserModal> Logger;
-@attribute [RenderModeInteractiveServer]
+@rendermode InteractiveServer
+
 
 <MudDialog>
     <TitleContent>

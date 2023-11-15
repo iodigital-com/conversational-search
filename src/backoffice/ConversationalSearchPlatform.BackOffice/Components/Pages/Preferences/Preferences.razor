@@ -10,7 +10,8 @@
 @inject IMultiTenantStore<ApplicationTenantInfo> TenantStore; 
 @inject IMultiTenantContextAccessor<ApplicationTenantInfo> TenantAccessor;
 @inject ILogger<Preferences> Logger;
-@attribute [RenderModeInteractiveServer]
+@rendermode InteractiveServer
+
 @inject ChatRefreshState ChatRefreshState;
 
 <PageTitle>Preferences</PageTitle>
