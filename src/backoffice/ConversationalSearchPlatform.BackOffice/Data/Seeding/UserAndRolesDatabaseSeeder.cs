@@ -68,7 +68,7 @@ public class UserAndRolesDatabaseSeeder : IDatabaseSeeder
             TenantId = iODigitalAdminTenant,
             EmailConfirmed = true,
             Email = "admin@tenaprofessionals.us",
-            NormalizedEmail = "ADMIN@TENAPROFESSIONALS.US"
+            NormalizedEmail = "admin@tenaprofessionals.us"
         };
 
         var demo = new ApplicationUser
