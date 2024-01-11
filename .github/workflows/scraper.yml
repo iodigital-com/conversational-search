@@ -37,10 +37,10 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_CONTAINER_REGISTRY: "iopolestarpocacr"
+  AZURE_CONTAINER_REGISTRY: "tenaacr"
   CONTAINER_NAME: "csp-scraper"
-  RESOURCE_GROUP: "io_polestar_poc_rg"
-  CLUSTER_NAME: "io_polestar_poc_aks"
+  RESOURCE_GROUP: "Tena"
+  CLUSTER_NAME: "tenaaks"
   DEPLOYMENT_MANIFEST_PATH: "./src/iac/3-scraper/0-pod.yml"
 
 jobs:
