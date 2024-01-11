@@ -12,10 +12,10 @@ spec:
       labels:
         app: csp-app
     spec:
-      serviceAccountName: 'workload-identity-sa'
+#      serviceAccountName: 'workload-identity-sa'
       containers:
         - name: csp-app
-          image: 'tenacr.azurecr.io/csp-app:latest' #TODO tag 
+          image: 'tenaacr.azurecr.io/csp-app:595ccc07b69bd46e9d7aa1eda3d718846068680e' #TODO tag 
           ports:
             - containerPort: 5000
           resources:
@@ -38,35 +38,35 @@ spec:
             initialDelaySeconds: 60
             periodSeconds: 15
             failureThreshold: 50
-          volumeMounts:
-            - name: secrets-store
-              mountPath: "/mnt/secrets-store"
-              readOnly: true
-          env:
-            - name: Weaviate__ApiKey
-              valueFrom:
-                secretKeyRef:
-                  name: appkvsecrets
-                  key: Weaviate__ApiKey
-            - name: OpenAi__ApiKey
-              valueFrom:
-                secretKeyRef:
-                  name: appkvsecrets
-                  key: OpenAi__ApiKey
-            - name: ConnectionStrings__DefaultConnection
-              valueFrom:
-                secretKeyRef:
-                  name: appkvsecrets
-                  key: ConnectionStrings__DefaultConnection
-            - name: Finbuckle__MultiTenant__Stores__ConfigurationStore__Defaults__ConnectionString
-              valueFrom:
-                secretKeyRef:
-                  name: appkvsecrets
-                  key: Finbuckle__MultiTenant__Stores__ConfigurationStore__Defaults__ConnectionString
-      volumes:
-        - name: secrets-store
-          csi:
-            driver: secrets-store.csi.k8s.io
-            readOnly: true
-            volumeAttributes:
-              secretProviderClass: "azure-kvname-workload-identity"
+#          volumeMounts:
+#            - name: secrets-store
+#              mountPath: "/mnt/secrets-store"
+#              readOnly: true
+#          env:
+#            - name: Weaviate__ApiKey
+#              valueFrom:
+#                secretKeyRef:
+#                  name: appkvsecrets
+#                  key: Weaviate__ApiKey
+#            - name: OpenAi__ApiKey
+#              valueFrom:
+#                secretKeyRef:
+#                  name: appkvsecrets
+#                  key: OpenAi__ApiKey
+#            - name: ConnectionStrings__DefaultConnection
+#              valueFrom:
+#                secretKeyRef:
+#                  name: appkvsecrets
+#                  key: ConnectionStrings__DefaultConnection
+#            - name: Finbuckle__MultiTenant__Stores__ConfigurationStore__Defaults__ConnectionString
+#              valueFrom:
+#                secretKeyRef:
+#                  name: appkvsecrets
+#                  key: Finbuckle__MultiTenant__Stores__ConfigurationStore__Defaults__ConnectionString
+#      volumes:
+#        - name: secrets-store
+#          csi:
+#            driver: secrets-store.csi.k8s.io
+#            readOnly: true
+#            volumeAttributes:
+#              secretProviderClass: "azure-kvname-workload-identity"
