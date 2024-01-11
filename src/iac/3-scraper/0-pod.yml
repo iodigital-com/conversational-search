@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: csp-scraper
-          image: 'iopolestarpocacr.azurecr.io/csp-scraper:latest' 
+          image: 'tenaacr.azurecr.io/csp-scraper:latest' 
           ports:
             - containerPort: 8060
           resources:

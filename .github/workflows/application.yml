@@ -33,11 +33,11 @@ on:
   push:
     paths:
       - src/backoffice/**
-    branches: [$default-branch]
+    branches: [ $default-branch ]
   workflow_dispatch:
 
 env:
-  AZURE_CONTAINER_REGISTRY: "iopolestarpocacr"
+  AZURE_CONTAINER_REGISTRY: "tenaacr"
   CONTAINER_NAME: "csp-app"
   RESOURCE_GROUP: "Tena"
   CLUSTER_NAME: "tenaaks"
@@ -72,7 +72,7 @@ jobs:
       contents: read
       id-token: write
     runs-on: ubuntu-latest
-    needs: [buildImage]
+    needs: [ buildImage ]
     steps:
       # Checks out the repository this file is in
       - uses: actions/checkout@v3

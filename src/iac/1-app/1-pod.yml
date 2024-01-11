@@ -15,7 +15,7 @@ spec:
       serviceAccountName: 'workload-identity-sa'
       containers:
         - name: csp-app
-          image: 'iopolestarpocacr.azurecr.io/csp-app:32711ae0cac28ae29f486cad894c4efaeeabe7c1' #TODO tag 
+          image: 'tenacr.azurecr.io/csp-app:latest' #TODO tag 
           ports:
             - containerPort: 5000
           resources:
