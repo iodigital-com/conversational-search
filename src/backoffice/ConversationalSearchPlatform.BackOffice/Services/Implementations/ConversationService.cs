@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -66,23 +67,43 @@ public partial class ConversationService : IConversationService
         var conversationHistory = GetConversationHistory(holdConversation, cacheKey);
         conversationHistory.DebugEnabled = holdConversation.Debug;
 
+        bool shouldEndConversation = false;
+
+        // are we at the maximum number of follow up questions after this one?
+        if (conversationHistory.PromptResponses.Count > 2)
+        {
+            shouldEndConversation = true;
+        }
+
         var (chatBuilder, textReferences, imageReferences) = await BuildChatAsync(holdConversation, conversationHistory, cancellationToken);
 
-        var chatResult = await chatBuilder.ExecuteAndCalculateCostAsync(false, cancellationToken);
-        _telemetryService.RegisterGPTUsage(
-            holdConversation.ConversationId,
-            holdConversation.TenantId,
-            chatResult.Result.Usage ?? throw new InvalidOperationException("No usage was passed in after executing an OpenAI call"),
-            conversationHistory.Model
-        );
+        string answer = string.Empty;
+        // don't give an answer when no references are found
+        if (textReferences.Count == 0 && imageReferences.Count == 0)
+        {
+            shouldEndConversation = true;
 
-        var answer = chatResult.Result.CombineAnswers();
+            answer = "I'm sorry, but I couldn't find relevant information in my database. Try asking a new question, please.";
+        }
+        else
+        {
+            var chatResult = await chatBuilder.ExecuteAndCalculateCostAsync(false, cancellationToken);
+            _telemetryService.RegisterGPTUsage(
+                holdConversation.ConversationId,
+                holdConversation.TenantId,
+                chatResult.Result.Usage ?? throw new InvalidOperationException("No usage was passed in after executing an OpenAI call"),
+                conversationHistory.Model
+            );
 
+            answer = chatResult.Result.CombineAnswers();
+        }
+
+        conversationHistory.HasEnded = shouldEndConversation;
         conversationHistory.AppendToConversation(holdConversation.UserPrompt, answer);
-
-        var conversationReferencedResult = ParseAnswerWithReferences(holdConversation, conversationHistory, textReferences, imageReferences);
-
         conversationHistory.SaveConversationHistory(_conversationsCache, cacheKey);
+
+        var conversationReferencedResult = ParseAnswerWithReferences(holdConversation, conversationHistory, textReferences, imageReferences, shouldEndConversation);
+
         return conversationReferencedResult;
     }
 
@@ -167,7 +188,7 @@ public partial class ConversationService : IConversationService
             conversationHistory.StreamingResponseChunks.Add(chunkedAnswer);
         }
 
-        var result = ParseAnswerWithReferences(holdConversation, conversationHistory, textReferences, imageReferences);
+        var result = ParseAnswerWithReferences(holdConversation, conversationHistory, textReferences, imageReferences, false);
 
         if (conversationHistory.DebugEnabled)
         {
@@ -203,22 +224,34 @@ public partial class ConversationService : IConversationService
             .ReplaceTenantPrompt(GetTenantPrompt(tenant))
             .ReplaceConversationContextVariables(tenant.PromptTags ?? new List<PromptTag>(), holdConversation.ConversationContext);
 
-        var vector = await _vectorizationService.CreateVectorAsync(holdConversation.ConversationId, holdConversation.TenantId, UsageType.Conversation, holdConversation.UserPrompt);
+        var vectorPrompt = new StringBuilder();
+
+        foreach (var conversation in conversationHistory.PromptResponses)
+        {
+            vectorPrompt.AppendLine(conversation.prompt);
+            vectorPrompt.AppendLine(conversation.response);
+        }
+
+        vectorPrompt.AppendLine(holdConversation.UserPrompt);
+
+        var vector = await _vectorizationService.CreateVectorAsync(holdConversation.ConversationId, holdConversation.TenantId, UsageType.Conversation, vectorPrompt.ToString());
         var textReferences = await GetTextReferences(
             conversationHistory,
             nameof(WebsitePage),
             tenantId,
-            holdConversation.Language.ToString(),
-            ConversationReferenceType.Manual.ToString(), // TODO later extend this to accept multiple kind of references
+            "English",
+            ConversationReferenceType.Site.ToString(), // TODO later extend this to accept multiple kind of references
             vector,
             cancellationToken);
 
-        var imageReferences = await GetImageReferences(
+        // TODO: restore this, but better
+        /*var imageReferences = await GetImageReferences(
             conversationHistory,
             IndexingConstants.ImageClass,
             holdConversation.UserPrompt,
             textReferences.Select(reference => reference.InternalId).Distinct().ToList(),
-            cancellationToken);
+            cancellationToken);*/
+        var imageReferences = new List<ImageSearchReference>();
 
         var indexedTextReferences = IndexizeTextReferences(textReferences);
 
@@ -268,7 +301,8 @@ public partial class ConversationService : IConversationService
     private static ConversationReferencedResult ParseAnswerWithReferences(HoldConversation holdConversation,
         ConversationHistory conversationHistory,
         IReadOnlyCollection<SortedSearchReference> textReferences,
-        List<ImageSearchReference> imageReferences)
+        List<ImageSearchReference> imageReferences,
+        bool endConversation)
     {
         string mergedAnswer;
 
@@ -299,6 +333,7 @@ public partial class ConversationService : IConversationService
                 holdConversation.Language
             ),
             validReferences,
+            endConversation,
             conversationHistory.DebugInformation
         );
     }

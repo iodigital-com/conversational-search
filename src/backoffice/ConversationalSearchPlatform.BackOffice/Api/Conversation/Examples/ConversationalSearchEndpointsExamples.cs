@@ -17,10 +17,11 @@ public static class ConversationalSearchEndpointsExamples
                 new List<ConversationReferenceResponse>
                 {
                     new(1,
-                        "https://www.polestar.com/uk/manual/polestar-2/2022/article/Pedestrian-Protection-System",
-                        ConversationReferenceTypeDto.Manual,
+                        "https://www.tenaprofessionals.us",
+                        ConversationReferenceTypeDto.Product,
                         "Pedestrian Protection System")
                 },
+                false,
                 null
             );
         }

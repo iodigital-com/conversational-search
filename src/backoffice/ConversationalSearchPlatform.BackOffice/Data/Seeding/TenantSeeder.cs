@@ -17,11 +17,11 @@ public class TenantSeeder : IDatabaseSeeder
             AmountOfSearchReferences = 8
         };
 
-        var polestar = new ApplicationTenantInfo
+        var tena = new ApplicationTenantInfo
         {
             Id = "D2FA78CE-3185-458E-964F-8FD0052B4330",
-            Identifier = "Polestar",
-            Name = "Polestar",
+            Identifier = "TenaProfessionals",
+            Name = "TenaProfessionals",
             ChatModel = ChatModel.Gpt4_32K,
             AmountOfSearchReferences = 8
         };
@@ -38,7 +38,7 @@ public class TenantSeeder : IDatabaseSeeder
         modelBuilder.Entity<ApplicationTenantInfo>()
             .HasData(
                 TenantConstants.DefaultTenant,
-                polestar,
+                tena,
                 iodigital,
                 iodigitalDemo
             );

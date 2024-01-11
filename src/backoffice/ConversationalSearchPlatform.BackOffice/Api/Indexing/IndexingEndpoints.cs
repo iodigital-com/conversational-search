@@ -1,11 +1,14 @@
 using ConversationalSearchPlatform.BackOffice.Api.Extensions;
 using ConversationalSearchPlatform.BackOffice.Constants;
+using ConversationalSearchPlatform.BackOffice.Data.Entities;
 using ConversationalSearchPlatform.BackOffice.Exceptions;
 using ConversationalSearchPlatform.BackOffice.Jobs;
 using ConversationalSearchPlatform.BackOffice.Services;
+using ConversationalSearchPlatform.BackOffice.Services.Models;
 using ConversationalSearchPlatform.BackOffice.Tenants;
 using Finbuckle.MultiTenant;
 using Hangfire;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ConversationalSearchPlatform.BackOffice.Api.Indexing;
@@ -17,8 +20,27 @@ public static class IndexingEndpoints
     public static IEndpointRouteBuilder MapIndexingGroup(this IEndpointRouteBuilder outerGroup)
     {
         var innerGroup = outerGroup.MapGroup(string.Empty)
-            .RequireAuthorization(nameof(TenantApiKeyHeaderRequirement))
-            .WithTags(IndexingTag);
+            //.RequireAuthorization(nameof(TenantApiKeyHeaderRequirement))
+        .WithTags(IndexingTag);
+
+        innerGroup.MapPost("index", async (HttpContext httpContext,
+                [FromServices] IIndexingService< WebsitePage> indexingService,
+                [FromForm] string url,
+                [FromForm] string title) =>
+        {
+            Console.WriteLine("OLE");
+            var websitePage = new WebsitePage(
+                title,
+                url,
+                ReferenceType.Site,
+                Language.Dutch,
+                false,
+                null,
+                null
+            );
+
+            await indexingService.CreateAsync(websitePage);
+        }).DisableAntiforgery();
 
         innerGroup.MapPost("index/{websitePageId}",
             async (

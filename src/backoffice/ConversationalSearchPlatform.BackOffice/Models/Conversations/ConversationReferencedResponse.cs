@@ -8,7 +8,11 @@ namespace ConversationalSearchPlatform.BackOffice.Models.Conversations;
 /// <param name="Response">Inner response containing the answer</param>
 /// <param name="References">References used in the answer</param>
 /// <param name="DebugInformation">Optional debug information about the answer given</param>
-public record ConversationReferencedResponse(ConversationResponse Response, List<ConversationReferenceResponse> References, DebugInformationResponse? DebugInformation = default);
+/// <param name="EndConversation">Whether the conversation is ended, either because of no references or because the maximum length of the conversation has been exceeded</param>
+public record ConversationReferencedResponse(ConversationResponse Response, 
+    List<ConversationReferenceResponse> References,
+    bool EndConversation,
+    DebugInformationResponse? DebugInformation = default);
 
 public record DebugInformationResponse
 {

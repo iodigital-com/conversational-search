@@ -5,7 +5,8 @@ namespace ConversationalSearchPlatform.BackOffice.Services.Models;
 
 public record ConversationResult(Guid ConversationId, string Answer, Language Language);
 
-public record ConversationReferencedResult(ConversationResult Result, List<ConversationReference> References, DebugInformation? DebugInformation = default)
+public record ConversationReferencedResult(ConversationResult Result, List<ConversationReference> References,
+    bool EndConversation, DebugInformation? DebugInformation = default)
 {
     public DebugInformation? DebugInformation { get; set; } = DebugInformation;
 }
@@ -16,6 +17,6 @@ public record ConversationReference(int Index, string Url, ConversationReference
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum ConversationReferenceType
 {
-    Manual = 0,
-    Community = 1
+    Product = 0,
+    Site = 1
 }

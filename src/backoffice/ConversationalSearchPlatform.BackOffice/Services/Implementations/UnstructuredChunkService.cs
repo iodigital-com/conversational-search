@@ -18,18 +18,21 @@ public class UnstructuredChunkService : IChunkService
         using var content = new MultipartFormDataContent
         {
             {
-                new StreamContent(stream), "files", $"{chunkInput.Name}.html"
+                new StreamContent(stream), "files", $"content-{Guid.NewGuid()}.html"
             },
             {
                 new StringContent(chunkInput.Language.ToUnstructuredChunkerLanguage()), "languages"
             },
         };
+
         //TODO experiment with this chunking strategy by maybe not using it
         content.Add(new StringContent("by_title"), "chunking_strategy");
 
         request.Content = content;
 
         var responseMessage = await _httpClient.SendAsync(request);
+        responseMessage.EnsureSuccessStatusCode();
+
         var chunks = await responseMessage.Content.ReadFromJsonAsync<List<ChunkResult>>() ?? throw new InvalidOperationException($"Cannot read {nameof(ChunkResult)}");
 
         return new ChunkCollection(

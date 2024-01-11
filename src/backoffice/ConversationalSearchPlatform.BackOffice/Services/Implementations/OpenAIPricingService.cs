@@ -27,6 +27,8 @@ public class OpenAIPricingService : IOpenAIPricingService
         new KeyValuePair<CallModel, Sku>(CallModel.Gpt4, new Sku("GPT4-8K-Completion", CostType.Completion)),
         new KeyValuePair<CallModel, Sku>(CallModel.Gpt4_32K, new Sku("GPT4-32K-Prompt", CostType.Prompt)),
         new KeyValuePair<CallModel, Sku>(CallModel.Gpt4_32K, new Sku("GPT4-32K-Completion", CostType.Completion)),
+        new KeyValuePair<CallModel, Sku>(CallModel.Gpt4_turbo, new Sku("GPT4-Prompt", CostType.Prompt)),
+        new KeyValuePair<CallModel, Sku>(CallModel.Gpt4_turbo, new Sku("GPT4-Completion", CostType.Completion)),
         new KeyValuePair<CallModel, Sku>(CallModel.AdaTextEmbedding, new Sku("Embeddings-Ada", CostType.Embedding))
     };
 

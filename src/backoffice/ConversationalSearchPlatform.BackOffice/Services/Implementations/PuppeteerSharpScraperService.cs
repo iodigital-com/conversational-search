@@ -49,7 +49,7 @@ public class PuppeteerSharpScraperService : BaseScraper, IScraperService
             //     {
             //         Name = "OptanonAlertBoxClosed",
             //         Value = "2023-10-09T10:32:39.421Z",
-            //         Domain = ".polestar.com",
+            //         Domain = ".tenaprofessionals.us",
             //         Path = "/",
             //         HttpOnly = false,
             //         Secure = false
@@ -58,7 +58,7 @@ public class PuppeteerSharpScraperService : BaseScraper, IScraperService
             //     {
             //         Name = "projectAndYear",
             //         Value = "eyJwcm9qZWN0IjoicG9sZXN0YXItMiIsInllYXIiOiIyMDIyIn0=",
-            //         Domain = ".www.polestar.com",
+            //         Domain = ".www.tenaprofessionals.us",
             //         Path = "/",
             //         HttpOnly = false,
             //         Secure = false
@@ -68,7 +68,7 @@ public class PuppeteerSharpScraperService : BaseScraper, IScraperService
             //     //     Name = "OptanonConsent",
             //     //     Value =
             //     //         "isGpcEnabled=0&datestamp=Wed+Oct+18+2023+19%3A10%3A08+GMT%2B0200+(Central+European+Summer+Time)&version=202304.1.0&browserGpcFlag=0&isIABGlobal=false&hosts=&consentId=0b676ce3-b877-4e40-b5e4-85521e53b8aa&interactionCount=1&landingPath=NotLandingPage&groups=1%3A1%2C3%3A1%2C2%3A1%2C4%3A1&geolocation=BE%3BVLG&AwaitingReconsent=false",
-            //     //     Domain = ".polestar.com",
+            //     //     Domain = ".tenaprofessionals.us",
             //     //     Path = "/",
             //     //     HttpOnly = false,
             //     //     Secure = false

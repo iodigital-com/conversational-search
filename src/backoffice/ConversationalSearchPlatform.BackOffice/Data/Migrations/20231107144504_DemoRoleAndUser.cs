@@ -29,7 +29,7 @@ namespace ConversationalSearchPlatform.BackOffice.Data.Migrations
                 keyColumn: "Id",
                 keyValue: "68657A77-57AE-409D-A845-5ABAF7C1E633",
                 columns: new[] { "ConcurrencyStamp", "NormalizedEmail", "NormalizedUserName", "PasswordHash", "SecurityStamp", "UserName" },
-                values: new object[] { "86c7b24d-2363-4a5d-8b14-4a600471c8c4", "USER@POLESTAR.COM", "polestaruser", "AQAAAAIAAYagAAAAEJy2g8Pfb6RFYgJd7II5604xSIH1EfiUcFI89t345PZluWQjzp36yS0luh2D0tuGWA==", "8dc5d51a-9ee0-4aff-a883-9a5ee922afd6", "user@polestar.com" });
+                values: new object[] { "86c7b24d-2363-4a5d-8b14-4a600471c8c4", "USER@TENAPROFESSIONALS.US", "tenaprofessionalsuser", "AQAAAAIAAYagAAAAEJy2g8Pfb6RFYgJd7II5604xSIH1EfiUcFI89t345PZluWQjzp36yS0luh2D0tuGWA==", "8dc5d51a-9ee0-4aff-a883-9a5ee922afd6", "user@tenaprofessionals.us" });
 
             migrationBuilder.UpdateData(
                 table: "AspNetUsers",

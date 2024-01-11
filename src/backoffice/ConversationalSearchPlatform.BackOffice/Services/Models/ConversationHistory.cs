@@ -16,6 +16,8 @@ public class ConversationHistory(ChatModel model, int amountOfSearchReferences)
     public int AmountOfSearchReferences { get; init; } = amountOfSearchReferences;
     public bool DebugEnabled { get; set; }
 
+    public bool HasEnded { get; set; } = false;
+
     public DebugInformation? DebugInformation { get; set; }
 
     public string GetAllStreamingResponseChunksMerged() => string.Join(null, StreamingResponseChunks);

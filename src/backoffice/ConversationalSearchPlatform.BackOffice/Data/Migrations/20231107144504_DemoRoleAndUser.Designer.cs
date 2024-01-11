@@ -102,14 +102,14 @@ namespace ConversationalSearchPlatform.BackOffice.Data.Migrations
                             Email = "user@test.com",
                             EmailConfirmed = true,
                             LockoutEnabled = false,
-                            NormalizedEmail = "USER@POLESTAR.COM",
-                            NormalizedUserName = "polestaruser",
+                            NormalizedEmail = "USER@TENAPROFESSIONALS.US",
+                            NormalizedUserName = "tenaprofessionalsuser",
                             PasswordHash = "AQAAAAIAAYagAAAAEJy2g8Pfb6RFYgJd7II5604xSIH1EfiUcFI89t345PZluWQjzp36yS0luh2D0tuGWA==",
                             PhoneNumberConfirmed = false,
                             SecurityStamp = "8dc5d51a-9ee0-4aff-a883-9a5ee922afd6",
                             TenantId = "D2FA78CE-3185-458E-964F-8FD0052B4330",
                             TwoFactorEnabled = false,
-                            UserName = "user@polestar.com"
+                            UserName = "user@tenaprofessionals.us"
                         },
                         new
                         {

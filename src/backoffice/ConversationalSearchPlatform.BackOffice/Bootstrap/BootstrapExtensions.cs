@@ -200,7 +200,7 @@ internal static class BootstrapExtensions
         var info = new OpenApiInfo
         {
             Version = "v1",
-            Title = "Polestar POC API",
+            Title = "Conversational Search API",
             Contact = contact
         };
 
@@ -246,9 +246,11 @@ internal static class BootstrapExtensions
             {
                 settings.Azure.ResourceName = openAiSettings.ResourceName;
                 settings.UseVersionForChat(openAiSettings.VersionForChat);
-                settings.Azure.MapDeploymentChatModel("gpt-4-io-gpt", ChatModelType.Gpt4);
-                settings.Azure.MapDeploymentChatModel("gpt-4-large-io-gpt", ChatModelType.Gpt4_32K);
-                settings.Azure.MapDeploymentChatModel("gpt-35-turbo-io-gpt", ChatModelType.Gpt35Turbo);
+                settings.Azure.MapDeploymentChatModel("gpt-35-turbo", ChatModelType.Gpt35Turbo);
+                settings.Azure.MapDeploymentChatModel("gpt-35-turbo-16k", ChatModelType.Gpt35Turbo_16K);
+                settings.Azure.MapDeploymentChatModel("gpt4", ChatModelType.Gpt4_Snapshot);
+                settings.Azure.MapDeploymentChatModel("gpt4-0613", ChatModelType.Gpt4);
+                settings.Azure.MapDeploymentChatModel("gpt4-32-0613", ChatModelType.Gpt4_32K);
                 settings.Azure.MapDeploymentEmbeddingModel("text-embedding-ada-002-io-gpt", EmbeddingModelType.AdaTextEmbedding);
             }
         });

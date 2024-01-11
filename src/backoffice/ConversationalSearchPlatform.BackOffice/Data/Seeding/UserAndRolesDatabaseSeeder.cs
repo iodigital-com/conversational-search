@@ -32,20 +32,20 @@ public class UserAndRolesDatabaseSeeder : IDatabaseSeeder
 
         var iODigitalAdminTenant = "CCFA9314-ABE6-403A-9E21-2B31D95A5258";
         var iODigitalDemoTenant = "4903E29F-D633-4A4C-9065-FE3DD8F27E40";
-        var polestarTenant = "D2FA78CE-3185-458E-964F-8FD0052B4330";
+        var tenaTenant = "D2FA78CE-3185-458E-964F-8FD0052B4330";
 
         var hasher = new PasswordHasher<ApplicationUser>();
 
         var user = new ApplicationUser
         {
             Id = "68657A77-57AE-409D-A845-5ABAF7C1E633",
-            UserName = "user@polestar.com",
-            NormalizedUserName = "polestaruser",
+            UserName = "user@tenaprofessionals.us",
+            NormalizedUserName = "tenaprofessionalsuser",
             PasswordHash = hasher.HashPassword(null!, "iamauser2023"),
-            TenantId = polestarTenant,
+            TenantId = tenaTenant,
             EmailConfirmed = true,
             Email = "user@test.com",
-            NormalizedEmail = "USER@POLESTAR.COM"
+            NormalizedEmail = "USER@TENAPROFESSIONALS.US"
         };
 
         var user2 = new ApplicationUser
@@ -54,7 +54,7 @@ public class UserAndRolesDatabaseSeeder : IDatabaseSeeder
             UserName = "user2",
             NormalizedUserName = "USER2",
             PasswordHash = hasher.HashPassword(null!, "iamauser2023"),
-            TenantId = polestarTenant,
+            TenantId = tenaTenant,
             EmailConfirmed = true,
             Email = "user2@test.com",
             NormalizedEmail = "USER2@TEST.COM"
@@ -67,8 +67,8 @@ public class UserAndRolesDatabaseSeeder : IDatabaseSeeder
             PasswordHash = hasher.HashPassword(null!, "lPt5i9LxdNeE4h*E"),
             TenantId = iODigitalAdminTenant,
             EmailConfirmed = true,
-            Email = "admin@test.com",
-            NormalizedEmail = "ADMIN@TEST.com"
+            Email = "admin@tenaprofessionals.us",
+            NormalizedEmail = "ADMIN@TENAPROFESSIONALS.US"
         };
 
         var demo = new ApplicationUser

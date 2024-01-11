@@ -207,6 +207,7 @@ public static class ConversationalSearchEndpoints
         var conversationReferencedResponse = new ConversationReferencedResponse(
             MapConversationToApiResponse(response),
             MapReferencesToApiResponse(response.References),
+            response.EndConversation,
             MapDebugInformationToApiResponse(response.DebugInformation)
         );
         return conversationReferencedResponse;
