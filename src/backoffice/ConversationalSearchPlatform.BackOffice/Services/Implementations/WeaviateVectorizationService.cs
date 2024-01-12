@@ -111,11 +111,13 @@ public class WeaviateVectorizationService : IVectorizationService
 
             var response = await _httpClientFactory.CreateClient(WeaviateHttpClientName)
                 .PostAsJsonAsync("v1/objects/", weaviateCreateObject);
+            var responseText = await response.Content.ReadAsStringAsync();
+
             weaviateObject = await ValidateAndParse<WeaviateObject>(response) ?? throw new InvalidOperationException();
 
             objectIds.Add(weaviateObject.Id);
         }
-        catch (Exception)
+        catch (Exception e)
         {
             _logger.LogError("Something went wrong trying to process item");
         }
@@ -197,7 +199,6 @@ public class WeaviateVectorizationService : IVectorizationService
             .PostAsJsonAsync($"v1/schema/", schema);
         response.EnsureSuccessStatusCode();
     }
-
 
     private async Task<T?> ValidateAndParse<T>(HttpResponseMessage response)
     {

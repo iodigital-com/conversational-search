@@ -42,6 +42,8 @@ public class GetByPromptFiltered
                       			source
                       			language
                       			referenceType
+                                articlenumber
+                                packaging
                       			_additional {
                       	            id,
                       	            certainty,
@@ -67,6 +69,14 @@ public class GetByPromptFiltered
         [JsonPropertyName("tenantId")]
 
         public string TenantId { get; set; } = default!;
+
+        [JsonPropertyName("packaging")]
+
+        public string Packaging { get; set; } = default!;
+
+        [JsonPropertyName("articlenumber")]
+
+        public string ArticleNumber { get; set; } = default!;
 
         [JsonPropertyName("text")]
         public string Text { get; set; } = default!;

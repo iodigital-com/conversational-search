@@ -28,6 +28,13 @@ public record ChunkResult : IInsertable
 
     [JsonPropertyName("text")]
     public string Text { get; set; } = default!;
+
+    [JsonPropertyName("articlenumber")]
+    public string ArticleNumber { get; set; } = default!;
+
+
+    [JsonPropertyName("packaging")]
+    public string Packaging { get; set; } = default!;
 }
 
 public record ChunkMetadata

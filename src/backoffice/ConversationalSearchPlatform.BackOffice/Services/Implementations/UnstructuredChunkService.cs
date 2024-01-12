@@ -26,7 +26,7 @@ public class UnstructuredChunkService : IChunkService
         };
 
         //TODO experiment with this chunking strategy by maybe not using it
-        content.Add(new StringContent("by_title"), "chunking_strategy");
+        //content.Add(new StringContent("by_title"), "chunking_strategy");
 
         request.Content = content;
 

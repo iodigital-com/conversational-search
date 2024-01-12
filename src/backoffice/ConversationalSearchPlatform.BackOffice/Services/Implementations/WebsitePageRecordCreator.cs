@@ -63,7 +63,9 @@ public sealed class WebsitePageRecordCreator<TInsertable, TCollection, TWeaviate
             item.Text,
             collection.Url,
             collection.Language,
-            collection.ReferenceType);
+            collection.ReferenceType,
+            item.ArticleNumber,
+            item.Packaging);
 
         var weaviateCreateObject = new WeaviateCreateObject<WebsitePageWeaviateCreateRecord>(
             collectionName,

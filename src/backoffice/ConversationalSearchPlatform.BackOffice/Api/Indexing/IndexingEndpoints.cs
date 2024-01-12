@@ -26,13 +26,13 @@ public static class IndexingEndpoints
         innerGroup.MapPost("index", async (HttpContext httpContext,
                 [FromServices] IIndexingService< WebsitePage> indexingService,
                 [FromForm] string url,
+                [FromForm] string referenceType,
                 [FromForm] string title) =>
         {
-            Console.WriteLine("OLE");
             var websitePage = new WebsitePage(
                 title,
                 url,
-                ReferenceType.Site,
+                referenceType == "Site" ? ReferenceType.Site : ReferenceType.Product,
                 Language.Dutch,
                 false,
                 null,

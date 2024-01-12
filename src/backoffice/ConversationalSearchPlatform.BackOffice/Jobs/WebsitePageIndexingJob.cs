@@ -9,9 +9,13 @@ using ConversationalSearchPlatform.BackOffice.Services.Models.Weaviate.Queries;
 using ConversationalSearchPlatform.BackOffice.Tenants;
 using Finbuckle.MultiTenant;
 using Hangfire;
+using HtmlAgilityPack;
 using HttpClientToCurl;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using System.Net;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace ConversationalSearchPlatform.BackOffice.Jobs;
 
@@ -204,7 +208,7 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
 
         var scrapeResult = await _scraperService.ScrapeAsync(websitePage.Url);
 
-        var chunkCollection = await _chunkService.ChunkAsync(
+        /*var chunkCollection = await _chunkService.ChunkAsync(
             new ChunkInput(
                 websitePage.Id.ToString(),
                 websitePage.Name,
@@ -214,12 +218,90 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
                 websitePage.ReferenceType,
                 websitePage.TenantId
             )
-        );
-        await _vectorizationService.BulkCreateAsync(nameof(WebsitePage), websitePage.Id, scrapeResult.PageTitle, tenantId, UsageType.Indexing, chunkCollection);
+        );*/
 
-        var imageCollection = await GetImageCollection(websitePage.Id, scrapeResult);
-        await _vectorizationService.BulkCreateAsync(IndexingConstants.ImageClass, websitePage.Id, scrapeResult.PageTitle, tenantId, UsageType.Indexing, imageCollection);
+        var htmlDoc = new HtmlDocument();
+        htmlDoc.LoadHtml(scrapeResult.HtmlContent);
 
+        if (websitePage.ReferenceType == ReferenceType.Site)
+        {
+            List<ChunkResult> chunks = new List<ChunkResult>();
+
+            var nodes = htmlDoc.DocumentNode.SelectNodes("//div[contains(@class, 'section')]");
+
+            foreach (var node in nodes)
+            {
+                var cleanText = Regex.Replace(node.InnerText, @"\s+", " ").Trim();
+                cleanText = WebUtility.HtmlDecode(cleanText);
+
+                if (!string.IsNullOrEmpty(cleanText))
+                {
+                    var chunkResult = new ChunkResult();
+                    chunkResult.ArticleNumber = string.Empty;
+                    chunkResult.Text = cleanText;
+                    chunkResult.Packaging = string.Empty;
+
+                    chunks.Add(chunkResult);
+                }
+            }
+
+            if (chunks.Count > 0)
+            {
+                ChunkCollection chunkCollection = new ChunkCollection(tenantId, websitePage.Id.ToString(), websitePage.Url, websitePage.ReferenceType.ToString(), websitePage.Language.ToString(), chunks);
+
+                await _vectorizationService.BulkCreateAsync(nameof(WebsitePage), websitePage.Id, scrapeResult.PageTitle, tenantId, UsageType.Indexing, chunkCollection);
+            }
+        } 
+        else
+        {
+            var productText = new StringBuilder();
+            var packageText = "no package info";
+            var titleText = string.Empty;
+            var articleNumberText = "no article number";
+            var descriptionNodes = htmlDoc.DocumentNode.SelectNodes("//*[contains(@class, 'redesignProductheadline') or contains(@class, 'description-short') or contains(@class, 'ContentSlideWrap') or contains(@class, 'ProductDescription')]");
+            foreach (var node in descriptionNodes)
+            {
+                var cleanText = Regex.Replace(node.InnerText, @"\s+", " ").Trim();
+                cleanText = WebUtility.HtmlDecode(cleanText);
+                productText.Append(cleanText);
+                productText.Append(" ");
+
+                if (titleText == "")
+                {
+                    titleText = cleanText;
+                }
+            }
+
+            var packageNodes = htmlDoc.DocumentNode.SelectNodes("//td[@data-label='Volume' or @data-label='Pieces' or @data-label='Pcs/Case']");
+            var packageBuilder = new StringBuilder();
+            foreach (var pnode in packageNodes) 
+            {
+                var cleanText = Regex.Replace(pnode.InnerText, @"\s+", " ").Trim();
+
+                packageBuilder.Append($"{pnode.GetAttributeValue("data-label", "")} {cleanText};");
+            }
+
+            if (packageBuilder.Length > 0)
+            {
+                packageText = packageBuilder.ToString();
+            }
+
+            var articleNumberNodes = htmlDoc.DocumentNode.SelectNodes("//td[@data-label='Article #']");
+
+            if (articleNumberNodes?.Count > 0)
+            {
+                articleNumberText = articleNumberNodes[0].InnerText;
+            }
+
+            var chunkResult = new ChunkResult();
+            chunkResult.ArticleNumber = articleNumberText;
+            chunkResult.Text = productText.ToString().Trim();
+            chunkResult.Packaging = packageText.Trim();
+
+            ChunkCollection chunkCollection = new ChunkCollection(tenantId, websitePage.Id.ToString(), websitePage.Url, websitePage.ReferenceType.ToString(), websitePage.Language.ToString(), new List<ChunkResult>() { chunkResult });
+
+            await _vectorizationService.BulkCreateAsync(nameof(WebsitePage), websitePage.Id, titleText, tenantId, UsageType.Indexing, chunkCollection);
+        }
 
         websitePage.IndexedAt = DateTimeOffset.UtcNow;
 

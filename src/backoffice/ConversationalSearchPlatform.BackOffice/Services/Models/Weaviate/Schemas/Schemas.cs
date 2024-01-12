@@ -88,8 +88,29 @@ public static class Schemas
                     {
                         "text"
                     },
+                    "ID of the tenant",
+                    "tenantId"
+                ),
+                new(new List<string>
+                    {
+                        "text"
+                    },
                     "text",
                     "text"
+                ),
+                new(new List<string>
+                    {
+                        "text"
+                    },
+                    "Product article number",
+                    "articlenumber"
+                ),
+                new(new List<string>
+                    {
+                        "text"
+                    },
+                    "Product packaging",
+                    "packaging"
                 ),
                 new(new List<string>
                     {

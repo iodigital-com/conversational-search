@@ -19,9 +19,9 @@ public class PromptBuilder(StringBuilder stringBuilder)
         return this;
     }
 
-    public PromptBuilder ReplaceImageSources(string flattenedImageSources)
+    public PromptBuilder ReplaceProductSources(string flattenedProductSources)
     {
-        stringBuilder = stringBuilder.Replace("{{ImageSources}}", flattenedImageSources);
+        stringBuilder = stringBuilder.Replace("{{ProductSources}}", flattenedProductSources);
         return this;
     }
 

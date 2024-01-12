@@ -1,8 +1,6 @@
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
-using ConversationalSearchPlatform.BackOffice.Constants;
 using ConversationalSearchPlatform.BackOffice.Data.Entities;
 using ConversationalSearchPlatform.BackOffice.Exceptions;
 using ConversationalSearchPlatform.BackOffice.Extensions;
@@ -75,11 +73,11 @@ public partial class ConversationService : IConversationService
             shouldEndConversation = true;
         }
 
-        var (chatBuilder, textReferences, imageReferences) = await BuildChatAsync(holdConversation, conversationHistory, cancellationToken);
+        var (chatBuilder, textReferences, imageReferences, productReferences) = await BuildChatAsync(holdConversation, conversationHistory, cancellationToken);
 
         string answer = string.Empty;
         // don't give an answer when no references are found
-        if (textReferences.Count == 0 && imageReferences.Count == 0)
+        if (textReferences.Count == 0 && productReferences.Count == 0 && imageReferences.Count == 0)
         {
             shouldEndConversation = true;
 
@@ -102,6 +100,7 @@ public partial class ConversationService : IConversationService
         conversationHistory.AppendToConversation(holdConversation.UserPrompt, answer);
         conversationHistory.SaveConversationHistory(_conversationsCache, cacheKey);
 
+        textReferences.AddRange(productReferences);
         var conversationReferencedResult = ParseAnswerWithReferences(holdConversation, conversationHistory, textReferences, imageReferences, shouldEndConversation);
 
         return conversationReferencedResult;
@@ -117,7 +116,7 @@ public partial class ConversationService : IConversationService
         conversationHistory.IsStreaming = true;
         conversationHistory.DebugEnabled = holdConversation.Debug;
 
-        var (chatBuilder, textReferences, imageReferences) = await BuildChatAsync(holdConversation, conversationHistory, cancellationToken);
+        var (chatBuilder, textReferences, imageReferences, productReferences) = await BuildChatAsync(holdConversation, conversationHistory, cancellationToken);
 
         await foreach (var entry in chatBuilder
                            .ExecuteAsStreamAndCalculateCostAsync(false, cancellationToken)
@@ -205,7 +204,7 @@ public partial class ConversationService : IConversationService
         return ValueTask.FromResult(StreamResult<ConversationReferencedResult>.Ok(result));
     }
 
-    private async Task<(ChatRequestBuilder chatRequestBuilder, List<SortedSearchReference>, List<ImageSearchReference>)> BuildChatAsync(
+    private async Task<(ChatRequestBuilder chatRequestBuilder, List<SortedSearchReference>, List<ImageSearchReference>, List<SortedSearchReference>)> BuildChatAsync(
         HoldConversation holdConversation,
         ConversationHistory conversationHistory,
         CancellationToken cancellationToken)
@@ -244,6 +243,15 @@ public partial class ConversationService : IConversationService
             vector,
             cancellationToken);
 
+        var productReferences = await GetTextReferences(
+            conversationHistory,
+            nameof(WebsitePage),
+            tenantId,
+            "English",
+            ConversationReferenceType.Product.ToString(), // TODO later extend this to accept multiple kind of references
+            vector,
+            cancellationToken);
+
         // TODO: restore this, but better
         /*var imageReferences = await GetImageReferences(
             conversationHistory,
@@ -254,10 +262,11 @@ public partial class ConversationService : IConversationService
         var imageReferences = new List<ImageSearchReference>();
 
         var indexedTextReferences = IndexizeTextReferences(textReferences);
+        var indexedProductReferences = IndexizeTextReferences(productReferences, indexedTextReferences.Last().Index);
 
         var systemPrompt = promptBuilder
             .ReplaceTextSources(FlattenTextReferences(indexedTextReferences))
-            .ReplaceImageSources(FlattenImageReferences(indexedTextReferences, imageReferences))
+            .ReplaceProductSources(FlattenProductReferences(indexedProductReferences))
             .Build();
 
         var chatBuilder = _openAiFactory.CreateChat()
@@ -265,14 +274,14 @@ public partial class ConversationService : IConversationService
             .AddPreviousMessages(conversationHistory.PromptResponses)
             .AddUserMessage(holdConversation.UserPrompt)
             .WithModel((ChatModelType)conversationHistory.Model)
-            .WithTemperature(1);
+            .WithTemperature(0.75);
 
         if (conversationHistory.DebugEnabled)
         {
             conversationHistory.AppendPreRequestDebugInformation(chatBuilder, textReferences, imageReferences, promptBuilder);
         }
 
-        return (chatBuilder, indexedTextReferences, imageReferences);
+        return (chatBuilder, indexedTextReferences, imageReferences, indexedProductReferences);
     }
 
 
@@ -288,12 +297,12 @@ public partial class ConversationService : IConversationService
         return tenant;
     }
 
-    private static List<SortedSearchReference> IndexizeTextReferences(List<TextSearchReference> textReferences)
+    private static List<SortedSearchReference> IndexizeTextReferences(List<TextSearchReference> textReferences, int startIndex = 0)
     {
         return textReferences.Select((textRef, i) => new SortedSearchReference
             {
                 TextSearchReference = textRef,
-                Index = i + 1
+                Index = i + 1 + startIndex
             })
             .ToList();
     }
@@ -403,6 +412,18 @@ public partial class ConversationService : IConversationService
         return knowledgeBaseBuilder.ToString();
     }
 
+    private static string FlattenProductReferences(List<SortedSearchReference> references)
+    {
+        var knowledgeBaseBuilder = new StringBuilder();
+
+        foreach (var reference in references)
+        {
+            knowledgeBaseBuilder.AppendLine($"{reference.Index} | {reference.TextSearchReference.Source} | {reference.TextSearchReference.ArticleNumber} | {reference.TextSearchReference.Packaging} | {reference.TextSearchReference.Content.ReplaceLineEndings(" ")}");
+        }
+
+        return knowledgeBaseBuilder.ToString();
+    }
+
     private static string FlattenImageReferences(List<SortedSearchReference> textSearchReferences, List<ImageSearchReference> references)
     {
         var knowledgeBaseBuilder = new StringBuilder();
@@ -478,7 +499,13 @@ public partial class ConversationService : IConversationService
 
         return search
             .GroupBy(p => p.Source)
-            .Select(grouping => grouping.First())
+            .Select(grouping => {
+                var first = grouping.First();
+
+                first.Text = string.Join(" ", grouping.Select(g => g.Text).ToList());
+
+                return first;
+            })
             .Select(result =>
             {
                 Enum.TryParse<ConversationReferenceType>(result.ReferenceType, out var refType);
@@ -492,7 +519,9 @@ public partial class ConversationService : IConversationService
                     Type = refType,
                     Certainty = result.Additional?.Certainty,
                     Language = lang,
-                    InternalId = result.InternalId
+                    InternalId = result.InternalId,
+                    ArticleNumber = result.ArticleNumber,
+                    Packaging = result.Packaging,
                 };
             })
             .ToList();

@@ -9,4 +9,7 @@ public class TextSearchReference
     public Language Language { get; set; }
     public string InternalId { get; set; } = default!;
     public string Title { get; set; } = default!;
+
+    public string ArticleNumber { get; set; } = default!;
+    public string Packaging { get; set; } = default!;
 }
