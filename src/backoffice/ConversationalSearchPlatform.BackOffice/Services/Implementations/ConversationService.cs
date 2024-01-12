@@ -10,6 +10,7 @@ using ConversationalSearchPlatform.BackOffice.Services.Models;
 using ConversationalSearchPlatform.BackOffice.Services.Models.Weaviate.Queries;
 using ConversationalSearchPlatform.BackOffice.Tenants;
 using Finbuckle.MultiTenant;
+using GraphQL;
 using Microsoft.Extensions.Caching.Memory;
 using Rystem.OpenAi;
 using Rystem.OpenAi.Chat;
@@ -252,6 +253,24 @@ public partial class ConversationService : IConversationService
             vector,
             cancellationToken);
 
+
+        var articleNumber = Regex.Match(holdConversation.UserPrompt, @"\d+").Value;
+
+        if (!string.IsNullOrEmpty(articleNumber))
+        {
+            if (!productReferences.Any(p => p.ArticleNumber == articleNumber))
+            {
+                var articleNumberReferences = await GetProductReferenceById(articleNumber,
+                    nameof(WebsitePage),
+                    tenantId,
+                    "English",
+                    ConversationReferenceType.Product.ToString(),
+                    cancellationToken);
+
+                productReferences.AddRange(articleNumberReferences);
+            }
+        }
+
         // TODO: restore this, but better
         /*var imageReferences = await GetImageReferences(
             conversationHistory,
@@ -367,17 +386,21 @@ public partial class ConversationService : IConversationService
 
             if (parsed)
             {
-                var sortedSearchReference = textReferences.First(reference => reference.Index == parsedIdx);
-                var reference = new ConversationReference(
-                    parsedIdx,
-                    sortedSearchReference.TextSearchReference.Source,
-                    sortedSearchReference.TextSearchReference.Type,
-                    sortedSearchReference.TextSearchReference.Title
-                );
+                var sortedSearchReference = textReferences.FirstOrDefault(reference => reference.Index == parsedIdx);
 
-                if (validReferences.All(conversationReference => conversationReference.Index != parsedIdx))
+                if (sortedSearchReference != null)
                 {
-                    validReferences.Add(reference);
+                    var reference = new ConversationReference(
+                        parsedIdx,
+                        sortedSearchReference.TextSearchReference.Source,
+                        sortedSearchReference.TextSearchReference.Type,
+                        sortedSearchReference.TextSearchReference.Title
+                    );
+
+                    if (validReferences.All(conversationReference => conversationReference.Index != parsedIdx))
+                    {
+                        validReferences.Add(reference);
+                    }
                 }
             }
         }
@@ -493,6 +516,83 @@ public partial class ConversationService : IConversationService
                 vector,
                 conversationHistory.AmountOfSearchReferences)
             );
+
+        var search = await _vectorizationService
+            .SearchAsync<GetByPromptFiltered.WebsitePageQueryParams, GetByPromptFiltered.WeaviateRecordResponse>(GetByPromptFiltered.Key, request, cancellationToken);
+
+        return search
+            .GroupBy(p => p.Source)
+            .Select(grouping => {
+                var first = grouping.First();
+
+                first.Text = string.Join(" ", grouping.Select(g => g.Text).ToList());
+
+                return first;
+            })
+            .Select(result =>
+            {
+                Enum.TryParse<ConversationReferenceType>(result.ReferenceType, out var refType);
+                Enum.TryParse<Language>(result.Language, out var lang);
+
+                return new TextSearchReference
+                {
+                    Content = result.Text,
+                    Source = result.Source,
+                    Title = result.Title,
+                    Type = refType,
+                    Certainty = result.Additional?.Certainty,
+                    Language = lang,
+                    InternalId = result.InternalId,
+                    ArticleNumber = result.ArticleNumber,
+                    Packaging = result.Packaging,
+                };
+            })
+            .ToList();
+    }
+
+    private async Task<List<TextSearchReference>> GetProductReferenceById(
+        string articleNumber,
+        string collectionName,
+        string tenantId,
+        string language,
+        string referenceType,
+        CancellationToken cancellationToken = default)
+    {
+        var request = new GraphQLRequest
+        {
+            Query = $$"""
+                      {
+                      	Get {
+                      		{{collectionName}}(
+                              where: {
+                      			operator: And
+                      			operands: [
+                      				{ path: ["language"], operator: Equal, valueText: "{{language}}" }
+                      				{ path: ["referenceType"], operator: Equal, valueText: "{{referenceType}}" }
+                      				{ path: ["tenantId"], operator: Equal, valueText: "{{tenantId}}" }
+                      				{ path: ["articlenumber"], operator: Equal, valueText: "{{articleNumber}}" }
+                      			]
+                               }
+                      		) {
+                      		    internalId
+                      		    tenantId
+                      			text
+                      			title
+                      			source
+                      			language
+                      			referenceType
+                                articlenumber
+                                packaging
+                      			_additional {
+                      	            id,
+                      	            certainty,
+                      	            distance
+                                }
+                      		}
+                      	}
+                      }
+                      """
+        };
 
         var search = await _vectorizationService
             .SearchAsync<GetByPromptFiltered.WebsitePageQueryParams, GetByPromptFiltered.WeaviateRecordResponse>(GetByPromptFiltered.Key, request, cancellationToken);

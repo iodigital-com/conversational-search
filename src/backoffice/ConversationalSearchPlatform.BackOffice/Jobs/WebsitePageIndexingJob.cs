@@ -258,7 +258,7 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
             var packageText = "no package info";
             var titleText = string.Empty;
             var articleNumberText = "no article number";
-            var descriptionNodes = htmlDoc.DocumentNode.SelectNodes("//*[contains(@class, 'redesignProductheadline') or contains(@class, 'description-short') or contains(@class, 'ContentSlideWrap') or contains(@class, 'ProductDescription')]");
+            var descriptionNodes = htmlDoc.DocumentNode.SelectNodes("//*[contains(@class, 'redesignProductheadline') or contains(@class, 'ContentSlideWrap')]");
             if (descriptionNodes != null)
             {
                 foreach (var node in descriptionNodes)
@@ -292,7 +292,7 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
                 packageText = packageBuilder.ToString();
             }
 
-            var articleNumberNodes = htmlDoc.DocumentNode.SelectNodes("//td[@data-label='Article #']");
+            var articleNumberNodes = htmlDoc.DocumentNode.SelectNodes("//td[@data-label='Article #' or @data-label='Article Number']");
 
             if (articleNumberNodes?.Count > 0)
             {

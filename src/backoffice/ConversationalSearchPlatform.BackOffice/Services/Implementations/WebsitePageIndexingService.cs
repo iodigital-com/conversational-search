@@ -115,4 +115,17 @@ public class WebsitePageIndexingService : IIndexingService<WebsitePage>
                 .SingleAsync(page => page.Id == id, cancellationToken);
         }
     }
+
+    public async Task DeleteAllAsync(CancellationToken cancellationToken = default)
+    {
+        using (var db = await _dbContextFactory.CreateDbContextAsync(cancellationToken))
+        {
+            var indexables = await db.Set<WebsitePage>().ToListAsync();
+
+            foreach (var indexable in indexables)
+            {
+                await DeleteByIdAsync(indexable.Id, cancellationToken);
+            }
+        }
+    }
 }

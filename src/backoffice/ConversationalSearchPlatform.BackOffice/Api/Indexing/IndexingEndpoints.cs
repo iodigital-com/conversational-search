@@ -66,6 +66,14 @@ public static class IndexingEndpoints
                 Guid websitePageId
             ) => await ExecuteIndexing(httpContext, tenantStore, backgroundJobClient, websitePageId, IndexJobChangeType.DELETE));
 
+        innerGroup.MapDelete("index",
+            async (
+                HttpContext httpContext,
+                [FromServices] IIndexingService<WebsitePage> indexingService,
+                [FromServices] IMultiTenantStore<ApplicationTenantInfo> tenantStore,
+                [FromServices] IBackgroundJobClient backgroundJobClient
+            ) => await indexingService.DeleteAllAsync());
+
         return innerGroup;
     }
 

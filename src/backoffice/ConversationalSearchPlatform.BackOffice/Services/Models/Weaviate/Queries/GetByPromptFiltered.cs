@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using ConversationalSearchPlatform.BackOffice.Data.Entities;
 using GraphQL;
 
