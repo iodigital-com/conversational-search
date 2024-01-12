@@ -33,7 +33,7 @@ public static class IndexingEndpoints
                 title,
                 url,
                 referenceType == "Site" ? ReferenceType.Site : ReferenceType.Product,
-                Language.Dutch,
+                Language.English,
                 false,
                 null,
                 null
