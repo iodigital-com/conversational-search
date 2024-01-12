@@ -259,26 +259,32 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
             var titleText = string.Empty;
             var articleNumberText = "no article number";
             var descriptionNodes = htmlDoc.DocumentNode.SelectNodes("//*[contains(@class, 'redesignProductheadline') or contains(@class, 'description-short') or contains(@class, 'ContentSlideWrap') or contains(@class, 'ProductDescription')]");
-            foreach (var node in descriptionNodes)
+            if (descriptionNodes != null)
             {
-                var cleanText = Regex.Replace(node.InnerText, @"\s+", " ").Trim();
-                cleanText = WebUtility.HtmlDecode(cleanText);
-                productText.Append(cleanText);
-                productText.Append(" ");
-
-                if (titleText == "")
+                foreach (var node in descriptionNodes)
                 {
-                    titleText = cleanText;
+                    var cleanText = Regex.Replace(node.InnerText, @"\s+", " ").Trim();
+                    cleanText = WebUtility.HtmlDecode(cleanText);
+                    productText.Append(cleanText);
+                    productText.Append(" ");
+
+                    if (titleText == "")
+                    {
+                        titleText = cleanText;
+                    }
                 }
             }
 
             var packageNodes = htmlDoc.DocumentNode.SelectNodes("//td[@data-label='Volume' or @data-label='Pieces' or @data-label='Pcs/Case']");
             var packageBuilder = new StringBuilder();
-            foreach (var pnode in packageNodes) 
+            if (packageNodes != null)
             {
-                var cleanText = Regex.Replace(pnode.InnerText, @"\s+", " ").Trim();
+                foreach (var pnode in packageNodes) 
+                {
+                    var cleanText = Regex.Replace(pnode.InnerText, @"\s+", " ").Trim();
 
-                packageBuilder.Append($"{pnode.GetAttributeValue("data-label", "")} {cleanText};");
+                    packageBuilder.Append($"{pnode.GetAttributeValue("data-label", "")} {cleanText};");
+                }
             }
 
             if (packageBuilder.Length > 0)
@@ -298,9 +304,12 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
             chunkResult.Text = productText.ToString().Trim();
             chunkResult.Packaging = packageText.Trim();
 
-            ChunkCollection chunkCollection = new ChunkCollection(tenantId, websitePage.Id.ToString(), websitePage.Url, websitePage.ReferenceType.ToString(), websitePage.Language.ToString(), new List<ChunkResult>() { chunkResult });
+            if (!string.IsNullOrEmpty(chunkResult.Text))
+            {
+                ChunkCollection chunkCollection = new ChunkCollection(tenantId, websitePage.Id.ToString(), websitePage.Url, websitePage.ReferenceType.ToString(), websitePage.Language.ToString(), new List<ChunkResult>() { chunkResult });
 
-            await _vectorizationService.BulkCreateAsync(nameof(WebsitePage), websitePage.Id, titleText, tenantId, UsageType.Indexing, chunkCollection);
+                await _vectorizationService.BulkCreateAsync(nameof(WebsitePage), websitePage.Id, titleText, tenantId, UsageType.Indexing, chunkCollection);
+            }
         }
 
         websitePage.IndexedAt = DateTimeOffset.UtcNow;
