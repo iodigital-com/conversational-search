@@ -281,7 +281,15 @@ public partial class ConversationService : IConversationService
         var imageReferences = new List<ImageSearchReference>();
 
         var indexedTextReferences = IndexizeTextReferences(textReferences);
-        var indexedProductReferences = IndexizeTextReferences(productReferences, indexedTextReferences.Last().Index);
+
+        var startIndex = 0;
+
+        if (!indexedTextReferences.IsNullOrEmpty())
+        {
+            startIndex = indexedTextReferences.Last().Index;
+        }
+
+        var indexedProductReferences = IndexizeTextReferences(productReferences, startIndex);
 
         var systemPrompt = promptBuilder
             .ReplaceTextSources(FlattenTextReferences(indexedTextReferences))
