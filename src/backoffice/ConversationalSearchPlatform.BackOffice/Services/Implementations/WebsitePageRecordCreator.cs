@@ -55,7 +55,7 @@ public sealed class WebsitePageRecordCreator<TInsertable, TCollection, TWeaviate
         IOpenAiEmbedding openAiEmbedding,
         ChunkResult item)
     {
-        var vectorData = await this.GetVectorDataAsync(openAiEmbedding, correlationId, tenantId, usageType, item.Text);
+        //var vectorData = await this.GetVectorDataAsync(openAiEmbedding, correlationId, tenantId, usageType, item.Text);
 
         var record = new WebsitePageWeaviateCreateRecord(collection.TenantId,
             collection.InternalId,
@@ -69,7 +69,7 @@ public sealed class WebsitePageRecordCreator<TInsertable, TCollection, TWeaviate
 
         var weaviateCreateObject = new WeaviateCreateObject<WebsitePageWeaviateCreateRecord>(
             collectionName,
-            vectorData,
+            //vectorData,
             record
         );
 
@@ -103,7 +103,7 @@ public sealed class ImageRecordCreator<TInsertable, TCollection, TWeaviateCreate
 
         var weaviateCreateObject = new WeaviateCreateObject<ImageWeaviateCreateRecord>(
             collectionName,
-            null,
+            //null,
             record
         );
         return Task.FromResult(weaviateCreateObject);

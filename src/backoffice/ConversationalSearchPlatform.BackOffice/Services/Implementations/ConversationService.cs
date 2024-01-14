@@ -4,7 +4,6 @@ using System.Text.RegularExpressions;
 using ConversationalSearchPlatform.BackOffice.Data.Entities;
 using ConversationalSearchPlatform.BackOffice.Exceptions;
 using ConversationalSearchPlatform.BackOffice.Extensions;
-using ConversationalSearchPlatform.BackOffice.Jobs.Models;
 using ConversationalSearchPlatform.BackOffice.Resources;
 using ConversationalSearchPlatform.BackOffice.Services.Models;
 using ConversationalSearchPlatform.BackOffice.Services.Models.Weaviate.Queries;
@@ -12,6 +11,7 @@ using ConversationalSearchPlatform.BackOffice.Tenants;
 using Finbuckle.MultiTenant;
 using GraphQL;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.IdentityModel.Tokens;
 using Rystem.OpenAi;
 using Rystem.OpenAi.Chat;
 using Language = ConversationalSearchPlatform.BackOffice.Services.Models.Language;
@@ -226,22 +226,22 @@ public partial class ConversationService : IConversationService
 
         var vectorPrompt = new StringBuilder();
 
-        foreach (var conversation in conversationHistory.PromptResponses)
+        if (!conversationHistory.PromptResponses.IsNullOrEmpty())
         {
-            vectorPrompt.AppendLine(conversation.prompt);
-            vectorPrompt.AppendLine(conversation.response);
+            vectorPrompt.AppendLine(conversationHistory.PromptResponses.Last().response);
         }
 
         vectorPrompt.AppendLine(holdConversation.UserPrompt);
 
-        var vector = await _vectorizationService.CreateVectorAsync(holdConversation.ConversationId, holdConversation.TenantId, UsageType.Conversation, vectorPrompt.ToString());
+        //var vector = await _vectorizationService.CreateVectorAsync(holdConversation.ConversationId, holdConversation.TenantId, UsageType.Conversation, vectorPrompt.ToString());
+        
         var textReferences = await GetTextReferences(
             conversationHistory,
             nameof(WebsitePage),
             tenantId,
             "English",
             ConversationReferenceType.Site.ToString(), // TODO later extend this to accept multiple kind of references
-            vector,
+            vectorPrompt.ToString(),
             cancellationToken);
 
         var productReferences = await GetTextReferences(
@@ -250,7 +250,7 @@ public partial class ConversationService : IConversationService
             tenantId,
             "English",
             ConversationReferenceType.Product.ToString(), // TODO later extend this to accept multiple kind of references
-            vector,
+            vectorPrompt.ToString(),
             cancellationToken);
 
 
@@ -429,7 +429,7 @@ public partial class ConversationService : IConversationService
 
         foreach (var reference in references)
         {
-            knowledgeBaseBuilder.AppendLine($"{reference.Index} | {reference.TextSearchReference.Source} | {reference.TextSearchReference.Content.ReplaceLineEndings(" ")}");
+            knowledgeBaseBuilder.AppendLine($"{reference.Index} | {reference.TextSearchReference.Content.ReplaceLineEndings(" ")}");
         }
 
         return knowledgeBaseBuilder.ToString();
@@ -441,7 +441,7 @@ public partial class ConversationService : IConversationService
 
         foreach (var reference in references)
         {
-            knowledgeBaseBuilder.AppendLine($"{reference.Index} | {reference.TextSearchReference.Source} | {reference.TextSearchReference.ArticleNumber} | {reference.TextSearchReference.Packaging} | {reference.TextSearchReference.Content.ReplaceLineEndings(" ")}");
+            knowledgeBaseBuilder.AppendLine($"{reference.Index} | {reference.TextSearchReference.ArticleNumber} | {reference.TextSearchReference.Packaging} | {reference.TextSearchReference.Title} | {reference.TextSearchReference.Content.ReplaceLineEndings(" ")}");
         }
 
         return knowledgeBaseBuilder.ToString();
@@ -505,7 +505,7 @@ public partial class ConversationService : IConversationService
         string tenantId,
         string language,
         string referenceType,
-        float[] vector,
+        string query,
         CancellationToken cancellationToken = default)
     {
         var request = GetByPromptFiltered.Request(new GetByPromptFiltered.WebsitePageQueryParams(
@@ -513,7 +513,7 @@ public partial class ConversationService : IConversationService
                 tenantId,
                 language,
                 referenceType,
-                vector,
+                query,
                 conversationHistory.AmountOfSearchReferences)
             );
 

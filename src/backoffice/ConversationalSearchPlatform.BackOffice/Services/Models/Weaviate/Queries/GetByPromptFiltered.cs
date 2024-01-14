@@ -1,7 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using System.Web;
 using ConversationalSearchPlatform.BackOffice.Data.Entities;
+using ConversationalSearchPlatform.BackOffice.Data.Migrations;
 using GraphQL;
 
 namespace ConversationalSearchPlatform.BackOffice.Services.Models.Weaviate.Queries;
@@ -10,14 +12,14 @@ public class GetByPromptFiltered
 {
     public static string Key = nameof(WebsitePage);
 
-    public record WebsitePageQueryParams(string CollectionName, string TenantId, string Language, string ReferenceType, float[] Vector, int Limit) : IQueryParams;
+    public record WebsitePageQueryParams(string CollectionName, string TenantId, string Language, string ReferenceType, string query, int Limit) : IQueryParams;
 
     public static GraphQLRequest Request<T>(T @params) where T : IQueryParams
     {
         if (@params is not WebsitePageQueryParams queryParams)
             throw new ArgumentNullException(nameof(queryParams));
 
-        var vectorAsJsonArray = JsonSerializer.Serialize(queryParams.Vector);
+        string cleanQuery = HttpUtility.JavaScriptStringEncode(queryParams.query.ReplaceLineEndings(" "));
 
         return new GraphQLRequest
         {
@@ -26,7 +28,13 @@ public class GetByPromptFiltered
                       	Get {
                       		{{queryParams.CollectionName}}(
                       		  limit: {{queryParams.Limit}}
-                              nearVector: { vector: {{vectorAsJsonArray}} }
+                              hybrid: 
+                              { 
+                                  query: "{{cleanQuery}}", 
+                                  fusionType: relativeScoreFusion,
+                                  alpha: 0.25
+                                  properties: ["title^2", "text"]
+                              }
                               where: {
                       			operator: And
                       			operands: [
