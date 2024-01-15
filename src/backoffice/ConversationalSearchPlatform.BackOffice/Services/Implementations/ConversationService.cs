@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using ConversationalSearchPlatform.BackOffice.Data.Entities;
 using ConversationalSearchPlatform.BackOffice.Exceptions;
 using ConversationalSearchPlatform.BackOffice.Extensions;
+using ConversationalSearchPlatform.BackOffice.Jobs.Models;
 using ConversationalSearchPlatform.BackOffice.Resources;
 using ConversationalSearchPlatform.BackOffice.Services.Models;
 using ConversationalSearchPlatform.BackOffice.Services.Models.Weaviate.Queries;
@@ -233,7 +234,7 @@ public partial class ConversationService : IConversationService
 
         vectorPrompt.AppendLine(holdConversation.UserPrompt);
 
-        //var vector = await _vectorizationService.CreateVectorAsync(holdConversation.ConversationId, holdConversation.TenantId, UsageType.Conversation, vectorPrompt.ToString());
+        var vector = await _vectorizationService.CreateVectorAsync(holdConversation.ConversationId, holdConversation.TenantId, UsageType.Conversation, vectorPrompt.ToString());
         
         var textReferences = await GetTextReferences(
             conversationHistory,
@@ -242,6 +243,7 @@ public partial class ConversationService : IConversationService
             "English",
             ConversationReferenceType.Site.ToString(), // TODO later extend this to accept multiple kind of references
             vectorPrompt.ToString(),
+            vector,
             cancellationToken);
 
         var productReferences = await GetTextReferences(
@@ -251,6 +253,7 @@ public partial class ConversationService : IConversationService
             "English",
             ConversationReferenceType.Product.ToString(), // TODO later extend this to accept multiple kind of references
             vectorPrompt.ToString(),
+            vector,
             cancellationToken);
 
 
@@ -514,6 +517,7 @@ public partial class ConversationService : IConversationService
         string language,
         string referenceType,
         string query,
+        float[] vector,
         CancellationToken cancellationToken = default)
     {
         var request = GetByPromptFiltered.Request(new GetByPromptFiltered.WebsitePageQueryParams(
@@ -522,6 +526,7 @@ public partial class ConversationService : IConversationService
                 language,
                 referenceType,
                 query,
+                vector,
                 conversationHistory.AmountOfSearchReferences)
             );
 

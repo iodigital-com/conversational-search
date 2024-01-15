@@ -12,7 +12,7 @@ public class GetByPromptFiltered
 {
     public static string Key = nameof(WebsitePage);
 
-    public record WebsitePageQueryParams(string CollectionName, string TenantId, string Language, string ReferenceType, string query, int Limit) : IQueryParams;
+    public record WebsitePageQueryParams(string CollectionName, string TenantId, string Language, string ReferenceType, string query, float[] Vector, int Limit) : IQueryParams;
 
     public static GraphQLRequest Request<T>(T @params) where T : IQueryParams
     {
@@ -20,6 +20,7 @@ public class GetByPromptFiltered
             throw new ArgumentNullException(nameof(queryParams));
 
         string cleanQuery = HttpUtility.JavaScriptStringEncode(queryParams.query.ReplaceLineEndings(" "));
+        var vectorAsJsonArray = JsonSerializer.Serialize(queryParams.Vector);
 
         return new GraphQLRequest
         {
@@ -30,8 +31,9 @@ public class GetByPromptFiltered
                       		  limit: {{queryParams.Limit}}
                               hybrid: 
                               { 
-                                  query: "{{cleanQuery}}", 
-                                  fusionType: relativeScoreFusion,
+                                  query: "{{cleanQuery}}"
+                                  vector: {{vectorAsJsonArray}}
+                                  fusionType: relativeScoreFusion
                                   alpha: 0.25
                                   properties: ["title^2", "text"]
                               }
