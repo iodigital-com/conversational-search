@@ -70,7 +70,7 @@ public partial class ConversationService : IConversationService
         bool shouldEndConversation = false;
 
         // are we at the maximum number of follow up questions after this one?
-        if (conversationHistory.PromptResponses.Count > 2)
+        if (conversationHistory.PromptResponses.Count >= 2)
         {
             shouldEndConversation = true;
         }
