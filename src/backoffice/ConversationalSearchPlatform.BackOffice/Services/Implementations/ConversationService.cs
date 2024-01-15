@@ -299,11 +299,12 @@ public partial class ConversationService : IConversationService
             .ReplaceProductSources(FlattenProductReferences(indexedProductReferences))
             .Build();
 
+        var chatModel = (ChatModelType)conversationHistory.Model;
         var chatBuilder = _openAiFactory.CreateChat()
             .RequestWithSystemMessage(systemPrompt)
             .AddPreviousMessages(conversationHistory.PromptResponses)
             .AddUserMessage(holdConversation.UserPrompt)
-            .WithModel((ChatModelType)conversationHistory.Model)
+            .WithModel(chatModel)
             .WithTemperature(0.75);
 
         if (conversationHistory.DebugEnabled)

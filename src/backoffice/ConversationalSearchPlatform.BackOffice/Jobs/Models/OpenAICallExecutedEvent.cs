@@ -28,7 +28,7 @@ public enum CallModel
     Gpt35Turbo_16K = 352,
     Gpt4 = 400,
     Gpt4_32K = 402,
-    Gpt4_turbo = 1106,
+    Gpt4_turbo = 401,
     AdaTextEmbedding = 002
 }
 
