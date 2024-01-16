@@ -66,6 +66,7 @@ public partial class ConversationService : IConversationService
         var cacheKey = GetCacheKey(holdConversation.ConversationId);
         var conversationHistory = GetConversationHistory(holdConversation, cacheKey);
         conversationHistory.DebugEnabled = holdConversation.Debug;
+        conversationHistory.IsStreaming = false;
 
         bool shouldEndConversation = false;
 
@@ -117,8 +118,25 @@ public partial class ConversationService : IConversationService
         var conversationHistory = GetConversationHistory(holdConversation, cacheKey);
         conversationHistory.IsStreaming = true;
         conversationHistory.DebugEnabled = holdConversation.Debug;
+        bool shouldEndConversation = false;
+
+        //todo: this is a bit of code repetition
+        // are we at the maximum number of follow up questions after this one?
+        if (conversationHistory.PromptResponses.Count >= 2)
+        {
+            shouldEndConversation = true;
+        }
 
         var (chatBuilder, textReferences, imageReferences, productReferences) = await BuildChatAsync(holdConversation, conversationHistory, cancellationToken);
+
+        string answer = string.Empty;
+        // don't give an answer when no references are found
+        if (textReferences.Count == 0 && productReferences.Count == 0 && imageReferences.Count == 0)
+        {
+            shouldEndConversation = true;
+        }
+
+        conversationHistory.HasEnded = shouldEndConversation;
 
         await foreach (var entry in chatBuilder
                            .ExecuteAsStreamAndCalculateCostAsync(false, cancellationToken)
@@ -129,6 +147,7 @@ public partial class ConversationService : IConversationService
                                conversationHistory,
                                textReferences,
                                imageReferences,
+                               shouldEndConversation,
                                cancellationToken)
                            )
                            .Where(result => result is { IsOk: true, Value: not null })
@@ -159,6 +178,7 @@ public partial class ConversationService : IConversationService
         ConversationHistory conversationHistory,
         List<SortedSearchReference> textReferences,
         List<ImageSearchReference> imageReferences,
+        bool shouldEndConversation,
         CancellationToken cancellationToken)
     {
         var chunk = streamEntry.Result.LastChunk.Choices?
@@ -170,26 +190,35 @@ public partial class ConversationService : IConversationService
             return ValueTask.FromResult(StreamResult<ConversationReferencedResult>.Skip("NoAssistantRole"));
         }
 
+        _logger.LogInformation("Chunk: " + (chunk.Delta?.Content ?? ""));
+
         var completed = chunk.IsAnswerCompleted(_logger);
 
         var streamCancelledOrFinished = StreamCancelledOrFinished(completed, cancellationToken) && HasFullyComposedMessage(streamEntry);
 
+        ConversationReferencedResult? result = null;
+
         if (streamCancelledOrFinished)
         {
-            var answer = streamEntry.Result.CombineStreamAnswer();
-            conversationHistory.IsStreaming = false;
-            conversationHistory.StreamingResponseChunks.Clear();
+            var chunkedAnswer = chunk.Delta?.Content ?? string.Empty;
+            conversationHistory.StreamingResponseChunks.Add(chunkedAnswer);
+            conversationHistory.IsLastChunk = true;
 
+            result = ParseAnswerWithReferences(holdConversation, conversationHistory, textReferences, imageReferences, shouldEndConversation);
+
+            conversationHistory.StreamingResponseChunks.Clear();
+            conversationHistory.IsStreaming = false;
+            var answer = streamEntry.Result.CombineStreamAnswer();
             conversationHistory.AppendToConversation(holdConversation.UserPrompt, answer);
             conversationHistory.SaveConversationHistory(_conversationsCache, cacheKey);
         }
         else
         {
+            conversationHistory.IsLastChunk = false;
             var chunkedAnswer = chunk.Delta?.Content ?? string.Empty;
             conversationHistory.StreamingResponseChunks.Add(chunkedAnswer);
+            result = ParseAnswerWithReferences(holdConversation, conversationHistory, textReferences, imageReferences, shouldEndConversation);
         }
-
-        var result = ParseAnswerWithReferences(holdConversation, conversationHistory, textReferences, imageReferences, false);
 
         if (conversationHistory.DebugEnabled)
         {
@@ -304,6 +333,7 @@ public partial class ConversationService : IConversationService
             .RequestWithSystemMessage(systemPrompt)
             .AddPreviousMessages(conversationHistory.PromptResponses)
             .AddUserMessage(holdConversation.UserPrompt)
+            .AddUserMessage("Do not give me any information that is not mentioned in the [SITE] or [PRODUCT] section")
             .WithModel(chatModel)
             .WithTemperature(0.75);
 
@@ -344,26 +374,34 @@ public partial class ConversationService : IConversationService
         List<ImageSearchReference> imageReferences,
         bool endConversation)
     {
-        string mergedAnswer;
+        string mergedAnswer = string.Empty;
 
         var isStreaming = conversationHistory.IsStreaming;
+        var isLastChunk = conversationHistory.IsLastChunk;
+        var shouldReturnFullMessage = false;
 
-        if (isStreaming)
+        if (isStreaming && isLastChunk)
         {
+            shouldReturnFullMessage = true;
             mergedAnswer = conversationHistory.GetAllStreamingResponseChunksMerged();
         }
-        else
+        else if (!isStreaming)
         {
+            shouldReturnFullMessage = true;
             var (_, answer) = conversationHistory.PromptResponses.Last();
             mergedAnswer = answer;
         }
 
-        var validReferences = DetermineValidReferences(textReferences, mergedAnswer);
+        List<ConversationReference>? validReferences = null;
+        if (shouldReturnFullMessage)
+        { 
+            validReferences = DetermineValidReferences(textReferences, mergedAnswer);
 
-        if (conversationHistory.DebugEnabled)
-        {
-            conversationHistory.AppendPostRequestTextReferenceDebugInformation(validReferences);
-            conversationHistory.AppendPostRequestImageReferenceDebugInformation(imageReferences, mergedAnswer);
+            if (conversationHistory.DebugEnabled)
+            {
+                conversationHistory.AppendPostRequestTextReferenceDebugInformation(validReferences);
+                conversationHistory.AppendPostRequestImageReferenceDebugInformation(imageReferences, mergedAnswer);
+            }
         }
 
         return new ConversationReferencedResult(
@@ -372,7 +410,7 @@ public partial class ConversationService : IConversationService
                 isStreaming ? conversationHistory.StreamingResponseChunks.Last() : mergedAnswer,
                 holdConversation.Language
             ),
-            validReferences,
+            validReferences ?? new(),
             endConversation,
             conversationHistory.DebugInformation
         );

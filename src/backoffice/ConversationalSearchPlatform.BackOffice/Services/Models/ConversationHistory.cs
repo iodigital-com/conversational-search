@@ -12,6 +12,8 @@ public class ConversationHistory(ChatModel model, int amountOfSearchReferences)
 
 
     public bool IsStreaming { get; set; }
+    public bool IsLastChunk { get; set; } = false;
+
     public ChatModel Model { get; init; } = model;
     public int AmountOfSearchReferences { get; init; } = amountOfSearchReferences;
     public bool DebugEnabled { get; set; }
