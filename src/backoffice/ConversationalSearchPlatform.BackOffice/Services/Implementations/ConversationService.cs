@@ -137,6 +137,7 @@ public partial class ConversationService : IConversationService
         }
 
         conversationHistory.HasEnded = shouldEndConversation;
+        textReferences.AddRange(productReferences);
 
         await foreach (var entry in chatBuilder
                            .ExecuteAsStreamAndCalculateCostAsync(false, cancellationToken)
@@ -391,6 +392,8 @@ public partial class ConversationService : IConversationService
             var (_, answer) = conversationHistory.PromptResponses.Last();
             mergedAnswer = answer;
         }
+
+        Console.WriteLine($"Merged answer {mergedAnswer}");
 
         List<ConversationReference>? validReferences = null;
         if (shouldReturnFullMessage)
