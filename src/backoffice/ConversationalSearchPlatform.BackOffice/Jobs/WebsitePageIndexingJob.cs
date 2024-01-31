@@ -225,32 +225,99 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
 
         if (websitePage.ReferenceType == ReferenceType.Site)
         {
-            List<ChunkResult> chunks = new List<ChunkResult>();
-
-            var nodes = htmlDoc.DocumentNode.SelectNodes("//div[contains(@class, 'section')]");
-
-            foreach (var node in nodes)
+            if (websitePage.Url.Contains("stadsmissionen.se"))
             {
-                var cleanText = Regex.Replace(node.InnerText, @"\s+", " ").Trim();
-                cleanText = WebUtility.HtmlDecode(cleanText);
+                List<ChunkResult> chunks = new List<ChunkResult>();
 
-                if (!string.IsNullOrEmpty(cleanText))
+                var nodes = htmlDoc.DocumentNode.SelectNodes("//*[contains(@class, 'paragraph--type--puff-content') or contains(@class, 'paragraph--type--text')]");
+
+                if (nodes != null)
                 {
-                    var chunkResult = new ChunkResult();
-                    chunkResult.ArticleNumber = string.Empty;
-                    chunkResult.Text = cleanText;
-                    chunkResult.Packaging = string.Empty;
+                    foreach (var node in nodes)
+                    {
+                        var cleanText = Regex.Replace(node.InnerText, @"\s+", " ").Trim();
+                        cleanText = WebUtility.HtmlDecode(cleanText);
 
-                    chunks.Add(chunkResult);
+                        if (!string.IsNullOrEmpty(cleanText))
+                        {
+                            var chunkResult = new ChunkResult();
+                            chunkResult.ArticleNumber = string.Empty;
+                            chunkResult.Text = cleanText;
+                            chunkResult.Packaging = string.Empty;
+
+                            chunks.Add(chunkResult);
+                        }
+                    }
+
+                    if (chunks.Count > 0)
+                    {
+                        ChunkCollection chunkCollection = new ChunkCollection(tenantId, websitePage.Id.ToString(), websitePage.Url, websitePage.ReferenceType.ToString(), websitePage.Language.ToString(), chunks);
+
+                        await _vectorizationService.BulkCreateAsync(nameof(WebsitePage), websitePage.Id, scrapeResult.PageTitle, tenantId, UsageType.Indexing, chunkCollection);
+                    }
                 }
             }
-
-            if (chunks.Count > 0)
+            else if (websitePage.Url.Contains("partsradet.se"))
             {
-                ChunkCollection chunkCollection = new ChunkCollection(tenantId, websitePage.Id.ToString(), websitePage.Url, websitePage.ReferenceType.ToString(), websitePage.Language.ToString(), chunks);
+                List<ChunkResult> chunks = new List<ChunkResult>();
 
-                await _vectorizationService.BulkCreateAsync(nameof(WebsitePage), websitePage.Id, scrapeResult.PageTitle, tenantId, UsageType.Indexing, chunkCollection);
+                var nodes = htmlDoc.DocumentNode.SelectNodes("//*[contains(@class, 'imageTextLink ') or contains(@class, 'Content')]");
+
+                if (nodes != null)
+                {
+                    foreach (var node in nodes)
+                    {
+                        var cleanText = Regex.Replace(node.InnerText, @"\s+", " ").Trim();
+                        cleanText = WebUtility.HtmlDecode(cleanText);
+
+                        if (!string.IsNullOrEmpty(cleanText))
+                        {
+                            var chunkResult = new ChunkResult();
+                            chunkResult.ArticleNumber = string.Empty;
+                            chunkResult.Text = cleanText;
+                            chunkResult.Packaging = string.Empty;
+
+                            chunks.Add(chunkResult);
+                        }
+                    }
+
+                    if (chunks.Count > 0)
+                    {
+                        ChunkCollection chunkCollection = new ChunkCollection(tenantId, websitePage.Id.ToString(), websitePage.Url, websitePage.ReferenceType.ToString(), websitePage.Language.ToString(), chunks);
+
+                        await _vectorizationService.BulkCreateAsync(nameof(WebsitePage), websitePage.Id, scrapeResult.PageTitle, tenantId, UsageType.Indexing, chunkCollection);
+                    }
+                }
             }
+            else
+            {
+                List<ChunkResult> chunks = new List<ChunkResult>();
+
+                var nodes = htmlDoc.DocumentNode.SelectNodes("//div[contains(@class, 'section')]");
+
+                foreach (var node in nodes)
+                {
+                    var cleanText = Regex.Replace(node.InnerText, @"\s+", " ").Trim();
+                    cleanText = WebUtility.HtmlDecode(cleanText);
+
+                    if (!string.IsNullOrEmpty(cleanText))
+                    {
+                        var chunkResult = new ChunkResult();
+                        chunkResult.ArticleNumber = string.Empty;
+                        chunkResult.Text = cleanText;
+                        chunkResult.Packaging = string.Empty;
+
+                        chunks.Add(chunkResult);
+                    }
+                }
+
+                if (chunks.Count > 0)
+                {
+                    ChunkCollection chunkCollection = new ChunkCollection(tenantId, websitePage.Id.ToString(), websitePage.Url, websitePage.ReferenceType.ToString(), websitePage.Language.ToString(), chunks);
+
+                    await _vectorizationService.BulkCreateAsync(nameof(WebsitePage), websitePage.Id, scrapeResult.PageTitle, tenantId, UsageType.Indexing, chunkCollection);
+                }
+            }    
         } 
         else
         {

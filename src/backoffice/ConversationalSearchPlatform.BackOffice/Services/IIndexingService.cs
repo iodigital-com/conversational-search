@@ -6,7 +6,7 @@ namespace ConversationalSearchPlatform.BackOffice.Services;
 public interface IIndexingService<T> where T : IIndexable
 {
     Task<(List<T> items, int totalCount)> GetAllPagedAsync(PageOptions pageOptions, CancellationToken cancellationToken = default);
-    Task<T> CreateAsync(T indexable, CancellationToken cancellationToken = default);
+    Task<T> CreateAsync(T indexable, string tenantId = "CCFA9314-ABE6-403A-9E21-2B31D95A5258", CancellationToken cancellationToken = default);
 
     Task DeleteAllAsync(CancellationToken cancellationToken = default);
     Task<List<T>> CreateBulkAsync(List<T> indexables, CancellationToken cancellationToken = default);

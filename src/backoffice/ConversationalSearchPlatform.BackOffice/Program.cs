@@ -84,6 +84,7 @@ internal class Program
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddHangfire(builder.Configuration);
         builder.Services.AddOpenAi(builder.Configuration);
+        builder.Services.AddKeywordServices(builder.Configuration);
         builder.Services.AddIndexingServices();
         builder.Services.AddConversationServices();
         builder.Services.AddUserServices();

@@ -38,9 +38,9 @@ public class WebsitePageIndexingService : IIndexingService<WebsitePage>
         }
     }
 
-    public async Task<WebsitePage> CreateAsync(WebsitePage indexable, CancellationToken cancellationToken = default)
+    public async Task<WebsitePage> CreateAsync(WebsitePage indexable, string tenantId = "CCFA9314-ABE6-403A-9E21-2B31D95A5258", CancellationToken cancellationToken = default)
     {
-        indexable.TenantId = "CCFA9314-ABE6-403A-9E21-2B31D95A5258";
+        indexable.TenantId = tenantId;
         using (var db = await _dbContextFactory.CreateDbContextAsync(cancellationToken))
         {
             db.Set<WebsitePage>().Add(indexable);

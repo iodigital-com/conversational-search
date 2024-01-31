@@ -26,6 +26,7 @@ public partial class ConversationService : IConversationService
     private readonly IMultiTenantStore<ApplicationTenantInfo> _tenantStore;
     private readonly IVectorizationService _vectorizationService;
     private readonly IOpenAIUsageTelemetryService _telemetryService;
+    private readonly IKeywordExtractorService _keywordExtractorService;
     private readonly ILogger<ConversationService> _logger;
 
 
@@ -40,7 +41,8 @@ public partial class ConversationService : IConversationService
         IMultiTenantStore<ApplicationTenantInfo> tenantStore,
         IVectorizationService vectorizationService,
         ILogger<ConversationService> logger,
-        IOpenAIUsageTelemetryService telemetryService)
+        IOpenAIUsageTelemetryService telemetryService,
+        IKeywordExtractorService keywordExtractorService)
     {
         _conversationsCache = conversationsCache;
         _openAiFactory = openAiFactory;
@@ -48,6 +50,7 @@ public partial class ConversationService : IConversationService
         _vectorizationService = vectorizationService;
         _logger = logger;
         _telemetryService = telemetryService;
+        _keywordExtractorService = keywordExtractorService;
     }
 
     public Task<ConversationId> StartConversationAsync(StartConversation startConversation, CancellationToken cancellationToken)
@@ -251,20 +254,25 @@ public partial class ConversationService : IConversationService
 
         holdConversation.UserPrompt = holdConversation.UserPrompt.Trim();
 
-        var promptBuilder = new PromptBuilder(new StringBuilder((await GetEmbeddedResourceText(ResourceConstants.BasePromptFile)).Trim()))
+        var promptBuilder = new PromptBuilder(new StringBuilder((await ResourceHelper.GetEmbeddedResourceTextAsync(ResourceHelper.BasePromptFile)).Trim()))
             .ReplaceTenantPrompt(GetTenantPrompt(tenant))
             .ReplaceConversationContextVariables(tenant.PromptTags ?? new List<PromptTag>(), holdConversation.ConversationContext);
 
         var vectorPrompt = new StringBuilder();
 
-        if (!conversationHistory.PromptResponses.IsNullOrEmpty())
+        // add history of conversation to vector context
+        foreach (var promptResponse in conversationHistory.PromptResponses.TakeLast(2))
         {
-            vectorPrompt.AppendLine(conversationHistory.PromptResponses.Last().response);
+            vectorPrompt.AppendLine(promptResponse.Prompt);
+            vectorPrompt.AppendLine(promptResponse.Response);
         }
 
+        // add last user prompt
         vectorPrompt.AppendLine(holdConversation.UserPrompt);
+        // convert to keywords
+        var keywords = await _keywordExtractorService.ExtractKeywordAsync(vectorPrompt.ToString());
 
-        var vector = await _vectorizationService.CreateVectorAsync(holdConversation.ConversationId, holdConversation.TenantId, UsageType.Conversation, vectorPrompt.ToString());
+        var vector = await _vectorizationService.CreateVectorAsync(holdConversation.ConversationId, holdConversation.TenantId, UsageType.Conversation, string.Join(' ', keywords));
         
         var textReferences = await GetTextReferences(
             conversationHistory,
@@ -389,7 +397,7 @@ public partial class ConversationService : IConversationService
         else if (!isStreaming)
         {
             shouldReturnFullMessage = true;
-            var (_, answer) = conversationHistory.PromptResponses.Last();
+            var (_, answer, _, _) = conversationHistory.PromptResponses.Last();
             mergedAnswer = answer;
         }
 
@@ -681,24 +689,6 @@ public partial class ConversationService : IConversationService
             })
             .ToList();
     }
-
-    private async Task<string> GetEmbeddedResourceText(string resourceName)
-    {
-        var resourceContents = string.Empty;
-        var fullResourceName = $"ConversationalSearchPlatform.BackOffice.Resources.{resourceName}";
-        var assembly = this.GetType().Assembly;
-
-        using var stream = assembly.GetManifestResourceStream(fullResourceName);
-
-        if (stream != null)
-        {
-            using var reader = new StreamReader(stream);
-            resourceContents = (await reader.ReadToEndAsync()).Trim();
-        }
-
-        return resourceContents;
-    }
-
 
     private static bool HasFullyComposedMessage(CostResult<StreamingChatResult> streamEntry) =>
         streamEntry.Result.Composed.Choices != null &&

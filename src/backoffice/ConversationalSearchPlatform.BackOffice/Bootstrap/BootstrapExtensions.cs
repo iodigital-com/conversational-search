@@ -232,6 +232,16 @@ internal static class BootstrapExtensions
         return application;
     }
 
+    internal static IServiceCollection AddKeywordServices(this IServiceCollection services, IConfiguration configuration)
+    {
+        var configurationSection = configuration.GetSection("LLama");
+        var llamaSettings = configurationSection.Get<LLamaSettings>() ?? throw new InvalidOperationException("No LLamaSettings found");
+        services.AddOptions<LLamaSettings>().Bind(configurationSection);
+
+        services.AddTransient<IKeywordExtractorService, KeywordExtractorService>();
+        return services;
+    }
+
     internal static IServiceCollection AddOpenAi(this IServiceCollection services, IConfiguration configuration)
     {
         var configurationSection = configuration.GetSection("OpenAI");

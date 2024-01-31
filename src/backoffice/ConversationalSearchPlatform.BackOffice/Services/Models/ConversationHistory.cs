@@ -1,15 +1,45 @@
+using ConversationalSearchPlatform.BackOffice.Services.Models;
 using ConversationalSearchPlatform.BackOffice.Services.Models.ConversationDebug;
 using Microsoft.Extensions.Caching.Memory;
 using Rystem.OpenAi.Chat;
 
 namespace ConversationalSearchPlatform.BackOffice.Services.Models;
 
+public class ConversationExchange
+{
+    public ConversationExchange(string prompt, string response, List<string> promptKeywords, List<string> responseKeywords)
+    {
+        Prompt = prompt;
+        Response = response;
+        PromptKeywords = promptKeywords;
+        ResponseKeywords = responseKeywords;
+    }
+
+    public ConversationExchange(string prompt, string response)
+    {
+        Prompt = prompt;
+        Response = response;
+    }
+
+    public string Prompt { get; init; }
+    public string Response { get; init; }
+    public List<string> PromptKeywords { get; set; } = new();
+    public List<string> ResponseKeywords { get; set; } = new();
+
+    public void Deconstruct(out string prompt, out string response, out List<string> promptKeywords, out List<string> responseKeywords)
+    {
+        prompt = Prompt;
+        response = Response;
+        promptKeywords = PromptKeywords;
+        responseKeywords = PromptKeywords;
+    }
+}
+
 public class ConversationHistory(ChatModel model, int amountOfSearchReferences)
 {
 
-    public List<(string prompt, string response)> PromptResponses { get; set; } = new List<(string prompt, string response)>();
+    public List<ConversationExchange> PromptResponses { get; set; } = new List<ConversationExchange>();
     public List<string> StreamingResponseChunks { get; set; } = new();
-
 
     public bool IsStreaming { get; set; }
     public bool IsLastChunk { get; set; } = false;
@@ -26,7 +56,7 @@ public class ConversationHistory(ChatModel model, int amountOfSearchReferences)
 
     public void AppendToConversation(string prompt, string answer)
     {
-        PromptResponses.Add((prompt, answer));
+        PromptResponses.Add(new ConversationExchange(prompt, answer));
     }
 
 

@@ -27,7 +27,8 @@ public static class IndexingEndpoints
                 [FromServices] IIndexingService< WebsitePage> indexingService,
                 [FromForm] string url,
                 [FromForm] string referenceType,
-                [FromForm] string title) =>
+                [FromForm] string title,
+                [FromForm] string tenantId) =>
         {
             var websitePage = new WebsitePage(
                 title,
@@ -39,7 +40,7 @@ public static class IndexingEndpoints
                 null
             );
 
-            await indexingService.CreateAsync(websitePage);
+            await indexingService.CreateAsync(websitePage, tenantId);
         }).DisableAntiforgery();
 
         innerGroup.MapPost("index/{websitePageId}",
