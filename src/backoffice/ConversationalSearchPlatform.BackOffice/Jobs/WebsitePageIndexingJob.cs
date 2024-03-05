@@ -59,6 +59,7 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
     }
 
     [AutomaticRetry(Attempts = 0, OnAttemptsExceeded = AttemptsExceededAction.Fail)]
+    [Queue(QueueConstants.IndexingQueue)]
     public async Task Execute(string tenantId, WebsitePageIndexingDetails details)
     {
         var tenant = await _multiTenantStore.TryGetAsync(tenantId);

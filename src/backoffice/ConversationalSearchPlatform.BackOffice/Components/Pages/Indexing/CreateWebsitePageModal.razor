@@ -4,12 +4,15 @@
 @using ConversationalSearchPlatform.BackOffice.Models.Indexing
 @using ConversationalSearchPlatform.BackOffice.Services.Models
 @using ConversationalSearchPlatform.BackOffice.Services.Models.Sitemap
+@using ConversationalSearchPlatform.BackOffice.Tenants
+@using Finbuckle.MultiTenant
 
 @inject ISnackbar Snackbar;
 @inject IIndexingService<WebsitePage> IndexingService;
 @inject ISitemapParsingService SitemapParsingService;
 @inject IAzureBlobStorage AzureBlobStorage;
 @inject ILogger<CreateWebsitePageModal> Logger;
+@inject IMultiTenantContextAccessor<ApplicationTenantInfo> TenantAccessor;
 @rendermode InteractiveServer
 <MudDialog>
     <TitleContent>
@@ -237,7 +240,16 @@
             sitemapFileName
             );
 
-        await IndexingService.CreateAsync(websitePage);
+        var tenantId = TenantAccessor.MultiTenantContext?.TenantInfo?.Id;
+        if (tenantId != null)
+        {
+            await IndexingService.CreateAsync(websitePage, tenantId);
+        }
+        else
+        {
+            Snackbar.Add("Unable to execute action. Tenant could not be resolved", Severity.Error);
+        }
+
     }
 
     private bool HasFileSitemap() => Model.SiteMapFile != null;
