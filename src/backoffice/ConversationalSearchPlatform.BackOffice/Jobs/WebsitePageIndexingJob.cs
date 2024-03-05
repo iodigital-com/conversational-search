@@ -289,6 +289,35 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
                     }
                 }
             }
+            else if (websitePage.Url.Contains("iodigital.com"))
+            {
+                List<ChunkResult> chunks = new List<ChunkResult>();
+
+                var nodes = htmlDoc.DocumentNode.SelectNodes("//main");
+
+                foreach (var node in nodes)
+                {
+                    var cleanText = Regex.Replace(node.InnerText, @"\s+", " ").Trim();
+                    cleanText = WebUtility.HtmlDecode(cleanText);
+
+                    if (!string.IsNullOrEmpty(cleanText))
+                    {
+                        var chunkResult = new ChunkResult();
+                        chunkResult.ArticleNumber = string.Empty;
+                        chunkResult.Text = cleanText;
+                        chunkResult.Packaging = string.Empty;
+
+                        chunks.Add(chunkResult);
+                    }
+                }
+
+                if (chunks.Count > 0)
+                {
+                    ChunkCollection chunkCollection = new ChunkCollection(tenantId, websitePage.Id.ToString(), websitePage.Url, websitePage.ReferenceType.ToString(), websitePage.Language.ToString(), chunks);
+
+                    await _vectorizationService.BulkCreateAsync(nameof(WebsitePage), websitePage.Id, scrapeResult.PageTitle, tenantId, UsageType.Indexing, chunkCollection);
+                }
+            }
             else
             {
                 List<ChunkResult> chunks = new List<ChunkResult>();
