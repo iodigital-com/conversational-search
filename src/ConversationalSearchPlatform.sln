@@ -1,18 +1,17 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34525.116
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{33CCB6E3-745D-42A7-A75B-C9B30AD359E4}"
-	ProjectSection(SolutionItems) = preProject
-		docker-compose.yml = ../docker-compose.yml
-		application.yml = ../.github/workflows/application.yml
-		scraper.yml = ../.github/workflows/scraper.yml
-		README.md = ../README.md
-	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConversationalSearchPlatform.BackOffice", "backoffice\ConversationalSearchPlatform.BackOffice\ConversationalSearchPlatform.BackOffice.csproj", "{72303287-C899-41CE-95A2-09534F6B3066}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ConversationalSearchPlatform.BackOffice", "backoffice\ConversationalSearchPlatform.BackOffice\ConversationalSearchPlatform.BackOffice.csproj", "{72303287-C899-41CE-95A2-09534F6B3066}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConversationalSearchPlatform.Scraper", "scraper\ConversationalSearchPlatform.Scraper\ConversationalSearchPlatform.Scraper.csproj", "{583B2FA8-EC60-46AC-88B7-34C5D855C764}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ConversationalSearchPlatform.Scraper", "scraper\ConversationalSearchPlatform.Scraper\ConversationalSearchPlatform.Scraper.csproj", "{583B2FA8-EC60-46AC-88B7-34C5D855C764}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConversationalSearchPlatform.Widget", "widget\ConversationalSearchPlatform.Widget\ConversationalSearchPlatform.Widget.csproj", "{687A9754-5AAB-47F8-AA76-9A959C1D613E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ConversationalSearchPlatform.Widget", "widget\ConversationalSearchPlatform.Widget\ConversationalSearchPlatform.Widget.csproj", "{687A9754-5AAB-47F8-AA76-9A959C1D613E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jint.Fetch", "Jint.Fetch\Jint.Fetch.csproj", "{88306706-982B-44EB-8678-96E709FB17C6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -32,5 +31,12 @@ Global
 		{687A9754-5AAB-47F8-AA76-9A959C1D613E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{687A9754-5AAB-47F8-AA76-9A959C1D613E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{687A9754-5AAB-47F8-AA76-9A959C1D613E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{88306706-982B-44EB-8678-96E709FB17C6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{88306706-982B-44EB-8678-96E709FB17C6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{88306706-982B-44EB-8678-96E709FB17C6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{88306706-982B-44EB-8678-96E709FB17C6}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
 	EndGlobalSection
 EndGlobal

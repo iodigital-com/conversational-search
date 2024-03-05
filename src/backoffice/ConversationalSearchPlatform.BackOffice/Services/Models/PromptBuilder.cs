@@ -13,6 +13,12 @@ public class PromptBuilder(StringBuilder stringBuilder)
         return this;
     }
 
+    public PromptBuilder ReplaceRAGDocument(string ragDocument)
+    {
+        stringBuilder = stringBuilder.Replace("{{RAGDocument}}", ragDocument);
+        return this;
+    }
+
     public PromptBuilder ReplaceTextSources(string flattenedTextSources)
     {
         stringBuilder = stringBuilder.Replace("{{TextSources}}", flattenedTextSources);

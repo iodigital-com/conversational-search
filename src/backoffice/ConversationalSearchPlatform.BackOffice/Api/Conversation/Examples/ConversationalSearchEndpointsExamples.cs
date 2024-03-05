@@ -18,7 +18,7 @@ public static class ConversationalSearchEndpointsExamples
                 {
                     new(1,
                         "https://www.tenaprofessionals.us",
-                        ConversationReferenceTypeDto.Product,
+                        "Site",
                         "Pedestrian Protection System")
                 },
                 false,

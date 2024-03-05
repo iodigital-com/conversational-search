@@ -16,6 +16,7 @@ using GraphQL.Client.Http;
 using GraphQL.Client.Serializer.SystemTextJson;
 using Hangfire;
 using Hangfire.Console;
+using Hangfire.Console.Extensions;
 using Hangfire.SqlServer;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.Extensions.Options;
@@ -129,6 +130,7 @@ internal static class BootstrapExtensions
     internal static IServiceCollection AddConversationServices(this IServiceCollection serviceCollection)
     {
         serviceCollection.AddTransient<IConversationService, ConversationService>();
+        serviceCollection.AddTransient<IRagService, RAGService>();
         return serviceCollection;
     }
 
@@ -289,6 +291,8 @@ internal static class BootstrapExtensions
             options.WorkerCount = 5; // TODO: might need to change this later. This is to not choke the parser for now
             options.Queues = QueueConstants.Queues;
         });
+
+        services.AddHangfireConsoleExtensions();
 
         return services;
     }

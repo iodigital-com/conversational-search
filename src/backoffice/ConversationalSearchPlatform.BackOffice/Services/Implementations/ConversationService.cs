@@ -12,7 +12,6 @@ using ConversationalSearchPlatform.BackOffice.Tenants;
 using Finbuckle.MultiTenant;
 using GraphQL;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.IdentityModel.Tokens;
 using Rystem.OpenAi;
 using Rystem.OpenAi.Chat;
 using Language = ConversationalSearchPlatform.BackOffice.Services.Models.Language;
@@ -27,6 +26,7 @@ public partial class ConversationService : IConversationService
     private readonly IVectorizationService _vectorizationService;
     private readonly IOpenAIUsageTelemetryService _telemetryService;
     private readonly IKeywordExtractorService _keywordExtractorService;
+    private readonly IRagService _ragService;
     private readonly ILogger<ConversationService> _logger;
 
 
@@ -42,7 +42,8 @@ public partial class ConversationService : IConversationService
         IVectorizationService vectorizationService,
         ILogger<ConversationService> logger,
         IOpenAIUsageTelemetryService telemetryService,
-        IKeywordExtractorService keywordExtractorService)
+        IKeywordExtractorService keywordExtractorService,
+        IRagService ragService)
     {
         _conversationsCache = conversationsCache;
         _openAiFactory = openAiFactory;
@@ -51,6 +52,7 @@ public partial class ConversationService : IConversationService
         _logger = logger;
         _telemetryService = telemetryService;
         _keywordExtractorService = keywordExtractorService;
+        _ragService = ragService;
     }
 
     public Task<ConversationId> StartConversationAsync(StartConversation startConversation, CancellationToken cancellationToken)
@@ -74,16 +76,16 @@ public partial class ConversationService : IConversationService
         bool shouldEndConversation = false;
 
         // are we at the maximum number of follow up questions after this one?
-        if (conversationHistory.PromptResponses.Count >= 2)
+        if (conversationHistory.PromptResponses.Count >= 5)
         {
             shouldEndConversation = true;
         }
 
-        var (chatBuilder, textReferences, imageReferences, productReferences) = await BuildChatAsync(holdConversation, conversationHistory, cancellationToken);
+        var (chatBuilder, textReferences, imageReferences) = await BuildChatAsync(holdConversation, conversationHistory, cancellationToken);
 
         string answer = string.Empty;
         // don't give an answer when no references are found
-        if (textReferences.Count == 0 && productReferences.Count == 0 && imageReferences.Count == 0)
+        if (textReferences.Count == 0 && imageReferences.Count == 0)
         {
             shouldEndConversation = true;
 
@@ -106,7 +108,6 @@ public partial class ConversationService : IConversationService
         conversationHistory.AppendToConversation(holdConversation.UserPrompt, answer);
         conversationHistory.SaveConversationHistory(_conversationsCache, cacheKey);
 
-        textReferences.AddRange(productReferences);
         var conversationReferencedResult = ParseAnswerWithReferences(holdConversation, conversationHistory, textReferences, imageReferences, shouldEndConversation);
 
         return conversationReferencedResult;
@@ -125,22 +126,22 @@ public partial class ConversationService : IConversationService
 
         //todo: this is a bit of code repetition
         // are we at the maximum number of follow up questions after this one?
-        if (conversationHistory.PromptResponses.Count >= 2)
+        if (conversationHistory.PromptResponses.Count >= 5)
         {
             shouldEndConversation = true;
         }
 
-        var (chatBuilder, textReferences, imageReferences, productReferences) = await BuildChatAsync(holdConversation, conversationHistory, cancellationToken);
+        var (chatBuilder, textReferences, imageReferences) = await BuildChatAsync(holdConversation, conversationHistory, cancellationToken);
 
         string answer = string.Empty;
         // don't give an answer when no references are found
-        if (textReferences.Count == 0 && productReferences.Count == 0 && imageReferences.Count == 0)
+        if (textReferences.Count == 0 && imageReferences.Count == 0)
         {
             shouldEndConversation = true;
+            answer = "I'm sorry, but I couldn't find relevant information in my database. Try asking a new question, please.";
         }
 
         conversationHistory.HasEnded = shouldEndConversation;
-        textReferences.AddRange(productReferences);
 
         await foreach (var entry in chatBuilder
                            .ExecuteAsStreamAndCalculateCostAsync(false, cancellationToken)
@@ -239,7 +240,7 @@ public partial class ConversationService : IConversationService
         return ValueTask.FromResult(StreamResult<ConversationReferencedResult>.Ok(result));
     }
 
-    private async Task<(ChatRequestBuilder chatRequestBuilder, List<SortedSearchReference>, List<ImageSearchReference>, List<SortedSearchReference>)> BuildChatAsync(
+    private async Task<(ChatRequestBuilder chatRequestBuilder, List<SortedSearchReference>, List<ImageSearchReference>)> BuildChatAsync(
         HoldConversation holdConversation,
         ConversationHistory conversationHistory,
         CancellationToken cancellationToken)
@@ -273,44 +274,77 @@ public partial class ConversationService : IConversationService
         var keywords = await _keywordExtractorService.ExtractKeywordAsync(vectorPrompt.ToString());
 
         var vector = await _vectorizationService.CreateVectorAsync(holdConversation.ConversationId, holdConversation.TenantId, UsageType.Conversation, string.Join(' ', keywords));
-        
-        var textReferences = await GetTextReferences(
-            conversationHistory,
-            nameof(WebsitePage),
-            tenantId,
-            "English",
-            ConversationReferenceType.Site.ToString(), // TODO later extend this to accept multiple kind of references
-            vectorPrompt.ToString(),
-            vector,
-            cancellationToken);
 
-        var productReferences = await GetTextReferences(
-            conversationHistory,
-            nameof(WebsitePage),
-            tenantId,
-            "English",
-            ConversationReferenceType.Product.ToString(), // TODO later extend this to accept multiple kind of references
-            vectorPrompt.ToString(),
-            vector,
-            cancellationToken);
+        var ragDocument = await _ragService.GetRAGDocumentAsync(Guid.Parse(tenantId));
 
+        List<TextSearchReference> references = new List<TextSearchReference>();
+        List<SortedSearchReference> indexedTextReferences = new List<SortedSearchReference>();
+        var index = 0;
 
-        var articleNumber = Regex.Match(holdConversation.UserPrompt, @"\d+").Value;
-
-        if (!string.IsNullOrEmpty(articleNumber))
+        foreach (var ragClass in ragDocument.Classes)
         {
-            if (!productReferences.Any(p => p.ArticleNumber == articleNumber))
-            {
-                var articleNumberReferences = await GetProductReferenceById(articleNumber,
-                    nameof(WebsitePage),
-                    tenantId,
-                    "English",
-                    ConversationReferenceType.Product.ToString(),
-                    cancellationToken);
+            var textReferences = await GetTextReferences(
+                conversationHistory,
+                nameof(WebsitePage),
+                tenantId,
+                "English",
+                ragClass.Name,
+                vectorPrompt.ToString(),
+                vector,
+                cancellationToken);
 
-                productReferences.AddRange(articleNumberReferences);
+            foreach (var reference in textReferences)
+            {
+                index++;
+
+                Dictionary<string, string> properties = new Dictionary<string, string>();
+                properties["Content"] = reference.Content;
+                properties["Title"] = reference.Title;
+
+                if (ragClass.Name == "Product")
+                {
+                    properties["ArticleNumber"] = reference.ArticleNumber;
+                    properties["Packaging"] = reference.Packaging;
+                }
+
+                ragClass.Sources.Add(new RAGSource()
+                {
+                    ReferenceId = $"{index}",  
+                    Properties = properties,
+                });
+
+                indexedTextReferences.Add(new SortedSearchReference()
+                {
+                    Index = index,
+                    TextSearchReference = reference,
+                });
             }
+
+            references.AddRange(textReferences);
         }
+
+        Guid TENA_ID = Guid.Parse("CCFA9314-ABE6-403A-9E21-2B31D95A5258");
+
+        /*if (Guid.Parse(tenantId) == TENA_ID)
+        {
+            // specialleke voor tena
+            var articleNumber = Regex.Match(holdConversation.UserPrompt, @"\d+").Value;
+
+            if (!string.IsNullOrEmpty(articleNumber))
+            {
+                if (!productReferences.Any(p => p.ArticleNumber == articleNumber))
+                {
+                    var articleNumberReferences = await GetProductReferenceById(articleNumber,
+                        nameof(WebsitePage),
+                        tenantId,
+                        "English",
+                        ConversationReferenceType.Product.ToString(),
+                        cancellationToken);
+
+                    productReferences.AddRange(articleNumberReferences);
+                }
+            }
+        }*/
 
         // TODO: restore this, but better
         /*var imageReferences = await GetImageReferences(
@@ -321,20 +355,10 @@ public partial class ConversationService : IConversationService
             cancellationToken);*/
         var imageReferences = new List<ImageSearchReference>();
 
-        var indexedTextReferences = IndexizeTextReferences(textReferences);
-
-        var startIndex = 0;
-
-        if (!indexedTextReferences.IsNullOrEmpty())
-        {
-            startIndex = indexedTextReferences.Last().Index;
-        }
-
-        var indexedProductReferences = IndexizeTextReferences(productReferences, startIndex);
-
+        var ragString = await ragDocument.GenerateXMLStringAsync();
+        
         var systemPrompt = promptBuilder
-            .ReplaceTextSources(FlattenTextReferences(indexedTextReferences))
-            .ReplaceProductSources(FlattenProductReferences(indexedProductReferences))
+            .ReplaceRAGDocument(ragString)
             .Build();
 
         var chatModel = (ChatModelType)conversationHistory.Model;
@@ -342,16 +366,16 @@ public partial class ConversationService : IConversationService
             .RequestWithSystemMessage(systemPrompt)
             .AddPreviousMessages(conversationHistory.PromptResponses)
             .AddUserMessage(holdConversation.UserPrompt)
-            .AddUserMessage("Do not give me any information that is not mentioned in the [SITE] or [PRODUCT] section")
+            .AddUserMessage("Do not give me any information that is not mentioned in the <SOURCES> document")
             .WithModel(chatModel)
             .WithTemperature(0.75);
 
         if (conversationHistory.DebugEnabled)
         {
-            conversationHistory.AppendPreRequestDebugInformation(chatBuilder, textReferences, imageReferences, promptBuilder);
+            conversationHistory.AppendPreRequestDebugInformation(chatBuilder, references, imageReferences, promptBuilder);
         }
 
-        return (chatBuilder, indexedTextReferences, imageReferences, indexedProductReferences);
+        return (chatBuilder, indexedTextReferences, imageReferences);
     }
 
 
@@ -367,16 +391,7 @@ public partial class ConversationService : IConversationService
         return tenant;
     }
 
-    private static List<SortedSearchReference> IndexizeTextReferences(List<TextSearchReference> textReferences, int startIndex = 0)
-    {
-        return textReferences.Select((textRef, i) => new SortedSearchReference
-            {
-                TextSearchReference = textRef,
-                Index = i + 1 + startIndex
-            })
-            .ToList();
-    }
-
+    
     private static ConversationReferencedResult ParseAnswerWithReferences(HoldConversation holdConversation,
         ConversationHistory conversationHistory,
         IReadOnlyCollection<SortedSearchReference> textReferences,
@@ -484,29 +499,6 @@ public partial class ConversationService : IConversationService
 
     private static string GetTenantPrompt(ApplicationTenantInfo tenant) => tenant.GetBasePromptOrDefault();
 
-    private static string FlattenTextReferences(List<SortedSearchReference> references)
-    {
-        var knowledgeBaseBuilder = new StringBuilder();
-
-        foreach (var reference in references)
-        {
-            knowledgeBaseBuilder.AppendLine($"{reference.Index} | {reference.TextSearchReference.Content.ReplaceLineEndings(" ")}");
-        }
-
-        return knowledgeBaseBuilder.ToString();
-    }
-
-    private static string FlattenProductReferences(List<SortedSearchReference> references)
-    {
-        var knowledgeBaseBuilder = new StringBuilder();
-
-        foreach (var reference in references)
-        {
-            knowledgeBaseBuilder.AppendLine($"{reference.Index} | {reference.TextSearchReference.ArticleNumber} | {reference.TextSearchReference.Packaging} | {reference.TextSearchReference.Title} | {reference.TextSearchReference.Content.ReplaceLineEndings(" ")}");
-        }
-
-        return knowledgeBaseBuilder.ToString();
-    }
 
     private static string FlattenImageReferences(List<SortedSearchReference> textSearchReferences, List<ImageSearchReference> references)
     {
@@ -594,7 +586,6 @@ public partial class ConversationService : IConversationService
             })
             .Select(result =>
             {
-                Enum.TryParse<ConversationReferenceType>(result.ReferenceType, out var refType);
                 Enum.TryParse<Language>(result.Language, out var lang);
 
                 return new TextSearchReference
@@ -602,7 +593,7 @@ public partial class ConversationService : IConversationService
                     Content = result.Text,
                     Source = result.Source,
                     Title = result.Title,
-                    Type = refType,
+                    Type = result.ReferenceType,
                     Certainty = result.Additional?.Certainty,
                     Language = lang,
                     InternalId = result.InternalId,
@@ -613,6 +604,7 @@ public partial class ConversationService : IConversationService
             .ToList();
     }
 
+    // specialleke voor Tena
     private async Task<List<TextSearchReference>> GetProductReferenceById(
         string articleNumber,
         string collectionName,
@@ -679,7 +671,7 @@ public partial class ConversationService : IConversationService
                     Content = result.Text,
                     Source = result.Source,
                     Title = result.Title,
-                    Type = refType,
+                    Type = "Product",
                     Certainty = result.Additional?.Certainty,
                     Language = lang,
                     InternalId = result.InternalId,

@@ -5,6 +5,18 @@ using Rystem.OpenAi.Chat;
 
 namespace ConversationalSearchPlatform.BackOffice.Services.Models;
 
+public enum PromptType
+{
+    User,
+    FunctionResponse,
+}
+
+public enum ResponseType
+{
+    Assistant,
+    FunctionRequest,
+}
+
 public class ConversationExchange
 {
     public ConversationExchange(string prompt, string response, List<string> promptKeywords, List<string> responseKeywords)
@@ -20,6 +32,17 @@ public class ConversationExchange
         Prompt = prompt;
         Response = response;
     }
+
+    public ConversationExchange(string prompt, PromptType promptType, string response, ResponseType responseType)
+    {
+        Prompt = prompt;
+        PromptType = promptType;
+        Response = response;
+        ResponseType = responseType;
+    }
+
+    public PromptType PromptType { get; set; } = PromptType.User;
+    public ResponseType ResponseType { get; set; } = ResponseType.Assistant;
 
     public string Prompt { get; init; }
     public string Response { get; init; }
