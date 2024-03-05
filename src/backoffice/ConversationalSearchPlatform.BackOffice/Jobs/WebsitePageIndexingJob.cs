@@ -296,19 +296,22 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
 
                 var nodes = htmlDoc.DocumentNode.SelectNodes("//main");
 
-                foreach (var node in nodes)
+                if (nodes != null)
                 {
-                    var cleanText = Regex.Replace(node.InnerText, @"\s+", " ").Trim();
-                    cleanText = WebUtility.HtmlDecode(cleanText);
-
-                    if (!string.IsNullOrEmpty(cleanText))
+                    foreach (var node in nodes)
                     {
-                        var chunkResult = new ChunkResult();
-                        chunkResult.ArticleNumber = string.Empty;
-                        chunkResult.Text = cleanText;
-                        chunkResult.Packaging = string.Empty;
+                        var cleanText = Regex.Replace(node.InnerText, @"\s+", " ").Trim();
+                        cleanText = WebUtility.HtmlDecode(cleanText);
 
-                        chunks.Add(chunkResult);
+                        if (!string.IsNullOrEmpty(cleanText))
+                        {
+                            var chunkResult = new ChunkResult();
+                            chunkResult.ArticleNumber = string.Empty;
+                            chunkResult.Text = cleanText;
+                            chunkResult.Packaging = string.Empty;
+
+                            chunks.Add(chunkResult);
+                        }
                     }
                 }
 
