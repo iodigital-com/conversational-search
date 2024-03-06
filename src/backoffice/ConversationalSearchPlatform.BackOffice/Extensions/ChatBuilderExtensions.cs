@@ -9,8 +9,8 @@ public static class ChatBuilderExtensions
     {
         foreach (var conversation in previousMessages)
         {
-            chatRequestBuilder.AddUserMessage(conversation.Prompt);
-            chatRequestBuilder.AddAssistantMessage(conversation.Response);
+            chatRequestBuilder.AddMessage(conversation.Prompt);
+            chatRequestBuilder.AddMessage(conversation.Response);
         }
 
         return chatRequestBuilder;

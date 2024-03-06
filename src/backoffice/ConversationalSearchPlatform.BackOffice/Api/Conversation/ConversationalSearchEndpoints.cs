@@ -15,6 +15,7 @@ using ConversationalSearchPlatform.BackOffice.Tenants;
 using Finbuckle.MultiTenant;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Identity.Client;
 using Swashbuckle.AspNetCore.Filters;
 
 namespace ConversationalSearchPlatform.BackOffice.Api.Conversation;
@@ -142,7 +143,7 @@ public static class ConversationalSearchEndpoints
 
                     var tenantId = httpContext.GetTenantHeader();
 
-                    var holdConversation = new HoldConversation(conversationId, tenantId, request.Prompt, request.Context, request.Debug, (Language)request.Language);
+                    var holdConversation = new HoldConversation(conversationId, tenantId, new Rystem.OpenAi.Chat.ChatMessage() { Content = request.Prompt, Role = Rystem.OpenAi.Chat.ChatRole.User }, request.Context, request.Debug, (Language)request.Language);
 
                     await foreach (var crr in conversationService
                                        .ConverseStreamingAsync(
@@ -187,7 +188,7 @@ public static class ConversationalSearchEndpoints
         IConversationService conversationService,
         CancellationToken cancellationToken)
     {
-        var holdConversation = new HoldConversation(conversationId, tenantId, request.Prompt, request.Context, request.Debug, (Language)request.Language);
+        var holdConversation = new HoldConversation(conversationId, tenantId, new Rystem.OpenAi.Chat.ChatMessage() { Content = request.Prompt, Role = Rystem.OpenAi.Chat.ChatRole.User }, request.Context, request.Debug, (Language)request.Language);
         var response = await conversationService.ConverseAsync(holdConversation, cancellationToken);
 
         return MapToApiResponse(response);
@@ -307,7 +308,7 @@ public static class ConversationalSearchEndpoints
         }
 
         var tenantId = tenant.Id!;
-        var holdConversation = new HoldConversation(request.ConversationId.Value, tenantId, request.Prompt, request.Context, request.Debug, (Language)request.Language);
+        var holdConversation = new HoldConversation(request.ConversationId.Value, tenantId, new Rystem.OpenAi.Chat.ChatMessage() { Content = request.Prompt, Role = Rystem.OpenAi.Chat.ChatRole.User }, request.Context, request.Debug, (Language)request.Language);
 
         await foreach (var crr in conversationService
                            .ConverseStreamingAsync(

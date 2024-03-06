@@ -4,20 +4,23 @@ namespace ConversationalSearchPlatform.BackOffice.Extensions;
 
 public static class ChatResultExtensions
 {
-    public static string CombineAnswers(this ChatResult chatResult)
+    public static ChatMessage GetFirstAnswer(this ChatResult chatResult)
     {
-        var answers = chatResult
+        var answer = chatResult
                           .Choices?
-                          .Select(choice => choice.Message)
-                          .Where(message => message != null)
-                          .Select(message => message!)
-                          .Where(msg => msg.Role == ChatRole.Assistant)
-                          .Select(message => message.Content)
-                          .Where(content => content != null) ??
-                      Enumerable.Empty<string>();
+                          .FirstOrDefault()?
+                          .Message;
 
-        return string.Join(Environment.NewLine, answers)
-            .ReplaceLineEndings();
+        if (answer == null)
+        {
+            answer = new ChatMessage()
+            {
+                Role = ChatRole.Assistant,
+                Content = string.Empty,
+            };
+        }
+
+        return answer;
     }
 
     public static string CombineStreamAnswer(this StreamingChatResult chatResult)

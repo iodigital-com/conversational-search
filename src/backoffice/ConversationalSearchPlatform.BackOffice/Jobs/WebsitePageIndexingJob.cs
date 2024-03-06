@@ -300,8 +300,8 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
                 {
                     foreach (var node in nodes)
                     {
-                        var cleanText = Regex.Replace(node.InnerText, @"\s+", " ").Trim();
-                        cleanText = WebUtility.HtmlDecode(cleanText);
+                        //var cleanText = Regex.Replace(node.InnerText, @"\s+", " ").Trim();
+                        var cleanText = WebUtility.HtmlDecode(node.InnerText);
 
                         if (!string.IsNullOrEmpty(cleanText))
                         {

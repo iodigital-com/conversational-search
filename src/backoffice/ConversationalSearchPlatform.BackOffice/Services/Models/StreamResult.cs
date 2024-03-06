@@ -16,6 +16,8 @@ public record StreamResult<T>
 
     public static StreamResult<T> Ok(T result) => new(result, default, default);
 
+    public static StreamResult<T> FunctionCall(T result) => new(result, default, default);
+
     public static StreamResult<T> Fail(Exception exception) =>
         new(default, exception, default);
 

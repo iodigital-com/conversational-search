@@ -4,6 +4,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 17.8.34525.116
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{33CCB6E3-745D-42A7-A75B-C9B30AD359E4}"
+	ProjectSection(SolutionItems) = preProject
+		nuget.config = nuget.config
+	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ConversationalSearchPlatform.BackOffice", "backoffice\ConversationalSearchPlatform.BackOffice\ConversationalSearchPlatform.BackOffice.csproj", "{72303287-C899-41CE-95A2-09534F6B3066}"
 EndProject
@@ -11,7 +14,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ConversationalSearchPlatfor
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ConversationalSearchPlatform.Widget", "widget\ConversationalSearchPlatform.Widget\ConversationalSearchPlatform.Widget.csproj", "{687A9754-5AAB-47F8-AA76-9A959C1D613E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jint.Fetch", "Jint.Fetch\Jint.Fetch.csproj", "{88306706-982B-44EB-8678-96E709FB17C6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jint.Fetch", "Jint.Fetch\Jint.Fetch.csproj", "{88306706-982B-44EB-8678-96E709FB17C6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

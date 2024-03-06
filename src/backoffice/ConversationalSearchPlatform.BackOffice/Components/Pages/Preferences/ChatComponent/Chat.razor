@@ -192,7 +192,7 @@
         try
         {
             Loading = true;
-            conversationResult = await ConversationService.ConverseAsync(new HoldConversation(CurrentConversationId!.Value, TenantInfo.Id!, prompt, cleanedContextVariables, Debug, Language));
+            conversationResult = await ConversationService.ConverseAsync(new HoldConversation(CurrentConversationId!.Value, TenantInfo.Id!, new Rystem.OpenAi.Chat.ChatMessage() { Content = prompt, Role = Rystem.OpenAi.Chat.ChatRole.User }, cleanedContextVariables, Debug, Language));
         }
         finally
         {

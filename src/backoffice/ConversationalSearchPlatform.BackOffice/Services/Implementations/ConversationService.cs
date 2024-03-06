@@ -1,5 +1,9 @@
+using System.Diagnostics.Eventing.Reader;
+using System.Dynamic;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using ConversationalSearchPlatform.BackOffice.Data.Entities;
 using ConversationalSearchPlatform.BackOffice.Exceptions;
@@ -11,7 +15,11 @@ using ConversationalSearchPlatform.BackOffice.Services.Models.Weaviate.Queries;
 using ConversationalSearchPlatform.BackOffice.Tenants;
 using Finbuckle.MultiTenant;
 using GraphQL;
+using Jint;
+using Jint.Fetch;
 using Microsoft.Extensions.Caching.Memory;
+using Newtonsoft.Json.Linq;
+using Polly;
 using Rystem.OpenAi;
 using Rystem.OpenAi.Chat;
 using Language = ConversationalSearchPlatform.BackOffice.Services.Models.Language;
@@ -83,13 +91,13 @@ public partial class ConversationService : IConversationService
 
         var (chatBuilder, textReferences, imageReferences) = await BuildChatAsync(holdConversation, conversationHistory, cancellationToken);
 
-        string answer = string.Empty;
+        ChatMessage answer = new ChatMessage() { Role = ChatRole.Assistant };
         // don't give an answer when no references are found
         if (textReferences.Count == 0 && imageReferences.Count == 0)
         {
             shouldEndConversation = true;
 
-            answer = "I'm sorry, but I couldn't find relevant information in my database. Try asking a new question, please.";
+            answer.Content = "I'm sorry, but I couldn't find relevant information in my database. Try asking a new question, please.";
         }
         else
         {
@@ -101,11 +109,47 @@ public partial class ConversationService : IConversationService
                 conversationHistory.Model
             );
 
-            answer = chatResult.Result.CombineAnswers();
+            answer = chatResult.Result.GetFirstAnswer();
+            if (answer.Function != null)
+            {
+                // call the function
+                conversationHistory.AppendToConversation(holdConversation.UserPrompt, answer);
+
+                // add the function reply
+                var functionReply = await Task<string>.Run(() => {
+
+                    var functionReplyTask = CallFunction(answer.Function.Name, answer.Function.Arguments);
+
+                    return functionReplyTask;
+                }).ConfigureAwait(false);
+
+                // create new chatbuilder request with product reference
+                ChatMessage functionMessage = new ChatMessage()
+                {
+                    Role = ChatRole.Function,
+                    Content = functionReply,
+                    Name = answer.Function.Name,
+                };
+
+                holdConversation.UserPrompt = functionMessage;
+                (chatBuilder, textReferences, imageReferences) = await BuildChatAsync(holdConversation, conversationHistory, cancellationToken);
+                chatResult = await chatBuilder.ExecuteAndCalculateCostAsync(false, cancellationToken);
+                    _telemetryService.RegisterGPTUsage(
+                    holdConversation.ConversationId,
+                    holdConversation.TenantId,
+                    chatResult.Result.Usage ?? throw new InvalidOperationException("No usage was passed in after executing an OpenAI call"),
+                    conversationHistory.Model
+                );
+                answer = chatResult.Result.GetFirstAnswer();
+                conversationHistory.AppendToConversation(functionMessage, answer);
+            }
+            else
+            {
+                conversationHistory.AppendToConversation(holdConversation.UserPrompt, answer);
+            }
         }
 
         conversationHistory.HasEnded = shouldEndConversation;
-        conversationHistory.AppendToConversation(holdConversation.UserPrompt, answer);
         conversationHistory.SaveConversationHistory(_conversationsCache, cacheKey);
 
         var conversationReferencedResult = ParseAnswerWithReferences(holdConversation, conversationHistory, textReferences, imageReferences, shouldEndConversation);
@@ -142,6 +186,7 @@ public partial class ConversationService : IConversationService
         }
 
         conversationHistory.HasEnded = shouldEndConversation;
+        ChatMessage composedMessage = new ChatMessage();
 
         await foreach (var entry in chatBuilder
                            .ExecuteAsStreamAndCalculateCostAsync(false, cancellationToken)
@@ -153,6 +198,7 @@ public partial class ConversationService : IConversationService
                                textReferences,
                                imageReferences,
                                shouldEndConversation,
+                               composedMessage,
                                cancellationToken)
                            )
                            .Where(result => result is { IsOk: true, Value: not null })
@@ -160,6 +206,48 @@ public partial class ConversationService : IConversationService
                            .WithCancellation(cancellationToken))
         {
             yield return entry;
+        }
+
+        if (composedMessage.Function != null)
+        {
+            // add the function reply
+            var functionReply = await Task<string>.Run(() => {
+
+                var functionReplyTask = CallFunction(composedMessage.Function.Name, composedMessage.Function.Arguments);
+
+                return functionReplyTask;
+            }).ConfigureAwait(false);
+
+            // create new chatbuilder request with product reference
+            ChatMessage functionMessage = new ChatMessage()
+            {
+                Role = ChatRole.Function,
+                Content = functionReply,
+                Name = composedMessage.Function.Name,
+            };
+
+            holdConversation.UserPrompt = functionMessage;
+            (chatBuilder, textReferences, imageReferences) = await BuildChatAsync(holdConversation, conversationHistory, cancellationToken);
+
+            await foreach (var entry in chatBuilder
+                           .ExecuteAsStreamAndCalculateCostAsync(false, cancellationToken)
+                           .SelectAwait(streamEntry => ProcessStreamedChatChunk(
+                               holdConversation,
+                               streamEntry,
+                               cacheKey,
+                               conversationHistory,
+                               textReferences,
+                               imageReferences,
+                               shouldEndConversation,
+                               composedMessage,
+                               cancellationToken)
+                           )
+                           .Where(result => result is { IsOk: true, Value: not null })
+                           .Select(result => result.Value!)
+                           .WithCancellation(cancellationToken))
+            {
+                yield return entry;
+            }
         }
     }
 
@@ -176,6 +264,96 @@ public partial class ConversationService : IConversationService
         return new ConversationContext(tags.ToList());
     }
 
+    private string CallFunction(string? functionName, string? arguments)
+    {
+        dynamic argumentsObj = JObject.Parse(arguments);
+
+        var engine = new Engine();
+        engine.SetValue("log", new Action<object>(Console.WriteLine))
+            .SetValue("fetch", new Func<string, object, Task<FetchResult>>((uri, options) => FetchClass.Fetch(uri, FetchClass.ExpandoToOptionsObject(options))))
+            .SetValue("__result", 0)
+            .SetValue("genderCtx", argumentsObj.gender)
+            .SetValue("mobilityCtx", argumentsObj.mobility)
+            .SetValue("incontinence_levelCtx", argumentsObj.incontinence_level);
+
+        try
+        {
+            engine.Execute(
+                """
+(async () => {
+    async function GetRecommendedProducts(gender, mobility, incontinence_level) { 
+        log(`Call product selector with: ${gender}, ${mobility}, ${incontinence_level}`);
+        // create body
+        var genderData;
+        if (gender == "male") {
+            genderData = {"data-title":"men_inco,women_men_inco", "data-details":"Men", "data-description":"men"}
+        } else {
+            genderData = {"data-title":"women_inco,women_men_inco", "data-details":"Women", "data-description":"women"}
+        }
+
+        var mobilityData;
+        switch(mobility) {
+            case "mobile":
+                mobilityData = {"data-title":"FullMobility", "data-details":"fullMobilityScore", "data-description":"Able"};
+                break;
+            case "needs_help_toilet":
+                mobilityData = {"data-title":"NeedAssistance", "data-details":"needAssistanceScore", "data-description":"Needs"};
+                break;
+            case "bedridden":
+                mobilityData = {"data-title":"Bedridden", "data-details":"bedriddenScore", "data-description":"Unable"};
+                break;
+        }
+
+        var absorptionData;
+        switch(incontinence_level) {
+            case "small":
+                absorptionData = {"data-title":"0_5-drop-inco,1-drop-inco", "data-details":"0_5-drop-inco,1-drop-inco", "data-description":"VeryLight"};
+                break;
+            case "light":
+                absorptionData = {"data-title":"1_5-drop-inco,2-drop-inco,2_5-drop-inco", "data-details":"1_5-drop-inco,2_5-drop-inco,2-drop-inco", "data-description":"Light"};
+                break;
+            case "moderate":
+                absorptionData = {"data-title":"3-drop-inco,3_5-drop-inco,4-drop-inco,4_5-drop-inco,5-drop-inco", "data-details":"3_5-drop-inco,3-drop-inco,4_5-drop-inco,4-drop-inco,5-drop-inco", "data-description":"Medium"};
+                break;
+            case "heavy":
+                absorptionData = {"data-title":"5_5-drop-inco,6-drop-inco,6_5-drop-inco,7-drop-inco", "data-details":"5_5-drop-inco,6_5-drop-inco,6-drop-inco,7-drop-inco", "data-description":"Heavy"};
+                break;
+            case "very_heavy":
+                absorptionData = {"data-title":"7_5-drop-inco,8-drop-inco,8_5-drop-inco,9-drop-inco", "data-details":"7_5-drop-inco,8_5-drop-inco,8-drop-inco,9-drop-inco", "data-description":"VeryHeavy"};
+                break;
+        }
+
+        var body = JSON.stringify({
+            User: {"data-title":"Homecare", "data-details":"Pharmacist", "data-description":"Pharmacist"},
+            Gender: genderData,
+            Mobility: mobilityData,
+            Absorption: absorptionData
+        });
+        var response = await fetch("https://www.tena.co.uk/professionals/api/Services/ProductFinder/GetProductSelectorResult", { Method: "POST", Body: { inputData: body } });
+        var content = await response.json();
+
+        var considerationProducts = [content.recommendedProduct.recommendedProduct, ...content.considerationProducts.products];
+
+        return considerationProducts.map((p) => {  
+                return { productName: p.productName }; 
+            });
+    };
+
+    __result = await GetRecommendedProducts(genderCtx, mobilityCtx, incontinence_levelCtx);
+})();
+""");
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+        }
+
+
+        string jsonString = JsonSerializer.Serialize(engine.GetValue("__result").ToObject());
+
+        return jsonString;
+    }
+
 
     private ValueTask<StreamResult<ConversationReferencedResult>> ProcessStreamedChatChunk(HoldConversation holdConversation,
         CostResult<StreamingChatResult> streamEntry,
@@ -184,6 +362,7 @@ public partial class ConversationService : IConversationService
         List<SortedSearchReference> textReferences,
         List<ImageSearchReference> imageReferences,
         bool shouldEndConversation,
+        ChatMessage composedMessage,
         CancellationToken cancellationToken)
     {
         var chunk = streamEntry.Result.LastChunk.Choices?
@@ -209,20 +388,44 @@ public partial class ConversationService : IConversationService
             conversationHistory.StreamingResponseChunks.Add(chunkedAnswer);
             conversationHistory.IsLastChunk = true;
 
-            result = ParseAnswerWithReferences(holdConversation, conversationHistory, textReferences, imageReferences, shouldEndConversation);
+            // function call or not?
+            var composedResult = streamEntry.Result.Composed;
+            var message = streamEntry.Result.Composed.GetFirstAnswer();
+            if (message.Function == null)
+            {
+                result = ParseAnswerWithReferences(holdConversation, conversationHistory, textReferences, imageReferences, shouldEndConversation);
 
-            conversationHistory.StreamingResponseChunks.Clear();
-            conversationHistory.IsStreaming = false;
-            var answer = streamEntry.Result.CombineStreamAnswer();
-            conversationHistory.AppendToConversation(holdConversation.UserPrompt, answer);
+                conversationHistory.StreamingResponseChunks.Clear();
+                conversationHistory.IsStreaming = false;
+
+                conversationHistory.AppendToConversation(holdConversation.UserPrompt, message);
+            }
+            else
+            {
+                // call the function
+                conversationHistory.AppendToConversation(holdConversation.UserPrompt, message);
+            }
+
             conversationHistory.SaveConversationHistory(_conversationsCache, cacheKey);
+
+            composedMessage.Content = message.Content;
+            composedMessage.Function = message.Function;
+            composedMessage.Role = message.Role;
+            composedMessage.Name = message.Name;
         }
         else
         {
-            conversationHistory.IsLastChunk = false;
-            var chunkedAnswer = chunk.Delta?.Content ?? string.Empty;
-            conversationHistory.StreamingResponseChunks.Add(chunkedAnswer);
-            result = ParseAnswerWithReferences(holdConversation, conversationHistory, textReferences, imageReferences, shouldEndConversation);
+            if (!string.IsNullOrEmpty(chunk.Delta?.Content))
+            {
+                conversationHistory.IsLastChunk = false;
+                var chunkedAnswer = chunk.Delta?.Content ?? string.Empty;
+                conversationHistory.StreamingResponseChunks.Add(chunkedAnswer);
+                result = ParseAnswerWithReferences(holdConversation, conversationHistory, textReferences, imageReferences, shouldEndConversation);
+            }
+            else
+            {
+                return ValueTask.FromResult(StreamResult<ConversationReferencedResult>.Skip("NoChunkContent"));
+            }
         }
 
         if (conversationHistory.DebugEnabled)
@@ -253,7 +456,7 @@ public partial class ConversationService : IConversationService
             conversationHistory.InitializeDebugInformation();
         }
 
-        holdConversation.UserPrompt = holdConversation.UserPrompt.Trim();
+        holdConversation.UserPrompt.Content = holdConversation.UserPrompt.Content?.Trim() ?? "";
 
         var promptBuilder = new PromptBuilder(new StringBuilder((await ResourceHelper.GetEmbeddedResourceTextAsync(ResourceHelper.BasePromptFile)).Trim()))
             .ReplaceTenantPrompt(GetTenantPrompt(tenant))
@@ -264,12 +467,16 @@ public partial class ConversationService : IConversationService
         // add history of conversation to vector context
         foreach (var promptResponse in conversationHistory.PromptResponses.TakeLast(2))
         {
-            vectorPrompt.AppendLine(promptResponse.Prompt);
-            vectorPrompt.AppendLine(promptResponse.Response);
+            vectorPrompt.AppendLine(promptResponse.Prompt.Content);
+
+            if (!string.IsNullOrEmpty(promptResponse.Response.Content))
+            {
+                vectorPrompt.AppendLine(promptResponse.Response.Content);
+            }
         }
 
         // add last user prompt
-        vectorPrompt.AppendLine(holdConversation.UserPrompt);
+        vectorPrompt.AppendLine(holdConversation.UserPrompt.Content);
         // convert to keywords
         var keywords = await _keywordExtractorService.ExtractKeywordAsync(vectorPrompt.ToString());
 
@@ -309,7 +516,7 @@ public partial class ConversationService : IConversationService
 
                 ragClass.Sources.Add(new RAGSource()
                 {
-                    ReferenceId = $"{index}",  
+                    ReferenceId = $"{index}",
                     Properties = properties,
                 });
 
@@ -325,26 +532,56 @@ public partial class ConversationService : IConversationService
 
         Guid TENA_ID = Guid.Parse("CCFA9314-ABE6-403A-9E21-2B31D95A5258");
 
-        /*if (Guid.Parse(tenantId) == TENA_ID)
+        if (Guid.Parse(tenantId) == TENA_ID)
         {
             // specialleke voor tena
-            var articleNumber = Regex.Match(holdConversation.UserPrompt, @"\d+").Value;
+            var articleNumber = Regex.Match(holdConversation.UserPrompt.Content ?? "", @"\d+").Value;
 
             if (!string.IsNullOrEmpty(articleNumber))
             {
-                if (!productReferences.Any(p => p.ArticleNumber == articleNumber))
-                {
-                    var articleNumberReferences = await GetProductReferenceById(articleNumber,
-                        nameof(WebsitePage),
-                        tenantId,
-                        "English",
-                        ConversationReferenceType.Product.ToString(),
-                        cancellationToken);
+                var ragClass = ragDocument.Classes.FirstOrDefault(r => r.Name == "Product");
 
-                    productReferences.AddRange(articleNumberReferences);
+                if (ragClass != null)
+                {
+                    if (!ragClass.Sources.Any(p => p.Properties["ArticleNumber"] == articleNumber))
+                    {
+                        var articleNumberReferences = await GetProductReferenceById(articleNumber,
+                            nameof(WebsitePage),
+                            tenantId,
+                            "English",
+                            ConversationReferenceType.Product.ToString(),
+                            cancellationToken);
+
+                        foreach (var reference in articleNumberReferences)
+                        {
+                            index++;
+
+                            Dictionary<string, string> properties = new Dictionary<string, string>();
+                            properties["Content"] = reference.Content;
+                            properties["Title"] = reference.Title;
+
+                            if (ragClass.Name == "Product")
+                            {
+                                properties["ArticleNumber"] = reference.ArticleNumber;
+                                properties["Packaging"] = reference.Packaging;
+                            }
+
+                            ragClass.Sources.Add(new RAGSource()
+                            {
+                                ReferenceId = $"{index}",
+                                Properties = properties,
+                            });
+
+                            indexedTextReferences.Add(new SortedSearchReference()
+                            {
+                                Index = index,
+                                TextSearchReference = reference,
+                            });
+                        }
+                    }
                 }
             }
-        }*/
+        }
 
         // TODO: restore this, but better
         /*var imageReferences = await GetImageReferences(
@@ -356,7 +593,7 @@ public partial class ConversationService : IConversationService
         var imageReferences = new List<ImageSearchReference>();
 
         var ragString = await ragDocument.GenerateXMLStringAsync();
-        
+
         var systemPrompt = promptBuilder
             .ReplaceRAGDocument(ragString)
             .Build();
@@ -365,10 +602,44 @@ public partial class ConversationService : IConversationService
         var chatBuilder = _openAiFactory.CreateChat()
             .RequestWithSystemMessage(systemPrompt)
             .AddPreviousMessages(conversationHistory.PromptResponses)
-            .AddUserMessage(holdConversation.UserPrompt)
-            .AddUserMessage("Do not give me any information that is not mentioned in the <SOURCES> document")
-            .WithModel(chatModel)
+            .AddMessage(holdConversation.UserPrompt);
+
+        if (holdConversation.UserPrompt.Role == ChatRole.User)
+        {
+            chatBuilder.AddUserMessage("Do not give me any information that is not mentioned in the <SOURCES> document. Only use the functions you have been provided with.");
+        }
+
+        chatBuilder.WithModel(chatModel)
             .WithTemperature(0.75);
+
+        if (Guid.Parse(tenantId) == TENA_ID)
+        {
+            chatBuilder.WithFunction(new System.Text.Json.Serialization.JsonFunction()
+            {
+                Name = "get_product_recommendation",
+                Description = "Get a recommendation for a Tena incontenince product based on gender, level of incontinence and mobility",
+                Parameters = new JsonFunctionNonPrimitiveProperty()
+                .AddEnum("gender", new JsonFunctionEnumProperty
+                {
+                    Type = "string",
+                    Enums = new List<string> { "male", "female" },
+                    Description = "The gender of the person derived from the context, male (he/him) or female (she/her)",
+                })
+                .AddEnum("mobility", new JsonFunctionEnumProperty
+                {
+                    Type = "string",
+                    Enums = new List<string> { "mobile", "needs_help_toilet", "bedridden" },
+                    Description = "The level of mobility of the incontinent person from mobile and being able to go to the toilet himself to bedridden",
+                })
+                .AddEnum("incontinence_level", new JsonFunctionEnumProperty
+                {
+                    Type = "string",
+                    Enums = new List<string> { "small", "light", "moderate", "heavy", "very_heavy" },
+                    Description = "How heavy the urine loss is, from very small drops to a full cup of urine loss. Ranging between; Small (drops making the underwear damp), Light (leakages making the underwear fairly wet), moderate (Quarter cup, making the underwear quite wet), heavy (Half cup, making the underwear very wet) and very heavy (Full cup, emptying more than half bladder). Do not make this data up, it should be explicetely mentioned by the user.",
+                })
+                .AddRequired("gender", "mobility", "incontinence_level")
+            });
+        }
 
         if (conversationHistory.DebugEnabled)
         {
@@ -391,7 +662,7 @@ public partial class ConversationService : IConversationService
         return tenant;
     }
 
-    
+
     private static ConversationReferencedResult ParseAnswerWithReferences(HoldConversation holdConversation,
         ConversationHistory conversationHistory,
         IReadOnlyCollection<SortedSearchReference> textReferences,
@@ -413,14 +684,14 @@ public partial class ConversationService : IConversationService
         {
             shouldReturnFullMessage = true;
             var (_, answer, _, _) = conversationHistory.PromptResponses.Last();
-            mergedAnswer = answer;
+            mergedAnswer = answer.Content;
         }
 
         Console.WriteLine($"Merged answer {mergedAnswer}");
 
         List<ConversationReference>? validReferences = null;
         if (shouldReturnFullMessage)
-        { 
+        {
             validReferences = DetermineValidReferences(textReferences, mergedAnswer);
 
             if (conversationHistory.DebugEnabled)
@@ -577,7 +848,8 @@ public partial class ConversationService : IConversationService
 
         return search
             .GroupBy(p => p.Source)
-            .Select(grouping => {
+            .Select(grouping =>
+            {
                 var first = grouping.First();
 
                 first.Text = string.Join(" ", grouping.Select(g => g.Text).ToList());
@@ -654,7 +926,8 @@ public partial class ConversationService : IConversationService
 
         return search
             .GroupBy(p => p.Source)
-            .Select(grouping => {
+            .Select(grouping =>
+            {
                 var first = grouping.First();
 
                 first.Text = string.Join(" ", grouping.Select(g => g.Text).ToList());

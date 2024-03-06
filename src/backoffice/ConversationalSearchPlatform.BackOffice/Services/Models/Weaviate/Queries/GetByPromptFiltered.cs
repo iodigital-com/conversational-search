@@ -22,9 +22,7 @@ public class GetByPromptFiltered
         string cleanQuery = HttpUtility.JavaScriptStringEncode(queryParams.query.ReplaceLineEndings(" "));
         var vectorAsJsonArray = JsonSerializer.Serialize(queryParams.Vector);
 
-        return new GraphQLRequest
-        {
-            Query = $$"""
+        var query = $$"""
                       {
                       	Get {
                       		{{queryParams.CollectionName}}(
@@ -63,7 +61,11 @@ public class GetByPromptFiltered
                       		}
                       	}
                       }
-                      """
+                      """;
+
+        return new GraphQLRequest
+        {
+            Query = query,
         };
     }
 

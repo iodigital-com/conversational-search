@@ -5,21 +5,10 @@ using Rystem.OpenAi.Chat;
 
 namespace ConversationalSearchPlatform.BackOffice.Services.Models;
 
-public enum PromptType
-{
-    User,
-    FunctionResponse,
-}
-
-public enum ResponseType
-{
-    Assistant,
-    FunctionRequest,
-}
 
 public class ConversationExchange
 {
-    public ConversationExchange(string prompt, string response, List<string> promptKeywords, List<string> responseKeywords)
+    public ConversationExchange(ChatMessage prompt, ChatMessage response, List<string> promptKeywords, List<string> responseKeywords)
     {
         Prompt = prompt;
         Response = response;
@@ -27,29 +16,18 @@ public class ConversationExchange
         ResponseKeywords = responseKeywords;
     }
 
-    public ConversationExchange(string prompt, string response)
+    public ConversationExchange(ChatMessage prompt, ChatMessage response)
     {
         Prompt = prompt;
         Response = response;
     }
 
-    public ConversationExchange(string prompt, PromptType promptType, string response, ResponseType responseType)
-    {
-        Prompt = prompt;
-        PromptType = promptType;
-        Response = response;
-        ResponseType = responseType;
-    }
-
-    public PromptType PromptType { get; set; } = PromptType.User;
-    public ResponseType ResponseType { get; set; } = ResponseType.Assistant;
-
-    public string Prompt { get; init; }
-    public string Response { get; init; }
+    public ChatMessage Prompt { get; init; }
+    public ChatMessage Response { get; init; }
     public List<string> PromptKeywords { get; set; } = new();
     public List<string> ResponseKeywords { get; set; } = new();
 
-    public void Deconstruct(out string prompt, out string response, out List<string> promptKeywords, out List<string> responseKeywords)
+    public void Deconstruct(out ChatMessage prompt, out ChatMessage response, out List<string> promptKeywords, out List<string> responseKeywords)
     {
         prompt = Prompt;
         response = Response;
@@ -77,7 +55,7 @@ public class ConversationHistory(ChatModel model, int amountOfSearchReferences)
 
     public string GetAllStreamingResponseChunksMerged() => string.Join(null, StreamingResponseChunks);
 
-    public void AppendToConversation(string prompt, string answer)
+    public void AppendToConversation(ChatMessage prompt, ChatMessage answer)
     {
         PromptResponses.Add(new ConversationExchange(prompt, answer));
     }

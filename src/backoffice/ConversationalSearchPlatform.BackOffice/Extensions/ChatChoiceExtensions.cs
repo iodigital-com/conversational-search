@@ -19,6 +19,10 @@ public static class ChatChoiceExtensions
                 completed = true;
                 break;
 
+            case { FinishReason: "function_call" }:
+                completed = true;
+                break;
+
             case { FinishReason: "length" }:
                 completed = true;
                 logger.LogDebug("Stopped due to length");

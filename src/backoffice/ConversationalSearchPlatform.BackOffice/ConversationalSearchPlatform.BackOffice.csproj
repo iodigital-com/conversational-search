@@ -75,4 +75,8 @@
     <_ContentIncludedByDefault Remove="Components\TryItOut\TryItOut.razor" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\Jint.Fetch\Jint.Fetch.csproj" />
+  </ItemGroup>
+
 </Project>
