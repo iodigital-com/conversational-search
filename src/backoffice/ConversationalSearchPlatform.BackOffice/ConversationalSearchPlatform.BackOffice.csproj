@@ -15,6 +15,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Remove="nuget.config" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Remove="Resources\KeywordsPrompt.txt" />
   </ItemGroup>
 
@@ -76,7 +80,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Jint.Fetch\Jint.Fetch.csproj" />
+    <None Include="nuget.config" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Jint.Fetch\Jint.Fetch.csproj" />
   </ItemGroup>
 
 </Project>

@@ -14,7 +14,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ConversationalSearchPlatfor
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ConversationalSearchPlatform.Widget", "widget\ConversationalSearchPlatform.Widget\ConversationalSearchPlatform.Widget.csproj", "{687A9754-5AAB-47F8-AA76-9A959C1D613E}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jint.Fetch", "Jint.Fetch\Jint.Fetch.csproj", "{88306706-982B-44EB-8678-96E709FB17C6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jint.Fetch", "backoffice\Jint.Fetch\Jint.Fetch.csproj", "{A2C66DE1-F6E2-4C11-BFE4-5A56A70EDFE0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -34,12 +34,15 @@ Global
 		{687A9754-5AAB-47F8-AA76-9A959C1D613E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{687A9754-5AAB-47F8-AA76-9A959C1D613E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{687A9754-5AAB-47F8-AA76-9A959C1D613E}.Release|Any CPU.Build.0 = Release|Any CPU
-		{88306706-982B-44EB-8678-96E709FB17C6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{88306706-982B-44EB-8678-96E709FB17C6}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{88306706-982B-44EB-8678-96E709FB17C6}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{88306706-982B-44EB-8678-96E709FB17C6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A2C66DE1-F6E2-4C11-BFE4-5A56A70EDFE0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A2C66DE1-F6E2-4C11-BFE4-5A56A70EDFE0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A2C66DE1-F6E2-4C11-BFE4-5A56A70EDFE0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A2C66DE1-F6E2-4C11-BFE4-5A56A70EDFE0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {87158BAC-4264-4E15-9C23-B39181CD5DF6}
 	EndGlobalSection
 EndGlobal
