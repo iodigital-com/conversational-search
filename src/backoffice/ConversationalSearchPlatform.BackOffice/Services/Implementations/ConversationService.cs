@@ -375,8 +375,9 @@ public partial class ConversationService : IConversationService
         }
 
         _logger.LogInformation("Chunk: " + (chunk.Delta?.Content ?? ""));
+        _logger.LogInformation("Chunk finish reason: " + (chunk.FinishReason ?? "not finished"));
 
-        var completed = chunk.IsAnswerCompleted(_logger);
+        var completed = !string.IsNullOrWhiteSpace(chunk.FinishReason);
 
         var streamCancelledOrFinished = StreamCancelledOrFinished(completed, cancellationToken) && HasFullyComposedMessage(streamEntry);
 
