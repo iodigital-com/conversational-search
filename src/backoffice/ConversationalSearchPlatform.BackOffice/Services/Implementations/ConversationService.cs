@@ -18,6 +18,7 @@ using GraphQL;
 using Jint;
 using Jint.Fetch;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
 using Polly;
 using Rystem.OpenAi;
@@ -269,7 +270,7 @@ public partial class ConversationService : IConversationService
         dynamic argumentsObj = JObject.Parse(arguments);
 
         var engine = new Engine();
-        engine.SetValue("log", new Action<object>(Console.WriteLine))
+        engine.SetValue("log", new Action<object>((obj) => _logger.LogInformation(obj.ToString())))
             .SetValue("fetch", new Func<string, object, Task<FetchResult>>((uri, options) => FetchClass.Fetch(uri, FetchClass.ExpandoToOptionsObject(options))))
             .SetValue("__result", 0)
             .SetValue("genderCtx", argumentsObj.gender)
@@ -307,19 +308,19 @@ public partial class ConversationService : IConversationService
         var absorptionData;
         switch(incontinence_level) {
             case "small":
-                absorptionData = {"data-title":"0_5-drop-inco,1-drop-inco", "data-details":"0_5-drop-inco,1-drop-inco", "data-description":"VeryLight"};
+                absorptionData = {"data-title":"0_5-drop-inco,1-drop-inco","data-description":"VeryLight","data-details":"0_5-drop-inco,1-drop-inco","data-nearestrange":"1_5-drop-inco,2_5-drop-inco,2-drop-inco"};
                 break;
             case "light":
-                absorptionData = {"data-title":"1_5-drop-inco,2-drop-inco,2_5-drop-inco", "data-details":"1_5-drop-inco,2_5-drop-inco,2-drop-inco", "data-description":"Light"};
+                absorptionData = {"data-title":"1_5-drop-inco,2-drop-inco,2_5-drop-inco","data-description":"Light","data-details":"1_5-drop-inco,2_5-drop-inco,2-drop-inco","data-nearestrange":"3_5-drop-inco,3-drop-inco,4_5-drop-inco,4-drop-inco,5-drop-inco"};
                 break;
             case "moderate":
-                absorptionData = {"data-title":"3-drop-inco,3_5-drop-inco,4-drop-inco,4_5-drop-inco,5-drop-inco", "data-details":"3_5-drop-inco,3-drop-inco,4_5-drop-inco,4-drop-inco,5-drop-inco", "data-description":"Medium"};
+                absorptionData = {"data-title":"3-drop-inco,3_5-drop-inco,4-drop-inco,4_5-drop-inco,5-drop-inco","data-description":"Medium","data-details":"3_5-drop-inco,3-drop-inco,4_5-drop-inco,4-drop-inco,5-drop-inco","data-nearestrange":"5_5-drop-inco,6_5-drop-inco,6-drop-inco,7-drop-inco"};
                 break;
             case "heavy":
-                absorptionData = {"data-title":"5_5-drop-inco,6-drop-inco,6_5-drop-inco,7-drop-inco", "data-details":"5_5-drop-inco,6_5-drop-inco,6-drop-inco,7-drop-inco", "data-description":"Heavy"};
+                absorptionData = {"data-title":"5_5-drop-inco,6-drop-inco,6_5-drop-inco,7-drop-inco", "data-details":"5_5-drop-inco,6_5-drop-inco,6-drop-inco,7-drop-inco", "data-description":"Heavy", "data-nearestrange":"7_5-drop-inco,8_5-drop-inco,8-drop-inco,9-drop-inco"};
                 break;
             case "very_heavy":
-                absorptionData = {"data-title":"7_5-drop-inco,8-drop-inco,8_5-drop-inco,9-drop-inco", "data-details":"7_5-drop-inco,8_5-drop-inco,8-drop-inco,9-drop-inco", "data-description":"VeryHeavy"};
+                absorptionData = {"data-title":"7_5-drop-inco,8-drop-inco,8_5-drop-inco,9-drop-inco", "data-details":"7_5-drop-inco,8_5-drop-inco,8-drop-inco,9-drop-inco", "data-description":"VeryHeavy", "data-nearestrange":"5_5-drop-inco,6_5-drop-inco,6-drop-inco,7-drop-inco"};
                 break;
         }
 
@@ -329,14 +330,16 @@ public partial class ConversationService : IConversationService
             Mobility: mobilityData,
             Absorption: absorptionData
         });
+
+        log('Call productor selector api with body: ' + body);
+
         var response = await fetch("https://www.tena.co.uk/professionals/api/Services/ProductFinder/GetProductSelectorResult", { Method: "POST", Body: { inputData: body } });
         var content = await response.json();
 
-        var considerationProducts = [content.recommendedProduct.recommendedProduct, ...content.considerationProducts.products];
-
-        return considerationProducts.map((p) => {  
-                return { productName: p.productName }; 
-            });
+        return { 
+            recommended: content.recommendedProduct.recommendedProduct.productName,
+            additional: [...content.considerationProducts.products].map((p) => p.productName),
+        };
     };
 
     __result = await GetRecommendedProducts(genderCtx, mobilityCtx, incontinence_levelCtx);
@@ -350,6 +353,8 @@ public partial class ConversationService : IConversationService
 
 
         string jsonString = JsonSerializer.Serialize(engine.GetValue("__result").ToObject());
+
+        _logger.LogInformation($"Result of function call: {jsonString}");
 
         return jsonString;
     }
