@@ -117,7 +117,7 @@ public partial class ConversationService : IConversationService
                 conversationHistory.AppendToConversation(holdConversation.UserPrompt, answer);
 
                 // add the function reply
-                var functionReply = await Task<string>.Run(() => {
+                var (functionReply, keywordString) = await Task<string>.Run(() => {
 
                     var functionReplyTask = CallFunction(answer.Function.Name, answer.Function.Arguments);
 
@@ -212,7 +212,7 @@ public partial class ConversationService : IConversationService
         if (composedMessage.Function != null)
         {
             // add the function reply
-            var functionReply = await Task<string>.Run(() => {
+            var (functionReply, keywordString) = await Task<string>.Run(() => {
 
                 var functionReplyTask = CallFunction(composedMessage.Function.Name, composedMessage.Function.Arguments);
 
@@ -265,13 +265,15 @@ public partial class ConversationService : IConversationService
         return new ConversationContext(tags.ToList());
     }
 
-    private string CallFunction(string? functionName, string? arguments)
+    private (string functionResults, string keywordString) CallFunction(string? functionName, string? arguments)
     {
+        string keywordString = string.Empty;
         dynamic argumentsObj = JObject.Parse(arguments);
 
         var engine = new Engine();
         engine.SetValue("log", new Action<object>((obj) => _logger.LogInformation(obj.ToString())))
             .SetValue("fetch", new Func<string, object, Task<FetchResult>>((uri, options) => FetchClass.Fetch(uri, FetchClass.ExpandoToOptionsObject(options))))
+            .SetValue("__keyword_string", keywordString)
             .SetValue("__result", 0)
             .SetValue("genderCtx", argumentsObj.gender)
             .SetValue("mobilityCtx", argumentsObj.mobility)
@@ -356,7 +358,7 @@ public partial class ConversationService : IConversationService
 
         _logger.LogInformation($"Result of function call: {jsonString}");
 
-        return jsonString;
+        return (jsonString, keywordString);
     }
 
 
