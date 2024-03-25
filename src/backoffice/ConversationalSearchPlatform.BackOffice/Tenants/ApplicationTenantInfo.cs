@@ -10,6 +10,9 @@ public class ApplicationTenantInfo : TenantInfo
     }
 
     public ChatModel ChatModel { get; set; }
+
+    public string XPathForSite { get; set; } = "";
+
     public string? BasePrompt { get; set; }
     public int AmountOfSearchReferences { get; set; } = 5;
 

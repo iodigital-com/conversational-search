@@ -1,5 +1,3 @@
-using System.Diagnostics.Eventing.Reader;
-using System.Dynamic;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
@@ -18,9 +16,7 @@ using GraphQL;
 using Jint;
 using Jint.Fetch;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
-using Polly;
 using Rystem.OpenAi;
 using Rystem.OpenAi.Chat;
 using Language = ConversationalSearchPlatform.BackOffice.Services.Models.Language;
@@ -268,16 +264,14 @@ public partial class ConversationService : IConversationService
     private (string functionResults, string keywordString) CallFunction(string? functionName, string? arguments)
     {
         string keywordString = string.Empty;
-        dynamic argumentsObj = JObject.Parse(arguments);
+        dynamic context = JObject.Parse(arguments);
 
         var engine = new Engine();
         engine.SetValue("log", new Action<object>((obj) => _logger.LogInformation(obj.ToString())))
             .SetValue("fetch", new Func<string, object, Task<FetchResult>>((uri, options) => FetchClass.Fetch(uri, FetchClass.ExpandoToOptionsObject(options))))
             .SetValue("__keyword_string", keywordString)
             .SetValue("__result", 0)
-            .SetValue("genderCtx", argumentsObj.gender)
-            .SetValue("mobilityCtx", argumentsObj.mobility)
-            .SetValue("incontinence_levelCtx", argumentsObj.incontinence_level);
+            .SetValue("ctx", context);
 
         try
         {
@@ -344,7 +338,7 @@ public partial class ConversationService : IConversationService
         };
     };
 
-    __result = await GetRecommendedProducts(genderCtx, mobilityCtx, incontinence_levelCtx);
+    __result = await GetRecommendedProducts(ctx.gender, ctx.mobility, ctx.incontinence_level);
 })();
 """);
         }
