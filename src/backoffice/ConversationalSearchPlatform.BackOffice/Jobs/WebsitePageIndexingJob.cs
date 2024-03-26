@@ -16,11 +16,51 @@ using Serilog;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Web;
 
 namespace ConversationalSearchPlatform.BackOffice.Jobs;
 
 public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexingDetails>
 {
+    private class Node
+    {
+        public HtmlNode Ancestor { get; private set; }
+        public HtmlNode HtmlNode { get; private set; }
+        public string InnerText { get; set; } = "";
+
+        public Node(HtmlNode ancestor, HtmlNode htmlNode)
+        {
+            Ancestor = ancestor;
+            HtmlNode = htmlNode;
+        }
+
+        public int TitleScore
+        {
+            get
+            {
+                var score = 0;
+                if (HtmlNode?.Name.ToLower() == "h1")
+                {
+                    score = 100;
+                }
+
+                if (HtmlNode?.Name.ToLower() == "h2")
+                {
+                    score = 90;
+                }
+
+                if (HtmlNode.Name.ToLower() == "h3")
+                {
+                    score = 80;
+                }
+
+
+
+                return score;
+            }
+        }
+    }
+
     private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
     private readonly IMultiTenantContextAccessor<ApplicationTenantInfo> _tenantContextAccessor;
     private readonly IMultiTenantStore<ApplicationTenantInfo> _multiTenantStore;
@@ -322,7 +362,7 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
                     await _vectorizationService.BulkCreateAsync(nameof(WebsitePage), websitePage.Id, scrapeResult.PageTitle, tenantId, UsageType.Indexing, chunkCollection);
                 }
             }
-            else
+            else if(websitePage.Url.Contains("tena.co.uk"))
             {
                 List<ChunkResult> chunks = new List<ChunkResult>();
 
@@ -350,7 +390,34 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
 
                     await _vectorizationService.BulkCreateAsync(nameof(WebsitePage), websitePage.Id, scrapeResult.PageTitle, tenantId, UsageType.Indexing, chunkCollection);
                 }
-            }    
+            }  
+            else
+            {
+                // general chunking algorithm
+                // get the xpath expression for the tenant
+                var tenantInfo = await _multiTenantStore.TryGetAsync(tenantId);
+
+                if (tenantInfo != null)
+                {
+                    var chunks = ChunkGenericHtmlPage(htmlDoc, tenantInfo.XPathForSite).Select(chunk => new ChunkResult()
+                    {
+                        ArticleNumber = string.Empty,
+                        Text = chunk,
+                        Packaging = string.Empty,
+                    }).ToList();
+
+                    if (chunks.Count() > 0)
+                    {
+                        ChunkCollection chunkCollection = new ChunkCollection(tenantId, websitePage.Id.ToString(), websitePage.Url, websitePage.ReferenceType.ToString(), websitePage.Language.ToString(), chunks);
+
+                        await _vectorizationService.BulkCreateAsync(nameof(WebsitePage), websitePage.Id, scrapeResult.PageTitle, tenantId, UsageType.Indexing, chunkCollection);
+                    }
+                }
+                else
+                {
+                    throw new Exception("Tenant not found");
+                }
+            }
         } 
         else
         {
@@ -415,6 +482,152 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
         websitePage.IndexedAt = DateTimeOffset.UtcNow;
 
         await db.SaveChangesAsync();
+    }
+
+    private List<string> ChunkGenericHtmlPage(HtmlDocument htmlDocument, string xpath)
+    {
+        HttpClient client = new HttpClient();
+
+        var rootnode = htmlDocument.DocumentNode.SelectSingleNode("//div[contains(@id, 'root')]");
+
+        var textNodesToFlatten = htmlDocument.DocumentNode.SelectNodes($"{xpath}//*");
+
+        if (textNodesToFlatten != null)
+        {
+            foreach (var textNodeToFlatten in textNodesToFlatten)
+            {
+                var urlInnerText = textNodeToFlatten.InnerText.Trim();
+
+                if (HasRealTextSibbling(textNodeToFlatten))
+                {
+                    if (!string.IsNullOrWhiteSpace(urlInnerText))
+                    {
+                        textNodeToFlatten.ParentNode.ReplaceChild(htmlDocument.CreateTextNode(urlInnerText), textNodeToFlatten);
+                    }
+                }
+            }
+        }
+
+        var newHtml = htmlDocument.DocumentNode.InnerHtml;
+
+        HtmlDocument flattendDocument = new HtmlDocument();
+        flattendDocument.LoadHtml(newHtml);
+
+        var nodes = flattendDocument.DocumentNode.SelectNodes($"{xpath}//text()");
+
+        List<Node> textNodes = new List<Node>();
+
+        if (textNodes != null)
+        {
+            foreach (var node in nodes)
+            {
+                if (node.ParentNode.Name == "option" || node.ParentNode.Name == "label" || node.ParentNode.Name == "script")
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(node.InnerText))
+                {
+                    var innerText = HttpUtility.HtmlDecode(node.InnerText.Trim());
+                    HtmlNode? nodeAncestor = null;
+
+                    // find my parent
+                    foreach (var ancestor in node.Ancestors())
+                    {
+                        var ancestorInnerText = HttpUtility.HtmlDecode(ancestor.InnerText.Trim());
+
+                        if (string.IsNullOrWhiteSpace(ancestorInnerText))
+                        {
+                            continue;
+                        }
+
+                        if (ancestorInnerText != innerText)
+                        {
+                            nodeAncestor = ancestor;
+
+                            break;
+                        }
+                    }
+
+                    if (nodeAncestor != null)
+                    {
+                        textNodes.Add(new Node(nodeAncestor, node)
+                        {
+                            InnerText = innerText,
+                        });
+                    }
+                }
+
+            }
+
+            // remove common strings
+            var frequencyMap = textNodes.GroupBy(s => s.InnerText)
+                                          .ToDictionary(g => g.Key, g => g.Count());
+            double mean = frequencyMap.Values.Average();
+            double sumOfSquaresOfDifferences = frequencyMap.Values.Select(val => (val - mean) * (val - mean)).Sum();
+            double stdDev = Math.Sqrt(sumOfSquaresOfDifferences / frequencyMap.Count);
+
+            var thresholdZScore = 3.0; // Customize this threshold based on your needs
+            var stringsToRemove = frequencyMap.Where(kvp =>
+                (kvp.Value - mean) / stdDev > thresholdZScore)
+                .Select(kvp => kvp.Key)
+                .ToList();
+
+            textNodes.RemoveAll(node => stringsToRemove.Contains(node.InnerText));
+
+            List<string> chunks = new List<string>();
+            int maxSize = 2048;
+
+            if (textNodes.Count > 0)
+            {
+                StringBuilder builder = new StringBuilder();
+                HtmlNode previousAncestor = textNodes[0].Ancestor;
+                foreach (var textNode in textNodes)
+                {
+                    if (textNode.Ancestor != previousAncestor)
+                    {
+                        // are we a descendant?
+                        if (!(previousAncestor.Descendants().Contains(textNode.Ancestor) && builder.Length < maxSize))
+                        {
+                            previousAncestor = textNode.Ancestor;
+                            chunks.Add(builder.ToString());
+                            builder.Clear();
+                        }
+                    }
+
+                    builder.AppendLine(textNode.InnerText);
+                }
+
+                chunks.Add(builder.ToString());
+            }
+
+            return chunks;
+        }
+
+        return new List<string>();
+    }
+
+    private bool HasRealTextSibbling(HtmlNode htmlNode)
+    {
+        if (htmlNode.NextSibling?.NodeType == HtmlNodeType.Text)
+        {
+            var cleanedString = Regex.Replace(htmlNode.NextSibling.InnerText.Trim(), @"\s+", "");
+            if (!string.IsNullOrEmpty(cleanedString))
+            {
+                return true;
+            }
+        }
+
+        if (htmlNode.PreviousSibling?.NodeType == HtmlNodeType.Text)
+        {
+            var cleanedString = Regex.Replace(htmlNode.PreviousSibling.InnerText.Trim(), @"\s+", "");
+            if (!string.IsNullOrEmpty(cleanedString))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
 

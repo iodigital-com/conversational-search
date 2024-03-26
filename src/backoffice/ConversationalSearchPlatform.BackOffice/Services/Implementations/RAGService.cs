@@ -6,6 +6,8 @@ namespace ConversationalSearchPlatform.BackOffice.Services.Implementations
     {
         private readonly Guid TENA_ID = Guid.Parse("CCFA9314-ABE6-403A-9E21-2B31D95A5258");
         private readonly Guid IODIGITAL_ID = Guid.Parse("4903E29F-D633-4A4C-9065-FE3DD8F27E40");
+        private readonly Guid AXA_ID = Guid.Parse("37f63c3e-e897-42a7-ab79-7052ef8d9866");
+        private readonly Guid HELAN_ID = Guid.Parse("3c9189de-87b2-47ac-ada1-25bcec668b89");
 
         public Task<RAGDocument> GetRAGDocumentAsync(Guid tenantId)
         {
@@ -30,6 +32,22 @@ namespace ConversationalSearchPlatform.BackOffice.Services.Implementations
                 ragDocument.Classes.Add(new RAGClass()
                 {
                     Description = "The following text sources contain information that is available on the site. They form your knowledge base and thus extend and build upon the data you already have. Whenever a user asks a question about something that is contained within these documents, you can use the provided information to answer with certainty.",
+                    Name = "Site",
+                });
+            }
+            else if (tenantId == AXA_ID)
+            {
+                ragDocument.Classes.Add(new RAGClass()
+                {
+                    Description = "The following text sources contain information that is available on the AXA Partners site. They form your knowledge base and thus extend and build upon the data you already have. Whenever a user asks a question about something that is contained within these documents, you can use the provided information to answer with certainty.",
+                    Name = "Site",
+                });
+            }
+            else if (tenantId == HELAN_ID)
+            {
+                ragDocument.Classes.Add(new RAGClass()
+                {
+                    Description = "The following text sources contain information that is available on the Helan site. They form your knowledge base and thus extend and build upon the data you already have. Whenever a user asks a question about something that is contained within these documents, you can use the provided information to answer with certainty.",
                     Name = "Site",
                 });
             }
