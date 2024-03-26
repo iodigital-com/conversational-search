@@ -288,7 +288,7 @@ internal static class BootstrapExtensions
                 }));
         services.AddHangfireServer(options =>
         {
-            options.WorkerCount = 2; // TODO: might need to change this later. This is to not choke the parser for now
+            options.WorkerCount = 6; // TODO: might need to change this later. This is to not choke the parser for now
             options.Queues = QueueConstants.Queues;
         });
 
