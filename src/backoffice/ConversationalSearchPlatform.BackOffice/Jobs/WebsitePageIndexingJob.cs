@@ -521,7 +521,7 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
         {
             foreach (var node in nodes)
             {
-                if (node.ParentNode.Name == "option" || node.ParentNode.Name == "label" || node.ParentNode.Name == "script")
+                if (node.ParentNode.Name == "option" || node.ParentNode.Name == "label" || node.ParentNode.Name == "script" || node.ParentNode.Name == "style")
                 {
                     continue;
                 }
