@@ -7,6 +7,7 @@ using ConversationalSearchPlatform.BackOffice.Services;
 using ConversationalSearchPlatform.BackOffice.Services.Models;
 using ConversationalSearchPlatform.BackOffice.Services.Models.Weaviate.Queries;
 using ConversationalSearchPlatform.BackOffice.Tenants;
+using Esprima.Ast;
 using Finbuckle.MultiTenant;
 using Hangfire;
 using HtmlAgilityPack;
@@ -421,61 +422,108 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
         } 
         else
         {
-            var productText = new StringBuilder();
-            var packageText = "no package info";
-            var titleText = string.Empty;
-            var articleNumberText = "no article number";
-            var descriptionNodes = htmlDoc.DocumentNode.SelectNodes("//*[contains(@class, 'redesignProductheadline') or contains(@class, 'ContentSlideWrap')]");
-            if (descriptionNodes != null)
+            if (websitePage.Url.Contains("tena.co.uk"))
             {
-                foreach (var node in descriptionNodes)
+                var productText = new StringBuilder();
+                var packageText = "no package info";
+                var titleText = string.Empty;
+                var articleNumberText = "no article number";
+                var descriptionNodes = htmlDoc.DocumentNode.SelectNodes("//*[contains(@class, 'redesignProductheadline') or contains(@class, 'ContentSlideWrap')]");
+                if (descriptionNodes != null)
                 {
-                    var cleanText = Regex.Replace(node.InnerText, @"\s+", " ").Trim();
-                    cleanText = WebUtility.HtmlDecode(cleanText);
-                    productText.Append(cleanText);
-                    productText.Append(" ");
-
-                    if (titleText == "")
+                    foreach (var node in descriptionNodes)
                     {
-                        titleText = cleanText;
+                        var cleanText = Regex.Replace(node.InnerText, @"\s+", " ").Trim();
+                        cleanText = WebUtility.HtmlDecode(cleanText);
+                        productText.Append(cleanText);
+                        productText.Append(" ");
+
+                        if (titleText == "")
+                        {
+                            titleText = cleanText;
+                        }
                     }
                 }
-            }
 
-            var packageNodes = htmlDoc.DocumentNode.SelectNodes("//td[@data-label='Volume' or @data-label='Pieces' or @data-label='Pcs/Case']");
-            var packageBuilder = new StringBuilder();
-            if (packageNodes != null)
-            {
-                foreach (var pnode in packageNodes) 
+                var packageNodes = htmlDoc.DocumentNode.SelectNodes("//td[@data-label='Volume' or @data-label='Pieces' or @data-label='Pcs/Case']");
+                var packageBuilder = new StringBuilder();
+                if (packageNodes != null)
                 {
-                    var cleanText = Regex.Replace(pnode.InnerText, @"\s+", " ").Trim();
+                    foreach (var pnode in packageNodes)
+                    {
+                        var cleanText = Regex.Replace(pnode.InnerText, @"\s+", " ").Trim();
 
-                    packageBuilder.Append($"{pnode.GetAttributeValue("data-label", "")} {cleanText};");
+                        packageBuilder.Append($"{pnode.GetAttributeValue("data-label", "")} {cleanText};");
+                    }
+                }
+
+                if (packageBuilder.Length > 0)
+                {
+                    packageText = packageBuilder.ToString();
+                }
+
+                var articleNumberNodes = htmlDoc.DocumentNode.SelectNodes("//td[@data-label='Article #' or @data-label='Article Number']");
+
+                if (articleNumberNodes?.Count > 0)
+                {
+                    articleNumberText = articleNumberNodes[0].InnerText;
+                }
+
+                var chunkResult = new ChunkResult();
+                chunkResult.ArticleNumber = articleNumberText;
+                chunkResult.Text = productText.ToString().Trim();
+                chunkResult.Packaging = packageText.Trim();
+
+                if (!string.IsNullOrEmpty(chunkResult.Text))
+                {
+                    ChunkCollection chunkCollection = new ChunkCollection(tenantId, websitePage.Id.ToString(), websitePage.Url, websitePage.ReferenceType.ToString(), websitePage.Language.ToString(), new List<ChunkResult>() { chunkResult });
+
+                    await _vectorizationService.BulkCreateAsync(nameof(WebsitePage), websitePage.Id, titleText, tenantId, UsageType.Indexing, chunkCollection);
                 }
             }
-
-            if (packageBuilder.Length > 0)
+            else if (websitePage.Url.Contains("volvoce.com"))
             {
-                packageText = packageBuilder.ToString();
-            }
+                StringBuilder productStringBuilder = new StringBuilder();
 
-            var articleNumberNodes = htmlDoc.DocumentNode.SelectNodes("//td[@data-label='Article #' or @data-label='Article Number']");
+                // get the description
+                var h1Nodes = htmlDoc.DocumentNode.SelectNodes("//h1[contains(@class, 'h1')]");
+                var h1SubNodes = htmlDoc.DocumentNode.SelectNodes("//h1//*");
+                var descriptionNodes = htmlDoc.DocumentNode.SelectNodes("//div[contains(@class, 'overview-content')]");
+                var specificationNodes = htmlDoc.DocumentNode.SelectNodes("//table[contains(@class, 'specifications-table')]");
+                var benefitsNodes = htmlDoc.DocumentNode.SelectNodes("//script[contains(@type, 'text/template')]");
 
-            if (articleNumberNodes?.Count > 0)
-            {
-                articleNumberText = articleNumberNodes[0].InnerText;
-            }
+                var productTitle = $"{h1SubNodes.First().GetDirectInnerText().Trim()} - {h1Nodes.First().GetDirectInnerText().Trim()}";
+                productStringBuilder.AppendLine(productTitle);
 
-            var chunkResult = new ChunkResult();
-            chunkResult.ArticleNumber = articleNumberText;
-            chunkResult.Text = productText.ToString().Trim();
-            chunkResult.Packaging = packageText.Trim();
+                var description = $"Description: {descriptionNodes.First().InnerText.Trim()}";
+                productStringBuilder.AppendLine(description);
 
-            if (!string.IsNullOrEmpty(chunkResult.Text))
-            {
-                ChunkCollection chunkCollection = new ChunkCollection(tenantId, websitePage.Id.ToString(), websitePage.Url, websitePage.ReferenceType.ToString(), websitePage.Language.ToString(), new List<ChunkResult>() { chunkResult });
+                var specifications = $"Specifications of the product in html table format: {specificationNodes.First().InnerHtml.Trim()}";
+                productStringBuilder.AppendLine(specifications);
+                productStringBuilder.AppendLine($"Benefits of {productTitle}");
 
-                await _vectorizationService.BulkCreateAsync(nameof(WebsitePage), websitePage.Id, titleText, tenantId, UsageType.Indexing, chunkCollection);
+                foreach (var benefit in benefitsNodes)
+                {
+                    var benefitDoc = new HtmlDocument();
+                    benefitDoc.LoadHtml(benefit.InnerHtml);
+
+                    var cleanText = Regex.Replace(benefitDoc.DocumentNode.InnerText, @"\s+", " ").Trim();
+
+                    productStringBuilder.AppendLine(cleanText);
+                }
+
+                var chunks = new List<ChunkResult>();
+                var productChunk = new ChunkResult()
+                {
+                    ArticleNumber = string.Empty,
+                    Text = productStringBuilder.ToString(),
+                    Packaging = string.Empty,
+                };
+                chunks.Add(productChunk);
+
+                ChunkCollection chunkCollection = new ChunkCollection(tenantId, websitePage.Id.ToString(), websitePage.Url, websitePage.ReferenceType.ToString(), websitePage.Language.ToString(), chunks);
+
+                await _vectorizationService.BulkCreateAsync(nameof(WebsitePage), websitePage.Id, scrapeResult.PageTitle, tenantId, UsageType.Indexing, chunkCollection);
             }
         }
 
@@ -487,8 +535,6 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
     private List<string> ChunkGenericHtmlPage(HtmlDocument htmlDocument, string xpath)
     {
         HttpClient client = new HttpClient();
-
-        var rootnode = htmlDocument.DocumentNode.SelectSingleNode("//div[contains(@id, 'root')]");
 
         var textNodesToFlatten = htmlDocument.DocumentNode.SelectNodes($"{xpath}//*");
 

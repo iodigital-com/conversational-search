@@ -450,6 +450,7 @@ public partial class ConversationService : IConversationService
         ConversationHistory conversationHistory,
         CancellationToken cancellationToken)
     {
+        Guid TENA_ID = Guid.Parse("CCFA9314-ABE6-403A-9E21-2B31D95A5258");
         var tenantId = holdConversation.TenantId;
         var tenant = await GetTenantAsync(tenantId);
 
@@ -510,7 +511,7 @@ public partial class ConversationService : IConversationService
                 properties["Content"] = reference.Content;
                 properties["Title"] = reference.Title;
 
-                if (ragClass.Name == "Product")
+                if (ragClass.Name == "Product" && Guid.Parse(tenantId) == TENA_ID)
                 {
                     properties["ArticleNumber"] = reference.ArticleNumber;
                     properties["Packaging"] = reference.Packaging;
@@ -531,8 +532,6 @@ public partial class ConversationService : IConversationService
 
             references.AddRange(textReferences);
         }
-
-        Guid TENA_ID = Guid.Parse("CCFA9314-ABE6-403A-9E21-2B31D95A5258");
 
         if (Guid.Parse(tenantId) == TENA_ID)
         {
