@@ -189,7 +189,7 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
 
     private async Task DeleteImagesAsync(Guid indexable)
     {
-        var recordsLeftToDelete = true;
+        /*var recordsLeftToDelete = true;
 
         var request = GetImagesByInternalIdForDeletion.Request(new GetImagesByInternalIdForDeletion.GetImagesByInternalIdForDeletionQueryParams(indexable.ToString()));
 
@@ -214,7 +214,7 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
 
                 await _vectorizationService.BulkDeleteAsync(IndexingConstants.ImageClass, imageIdsToDelete);
             }
-        } while (recordsLeftToDelete);
+        } while (recordsLeftToDelete);*/
     }
 
     private async Task CreateEntry(ApplicationDbContext db, string tenantId, WebsitePageIndexingDetails details)
