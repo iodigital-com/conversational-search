@@ -13,6 +13,7 @@ using ConversationalSearchPlatform.BackOffice.Services.Models.Weaviate.Queries;
 using ConversationalSearchPlatform.BackOffice.Tenants;
 using Finbuckle.MultiTenant;
 using GraphQL;
+using HtmlAgilityPack;
 using Jint;
 using Jint.Fetch;
 using Microsoft.Extensions.Caching.Memory;
@@ -268,6 +269,13 @@ public partial class ConversationService : IConversationService
 
         var engine = new Engine();
         engine.SetValue("log", new Action<object>((obj) => _logger.LogInformation(obj.ToString())))
+            .SetValue("parseHtml", new Func<string, HtmlAgilityPack.HtmlDocument>((html) =>
+            {
+                var htmlDoc = new HtmlDocument();
+                htmlDoc.LoadHtml(html);
+
+                return htmlDoc;
+            }))
             .SetValue("fetch", new Func<string, object, Task<FetchResult>>((uri, options) => FetchClass.Fetch(uri, FetchClass.ExpandoToOptionsObject(options))))
             .SetValue("__keyword_string", keywordString)
             .SetValue("__result", 0)
