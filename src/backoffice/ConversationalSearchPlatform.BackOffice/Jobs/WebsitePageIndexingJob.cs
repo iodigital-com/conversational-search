@@ -531,7 +531,7 @@ public class WebsitePageIndexingJob : ITenantAwareIndexingJob<WebsitePageIndexin
 
         List<Node> textNodes = new List<Node>();
 
-        if (textNodes != null)
+        if (nodes != null)
         {
             foreach (var node in nodes)
             {
