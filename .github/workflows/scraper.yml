@@ -27,7 +27,7 @@
 # For more samples to get started with GitHub Action workflows to deploy to Azure, refer to https://github.com/Azure/actions-workflow-samples
 # For more options with the actions used below please refer to https://github.com/Azure/login
 
-name: Build and deploy scraper to AKS
+name: Build and deploy scraper to AKS - Production
 
 on:
   push:
@@ -37,14 +37,13 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_CONTAINER_REGISTRY: "tenaacr"
   CONTAINER_NAME: "csp-scraper"
-  RESOURCE_GROUP: "Tena"
-  CLUSTER_NAME: "tenaaks"
   DEPLOYMENT_MANIFEST_PATH: "./src/iac/3-scraper/0-pod.yml"
 
 jobs:
   buildImage:
+    environment:
+      name: test
     permissions:
       contents: read
       id-token: write
@@ -64,9 +63,11 @@ jobs:
       # Builds and pushes an image up to your Azure Container Registry
       - name: Build and push image to ACR
         run: |
-          az acr build --image ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.CONTAINER_NAME }}:${{ github.sha }} --registry ${{ env.AZURE_CONTAINER_REGISTRY }} -g ${{ env.RESOURCE_GROUP }} -f ./src/scraper/ConversationalSearchPlatform.Scraper/Dockerfile --build-arg ARCH=amd64 --platform linux/amd64 ./src/scraper/ConversationalSearchPlatform.Scraper/
+          az acr build --image ${{ secrets.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.CONTAINER_NAME }}:${{ github.sha }} --registry ${{ secrets.AZURE_CONTAINER_REGISTRY }} -g ${{ secrets.RESOURCE_GROUP }} -f ./src/scraper/ConversationalSearchPlatform.Scraper/Dockerfile --build-arg ARCH=amd64 --platform linux/amd64 ./src/scraper/ConversationalSearchPlatform.Scraper/
 
   deploy:
+    environment:
+      name: test
     permissions:
       actions: read
       contents: read
@@ -95,8 +96,8 @@ jobs:
       - name: Get K8s context
         uses: azure/aks-set-context@v3
         with:
-          resource-group: ${{ env.RESOURCE_GROUP }}
-          cluster-name: ${{ env.CLUSTER_NAME }}
+          resource-group: ${{ secrets.RESOURCE_GROUP }}
+          cluster-name: ${{ secrets.CLUSTER_NAME }}
           admin: 'false'
           use-kubelogin: 'true'
 
@@ -107,4 +108,4 @@ jobs:
           action: deploy
           manifests: ${{ env.DEPLOYMENT_MANIFEST_PATH }}
           images: |
-            ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.CONTAINER_NAME }}:${{ github.sha }}
+            ${{ secrets.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.CONTAINER_NAME }}:${{ github.sha }}

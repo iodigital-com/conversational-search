@@ -27,24 +27,23 @@
 # For more samples to get started with GitHub Action workflows to deploy to Azure, refer to https://github.com/Azure/actions-workflow-samples
 # For more options with the actions used below please refer to https://github.com/Azure/login
 
-name: Build and deploy app to AKS - Test
+name: Build and deploy scraper to AKS - Production
 
 on:
   push:
     paths:
-      - src/backoffice/**
-    branches: [ $default-branch ]
+      - src/scraper/**
+    branches: [$default-branch]
   workflow_dispatch:
 
 env:
-  CONTAINER_NAME: "csp-app"
-  RESOURCE_GROUP: "antcs-rg-test"
-  DEPLOYMENT_MANIFEST_PATH: "./src/iac/1-app/1-pod.yml"
+  CONTAINER_NAME: "csp-scraper"
+  DEPLOYMENT_MANIFEST_PATH: "./src/iac/3-scraper/0-pod.yml"
 
 jobs:
   buildImage:
     environment:
-      name: test
+      name: production
     permissions:
       contents: read
       id-token: write
@@ -64,17 +63,17 @@ jobs:
       # Builds and pushes an image up to your Azure Container Registry
       - name: Build and push image to ACR
         run: |
-          az acr build --image ${{ secrets.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.CONTAINER_NAME }}:${{ github.sha }} --registry ${{ secrets.AZURE_CONTAINER_REGISTRY }} -g ${{ secrets.RESOURCE_GROUP }} -f ./src/backoffice/Dockerfile ./src/backoffice/
+          az acr build --image ${{ secrets.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.CONTAINER_NAME }}:${{ github.sha }} --registry ${{ secrets.AZURE_CONTAINER_REGISTRY }} -g ${{ secrets.RESOURCE_GROUP }} -f ./src/scraper/ConversationalSearchPlatform.Scraper/Dockerfile --build-arg ARCH=amd64 --platform linux/amd64 ./src/scraper/ConversationalSearchPlatform.Scraper/
 
   deploy:
     environment:
-      name: test
+      name: production
     permissions:
       actions: read
       contents: read
       id-token: write
     runs-on: ubuntu-latest
-    needs: [ buildImage ]
+    needs: [buildImage]
     steps:
       # Checks out the repository this file is in
       - uses: actions/checkout@v3
