@@ -35,7 +35,7 @@ on:
 env:
   CONTAINER_NAME: "csp-app"
   RESOURCE_GROUP: "antcs-rg-test"
-  DEPLOYMENT_MANIFEST_PATH: "./src/iac/1-app/1-pod.yml"
+  DEPLOYMENT_MANIFEST_PATH: "./src/iac/1-app/1-pod-prod.yml"
 
 jobs:
   buildImage:

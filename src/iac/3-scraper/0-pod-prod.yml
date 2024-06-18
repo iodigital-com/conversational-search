@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: csp-scraper
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: csp-scraper
+  template:
+    metadata:
+      labels:
+        app: csp-scraper
+    spec:
+      containers:
+        - name: csp-scraper
+          image: 'antcsprodacr.azurecr.io/csp-scraper:f7d32184f696d54c5b0236c41770a51b2e629114' 
+          ports:
+            - containerPort: 8060
+          resources:
+            limits:
+              memory: 1280Mi
+            requests:
+              memory: 500Mi
+              cpu: "0.5"
+          livenessProbe:
+            httpGet:
+              path: '/healthz'
+              port: 8060
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 50
+          readinessProbe:
+            httpGet:
+              path: '/healthz'
+              port: 8060
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 50

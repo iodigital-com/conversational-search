@@ -38,7 +38,7 @@ on:
 
 env:
   CONTAINER_NAME: "csp-scraper"
-  DEPLOYMENT_MANIFEST_PATH: "./src/iac/3-scraper/0-pod.yml"
+  DEPLOYMENT_MANIFEST_PATH: "./src/iac/3-scraper/0-pod-prod.yml"
 
 jobs:
   buildImage:

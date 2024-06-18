@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: csp-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: csp-app
+  template:
+    metadata:
+      labels:
+        app: csp-app
+    spec:
+#      serviceAccountName: 'workload-identity-sa'
+      containers:
+        - name: csp-app
+          image: 'antcsprodacr.azurecr.io/csp-app:f7d32184f696d54c5b0236c41770a51b2e629114' #TODO tag 
+          ports:
+            - containerPort: 5000
+          resources:
+            limits:
+              memory: 1280Mi
+            requests:
+              memory: 500Mi
+              cpu: "0.5"
+          livenessProbe:
+            httpGet:
+              path: '/health'
+              port: 5000
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 50
+          readinessProbe:
+            httpGet:
+              path: '/health'
+              port: 5000
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 50
+          volumeMounts:
+            - name: secrets-store
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+          env:
+            - name: Weaviate__ApiKey
+              valueFrom:
+                secretKeyRef:
+                  name: appkvsecrets
+                  key: Weaviate__ApiKey
+            - name: OpenAi__ApiKey
+              valueFrom:
+                secretKeyRef:
+                  name: appkvsecrets
+                  key: OpenAi__ApiKey
+            - name: ConnectionStrings__DefaultConnection
+              valueFrom:
+                secretKeyRef:
+                  name: appkvsecrets
+                  key: ConnectionStrings__DefaultConnection
+            - name: Finbuckle__MultiTenant__Stores__ConfigurationStore__Defaults__ConnectionString
+              valueFrom:
+                secretKeyRef:
+                  name: appkvsecrets
+                  key: Finbuckle__MultiTenant__Stores__ConfigurationStore__Defaults__ConnectionString
+      volumes:
+        - name: secrets-store
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: "azure-kvname-workload-identity"
