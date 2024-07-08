@@ -1,7 +1,7 @@
 using ConversationalSearchPlatform.BackOffice.Services.Models;
 using ConversationalSearchPlatform.BackOffice.Services.Models.ConversationDebug;
 using Microsoft.Extensions.Caching.Memory;
-using Rystem.OpenAi.Chat;
+using OpenAI.Chat;
 
 namespace ConversationalSearchPlatform.BackOffice.Services.Models;
 
@@ -82,14 +82,14 @@ public static class ConversationHistoryExtensions
 
     public static void AppendPreRequestDebugInformation(
         this ConversationHistory conversationHistory,
-        ChatRequestBuilder chatBuilder,
+        List<ChatMessage> chatBuilder,
         List<TextSearchReference> textReferences,
         List<ImageSearchReference> imageReferences,
         PromptBuilder promptHolder)
     {
         var debugRecord = conversationHistory.DebugInformation?.DebugRecords.ElementAt(conversationHistory.DebugInformation.CurrentDebugRecordIndex)!;
 
-        debugRecord.FullPrompt = string.Join(Environment.NewLine, chatBuilder.GetCurrentMessages().Select(message => message.Content));
+        debugRecord.FullPrompt = string.Join(Environment.NewLine, chatBuilder.Select(message => message.Content));
         debugRecord.References = new References
         {
             Text = textReferences.Select(reference => new TextDebugInfo(reference.InternalId, false, reference.Source, reference.Content)).ToList(),

@@ -1,29 +1,25 @@
-using Rystem.OpenAi.Chat;
+using OpenAI.Chat;
 
 namespace ConversationalSearchPlatform.BackOffice.Extensions;
 
 public static class ChatResultExtensions
 {
-    public static ChatMessage GetFirstAnswer(this ChatResult chatResult)
+    public static ChatMessage GetFirstAnswer(this ChatCompletion chatResult)
     {
         var answer = chatResult
-                          .Choices?
+                          .Content
                           .FirstOrDefault()?
-                          .Message;
+                          .Text;
 
         if (answer == null)
         {
-            answer = new ChatMessage()
-            {
-                Role = ChatRole.Assistant,
-                Content = string.Empty,
-            };
+            return new AssistantChatMessage(string.Empty);
         }
 
-        return answer;
+        return new AssistantChatMessage(answer);
     }
 
-    public static string CombineStreamAnswer(this StreamingChatResult chatResult)
+    /*public static string CombineStreamAnswer(this StreamingChatResult chatResult)
     {
         var chatMessage = chatResult
             .Composed
@@ -32,8 +28,8 @@ public static class ChatResultExtensions
             .Select(choice => choice.Message)
             .First();
 
-        // For some reason the internal StringBuilder content does not get exposed onto the Content property, so were force it to toString();
+        // For some reason the internal StringBuilder content does not get exposed onto the Content property, so we force it to toString();
         chatMessage.InvokeMethod("BuildContent");
         return chatMessage!.Content ?? "";
-    }
+    }*/
 }

@@ -4,6 +4,7 @@
 @using ConversationalSearchPlatform.BackOffice.Services.Models
 @using ConversationalSearchPlatform.BackOffice.Services.Models.ConversationDebug
 @using ConversationalSearchPlatform.BackOffice.Components.Pages.Preferences.ChatComponent.State
+@using OpenAI.Chat
 @inject ChatRefreshState ChatRefreshState;
 @implements IDisposable
 @inject ISnackbar Snackbar;
@@ -192,7 +193,7 @@
         try
         {
             Loading = true;
-            conversationResult = await ConversationService.ConverseAsync(new HoldConversation(CurrentConversationId!.Value, TenantInfo.Id!, new Rystem.OpenAi.Chat.ChatMessage() { Content = prompt, Role = Rystem.OpenAi.Chat.ChatRole.User }, cleanedContextVariables, Debug, Language));
+            conversationResult = await ConversationService.ConverseAsync(new HoldConversation(CurrentConversationId!.Value, TenantInfo.Id!, new UserChatMessage(prompt), cleanedContextVariables, Debug, Language));
         }
         finally
         {

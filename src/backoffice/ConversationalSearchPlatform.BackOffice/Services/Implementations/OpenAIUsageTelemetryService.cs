@@ -3,7 +3,7 @@ using ConversationalSearchPlatform.BackOffice.Jobs;
 using ConversationalSearchPlatform.BackOffice.Jobs.Models;
 using ConversationalSearchPlatform.BackOffice.Services.Models;
 using Hangfire;
-using Rystem.OpenAi;
+using OpenAI.Chat;
 
 namespace ConversationalSearchPlatform.BackOffice.Services.Implementations;
 
@@ -12,9 +12,9 @@ public class OpenAIUsageTelemetryService(IBackgroundJobClient backgroundJobClien
     public void RegisterEmbeddingUsage(
         Guid correlationId,
         string tenantId,
-        Usage usage,
+        ChatTokenUsage usage,
         UsageType usageType = UsageType.Conversation,
-        EmbeddingModelType model = EmbeddingModelType.AdaTextEmbedding)
+        String model = "")
     {
         var evt = new OpenAICallExecutedEvent(
             correlationId,
@@ -23,7 +23,7 @@ public class OpenAIUsageTelemetryService(IBackgroundJobClient backgroundJobClien
             Enum.Parse<CallModel>(model.ToString()),
             usageType,
             0,
-            usage.PromptTokens!.Value,
+            usage.InputTokens,
             DateTimeOffset.UtcNow
         );
         backgroundJobClient.Enqueue<OpenAICallExecutedHandler>(QueueConstants.TelemetryQueue, handler => handler.Handle(evt));
@@ -32,7 +32,7 @@ public class OpenAIUsageTelemetryService(IBackgroundJobClient backgroundJobClien
     public void RegisterGPTUsage(
         Guid correlationId,
         string tenantId,
-        CompletionUsage usage,
+        ChatTokenUsage usage,
         ChatModel model)
     {
         var evt = new OpenAICallExecutedEvent(
@@ -41,8 +41,8 @@ public class OpenAIUsageTelemetryService(IBackgroundJobClient backgroundJobClien
             CallType.GPT,
             (CallModel)model,
             UsageType.Conversation,
-            usage.CompletionTokens!.Value,
-            usage.PromptTokens!.Value,
+            usage.OutputTokens,
+            usage.InputTokens,
             DateTimeOffset.UtcNow
         );
         backgroundJobClient.Enqueue<OpenAICallExecutedHandler>(QueueConstants.TelemetryQueue, handler => handler.Handle(evt));

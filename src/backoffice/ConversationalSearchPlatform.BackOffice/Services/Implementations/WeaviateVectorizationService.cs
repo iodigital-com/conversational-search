@@ -7,9 +7,9 @@ using ConversationalSearchPlatform.BackOffice.Services.Models.Weaviate;
 using ConversationalSearchPlatform.BackOffice.Services.Models.Weaviate.Queries;
 using ConversationalSearchPlatform.BackOffice.Services.Models.Weaviate.Schemas;
 using GraphQL;
+using OpenAI;
+using OpenAI.Embeddings;
 using GraphQL.Client.Abstractions;
-using Rystem.OpenAi;
-using Rystem.OpenAi.Embedding;
 using JsonException = Newtonsoft.Json.JsonException;
 
 namespace ConversationalSearchPlatform.BackOffice.Services.Implementations;
@@ -19,7 +19,7 @@ public class WeaviateVectorizationService : IVectorizationService
     private const string WeaviateHttpClientName = "Weaviate";
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IGraphQLClient _graphQLClient;
-    private readonly IOpenAiFactory _openAiFactory;
+    private readonly OpenAIClient _openAIClient;
     private readonly ILogger<WeaviateVectorizationService> _logger;
     private readonly IWeaviateRecordCreator<ImageResult, ImageCollection, ImageWeaviateCreateRecord> _imageCreator;
     private readonly IWeaviateRecordCreator<ChunkResult, ChunkCollection, WebsitePageWeaviateCreateRecord> _websitePageCreator;
@@ -28,7 +28,7 @@ public class WeaviateVectorizationService : IVectorizationService
     public WeaviateVectorizationService(ILogger<WeaviateVectorizationService> logger,
         IHttpClientFactory httpClientFactory,
         IGraphQLClient graphQLClient,
-        IOpenAiFactory openAiFactory,
+        OpenAIClient openAIClient,
         IWeaviateRecordCreator<ChunkResult, ChunkCollection, WebsitePageWeaviateCreateRecord> websitePageCreator,
         IWeaviateRecordCreator<ImageResult, ImageCollection, ImageWeaviateCreateRecord> imageCreator,
         IOpenAIUsageTelemetryService telemetryService)
@@ -36,7 +36,7 @@ public class WeaviateVectorizationService : IVectorizationService
         _logger = logger;
         _httpClientFactory = httpClientFactory;
         _graphQLClient = graphQLClient;
-        _openAiFactory = openAiFactory;
+        _openAIClient = openAIClient;
         _websitePageCreator = websitePageCreator;
         _imageCreator = imageCreator;
         _telemetryService = telemetryService;
@@ -44,7 +44,7 @@ public class WeaviateVectorizationService : IVectorizationService
 
     public async Task<float[]> CreateVectorAsync(Guid correlationId, string tenantId, UsageType usageType, string content)
     {
-        var openAiEmbedding = _openAiFactory.CreateEmbedding();
+        var openAiEmbedding = _openAIClient.GetEmbeddingClient(string.Empty);
         return await GetVectorDataAsync(openAiEmbedding, correlationId, tenantId, usageType, content);
     }
 
@@ -52,7 +52,7 @@ public class WeaviateVectorizationService : IVectorizationService
         IInsertableCollection<T> insertableCollection)
         where T : IInsertable
     {
-        var openAiEmbedding = _openAiFactory.CreateEmbedding();
+        var openAiEmbedding = _openAIClient.GetEmbeddingClient(string.Empty);
         var objectIds = new List<Guid>(insertableCollection.Items.Capacity);
 
         if (!await DoesCollectionExistAsync(collectionName))
@@ -76,7 +76,7 @@ public class WeaviateVectorizationService : IVectorizationService
         string title,
         UsageType usageType,
         IInsertableCollection<T> insertableCollection,
-        IOpenAiEmbedding openAiEmbedding,
+        EmbeddingClient openAiEmbedding,
         T item, List<Guid> objectIds)
         where T : IInsertable
     {
@@ -163,19 +163,14 @@ public class WeaviateVectorizationService : IVectorizationService
         return innerResponse.Deserialize<List<T>>() ?? new List<T>();
     }
 
-    private async Task<float[]> GetVectorDataAsync(IOpenAiEmbedding openAiEmbeddingFactory, Guid correlationId, string tenantId, UsageType usageType, string content)
+    private async Task<float[]> GetVectorDataAsync(EmbeddingClient embeddingClient, Guid correlationId, string tenantId, UsageType usageType, string content)
     {
-        var embeddingResult = await openAiEmbeddingFactory
-            .Request(content)
-            .WithModel(EmbeddingModelType.AdaTextEmbedding)
-            .ExecuteAndCalculateCostAsync();
+        var embeddingResult = await embeddingClient
+            .GenerateEmbeddingAsync(content);
 
-        _telemetryService.RegisterEmbeddingUsage(correlationId, tenantId, embeddingResult.Result.Usage!, usageType);
+        //_telemetryService.RegisterEmbeddingUsage(correlationId, tenantId, embeddingResult, usageType);
 
-        return (embeddingResult.Result.Data ?? new List<EmbeddingData>())
-               .Select(data => data.Embedding)
-               .First() ??
-               Array.Empty<float>();
+        return embeddingResult.Value.Vector.ToArray();
     }
 
     private async Task<bool> DoesCollectionExistAsync(string collectionName)

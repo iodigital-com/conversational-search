@@ -7,7 +7,6 @@ using ConversationalSearchPlatform.BackOffice.Services;
 using ConversationalSearchPlatform.BackOffice.Services.Models;
 using ConversationalSearchPlatform.BackOffice.Services.Models.Weaviate.Queries;
 using ConversationalSearchPlatform.BackOffice.Tenants;
-using Esprima.Ast;
 using Finbuckle.MultiTenant;
 using Hangfire;
 using HtmlAgilityPack;

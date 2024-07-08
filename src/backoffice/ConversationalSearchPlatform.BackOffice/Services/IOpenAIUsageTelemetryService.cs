@@ -1,6 +1,6 @@
 using ConversationalSearchPlatform.BackOffice.Jobs.Models;
 using ConversationalSearchPlatform.BackOffice.Services.Models;
-using Rystem.OpenAi;
+using OpenAI.Chat;
 
 namespace ConversationalSearchPlatform.BackOffice.Services;
 
@@ -9,15 +9,15 @@ public interface IOpenAIUsageTelemetryService
     void RegisterEmbeddingUsage(
         Guid correlationId,
         string tenantId,
-        Usage usage,
+        ChatTokenUsage usage,
         UsageType usageType = UsageType.Conversation,
-        EmbeddingModelType model = EmbeddingModelType.AdaTextEmbedding
+        String model = ""
     );
 
     void RegisterGPTUsage(
         Guid correlationId,
         string tenantId,
-        CompletionUsage usage,
+        ChatTokenUsage usage,
         ChatModel model
     );
 }
