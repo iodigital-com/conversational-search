@@ -13,10 +13,10 @@ metadata:
 spec:
   tls:
     - hosts:
-        - 'tena-search.antwerp.io-internal.dev'
+        - conversationalsearch.iodigital.com
       secretName: 'letsencrypt-prod' 
   rules:
-    - host: 'tena-search.antwerp.io-internal.dev'
+    - host: 'conversationalsearch.iodigital.com'
       http:
         paths:
           - path: /
