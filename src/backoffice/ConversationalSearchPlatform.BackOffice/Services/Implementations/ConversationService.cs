@@ -18,8 +18,8 @@ using Jint;
 using Jint.Fetch;
 using Microsoft.Extensions.Caching.Memory;
 using Newtonsoft.Json.Linq;
-using Rystem.OpenAi;
-using Rystem.OpenAi.Chat;
+using OpenAI;
+using OpenAI.Chat;
 using Language = ConversationalSearchPlatform.BackOffice.Services.Models.Language;
 
 namespace ConversationalSearchPlatform.BackOffice.Services.Implementations;
@@ -27,13 +27,13 @@ namespace ConversationalSearchPlatform.BackOffice.Services.Implementations;
 public partial class ConversationService : IConversationService
 {
     private readonly IMemoryCache _conversationsCache;
-    private readonly IOpenAiFactory _openAiFactory;
     private readonly IMultiTenantStore<ApplicationTenantInfo> _tenantStore;
     private readonly IVectorizationService _vectorizationService;
     private readonly IOpenAIUsageTelemetryService _telemetryService;
     private readonly IKeywordExtractorService _keywordExtractorService;
     private readonly IRagService _ragService;
     private readonly ILogger<ConversationService> _logger;
+    private readonly OpenAIClient _openAIClient;
 
 
     private readonly MemoryCacheEntryOptions _defaultMemoryCacheEntryOptions = new()
@@ -43,7 +43,7 @@ public partial class ConversationService : IConversationService
 
     public ConversationService(
         IMemoryCache conversationsCache,
-        IOpenAiFactory openAiFactory,
+        OpenAIClient openAIClient,
         IMultiTenantStore<ApplicationTenantInfo> tenantStore,
         IVectorizationService vectorizationService,
         ILogger<ConversationService> logger,
@@ -52,7 +52,7 @@ public partial class ConversationService : IConversationService
         IRagService ragService)
     {
         _conversationsCache = conversationsCache;
-        _openAiFactory = openAiFactory;
+        _openAIClient = openAIClient;
         _tenantStore = tenantStore;
         _vectorizationService = vectorizationService;
         _logger = logger;
@@ -88,27 +88,34 @@ public partial class ConversationService : IConversationService
         }
 
         var (chatBuilder, textReferences, imageReferences) = await BuildChatAsync(holdConversation, conversationHistory, cancellationToken);
-
-        ChatMessage answer = new ChatMessage() { Role = ChatRole.Assistant };
+        
+        ChatMessage answer;
         // don't give an answer when no references are found
         if (textReferences.Count == 0 && imageReferences.Count == 0)
         {
             shouldEndConversation = true;
 
-            answer.Content = "I'm sorry, but I couldn't find relevant information in my database. Try asking a new question, please.";
+            answer = new AssistantChatMessage("I'm sorry, but I couldn't find relevant information in my database. Try asking a new question, please.");
+            conversationHistory.AppendToConversation(holdConversation.UserPrompt, answer);
         }
         else
         {
-            var chatResult = await chatBuilder.ExecuteAndCalculateCostAsync(false, cancellationToken);
+            var chatClient = _openAIClient.GetChatClient("test");
+
+            var chatResult = await chatClient.CompleteChatAsync(chatBuilder, new ChatCompletionOptions()
+            {
+                Temperature = 0.7f,
+            });
+
             _telemetryService.RegisterGPTUsage(
                 holdConversation.ConversationId,
                 holdConversation.TenantId,
-                chatResult.Result.Usage ?? throw new InvalidOperationException("No usage was passed in after executing an OpenAI call"),
+                chatResult.Value.Usage ?? throw new InvalidOperationException("No usage was passed in after executing an OpenAI call"),
                 conversationHistory.Model
             );
 
-            answer = chatResult.Result.GetFirstAnswer();
-            if (answer.Function != null)
+            answer = chatResult.Value.GetFirstAnswer();
+            /*if (answer.Function != null)
             {
                 // call the function
                 conversationHistory.AppendToConversation(holdConversation.UserPrompt, answer);
@@ -142,9 +149,9 @@ public partial class ConversationService : IConversationService
                 conversationHistory.AppendToConversation(functionMessage, answer);
             }
             else
-            {
-                conversationHistory.AppendToConversation(holdConversation.UserPrompt, answer);
-            }
+            {*/
+            conversationHistory.AppendToConversation(holdConversation.UserPrompt, answer);
+            //}
         }
 
         conversationHistory.HasEnded = shouldEndConversation;
@@ -160,7 +167,7 @@ public partial class ConversationService : IConversationService
         string tenantId,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var cacheKey = GetCacheKey(holdConversation.ConversationId);
+        /*var cacheKey = GetCacheKey(holdConversation.ConversationId);
         var conversationHistory = GetConversationHistory(holdConversation, cacheKey);
         conversationHistory.IsStreaming = true;
         conversationHistory.DebugEnabled = holdConversation.Debug;
@@ -246,7 +253,9 @@ public partial class ConversationService : IConversationService
             {
                 yield return entry;
             }
-        }
+        }*/
+
+        yield return new ConversationReferencedResult(new ConversationResult(Guid.NewGuid(), "", Language.Dutch), new List<ConversationReference>(), true, null);
     }
 
     public async Task<ConversationContext> GetConversationContext(GetConversationContext getConversationContext)
@@ -364,7 +373,7 @@ public partial class ConversationService : IConversationService
     }
 
 
-    private ValueTask<StreamResult<ConversationReferencedResult>> ProcessStreamedChatChunk(HoldConversation holdConversation,
+    /*private ValueTask<StreamResult<ConversationReferencedResult>> ProcessStreamedChatChunk(HoldConversation holdConversation,
         CostResult<StreamingChatResult> streamEntry,
         string cacheKey,
         ConversationHistory conversationHistory,
@@ -451,9 +460,9 @@ public partial class ConversationService : IConversationService
 
 
         return ValueTask.FromResult(StreamResult<ConversationReferencedResult>.Ok(result));
-    }
+    }*/
 
-    private async Task<(ChatRequestBuilder chatRequestBuilder, List<SortedSearchReference>, List<ImageSearchReference>)> BuildChatAsync(
+    private async Task<(List<ChatMessage> messages, List<SortedSearchReference>, List<ImageSearchReference>)> BuildChatAsync(
         HoldConversation holdConversation,
         ConversationHistory conversationHistory,
         CancellationToken cancellationToken)
@@ -467,7 +476,7 @@ public partial class ConversationService : IConversationService
             conversationHistory.InitializeDebugInformation();
         }
 
-        holdConversation.UserPrompt.Content = holdConversation.UserPrompt.Content?.Trim() ?? "";
+        holdConversation.UserPrompt = new UserChatMessage(holdConversation.UserPrompt.Content.FirstOrDefault()?.Text?.Trim() ?? string.Empty);
 
         var promptBuilder = new PromptBuilder(new StringBuilder((await ResourceHelper.GetEmbeddedResourceTextAsync(ResourceHelper.BasePromptFile)).Trim()))
             .ReplaceTenantPrompt(GetTenantPrompt(tenant))
@@ -478,16 +487,16 @@ public partial class ConversationService : IConversationService
         // add history of conversation to vector context
         foreach (var promptResponse in conversationHistory.PromptResponses.TakeLast(2))
         {
-            vectorPrompt.AppendLine(promptResponse.Prompt.Content);
+            vectorPrompt.AppendLine(promptResponse.Prompt.Content.FirstOrDefault()?.Text ?? string.Empty);
 
-            if (!string.IsNullOrEmpty(promptResponse.Response.Content))
+            if (!string.IsNullOrEmpty(promptResponse.Response.Content.FirstOrDefault()?.Text ?? string.Empty))
             {
-                vectorPrompt.AppendLine(promptResponse.Response.Content);
+                vectorPrompt.AppendLine(promptResponse.Response.Content.FirstOrDefault()?.Text ?? string.Empty);
             }
         }
 
         // add last user prompt
-        vectorPrompt.AppendLine(holdConversation.UserPrompt.Content);
+        vectorPrompt.AppendLine(holdConversation.UserPrompt.Content.FirstOrDefault()?.Text ?? string.Empty);
         // convert to keywords
         var keywords = await _keywordExtractorService.ExtractKeywordAsync(vectorPrompt.ToString());
 
@@ -544,7 +553,7 @@ public partial class ConversationService : IConversationService
         if (Guid.Parse(tenantId) == TENA_ID)
         {
             // specialleke voor tena
-            var articleNumber = Regex.Match(holdConversation.UserPrompt.Content ?? "", @"\d+").Value;
+            var articleNumber = Regex.Match(holdConversation.UserPrompt.Content.FirstOrDefault()?.Text ?? string.Empty, @"\d+").Value;
 
             if (!string.IsNullOrEmpty(articleNumber))
             {
@@ -607,21 +616,22 @@ public partial class ConversationService : IConversationService
             .ReplaceRAGDocument(ragString)
             .Build();
 
-        var chatModel = (ChatModelType)conversationHistory.Model;
-        var chatBuilder = _openAiFactory.CreateChat()
-            .RequestWithSystemMessage(systemPrompt)
-            .AddPreviousMessages(conversationHistory.PromptResponses)
-            .AddMessage(holdConversation.UserPrompt);
-
-        if (holdConversation.UserPrompt.Role == ChatRole.User)
+        var chatBuilder = new List<ChatMessage>
         {
-            chatBuilder.AddUserMessage("Do not give me any information that is not mentioned in the <SOURCES> document. Only use the functions you have been provided with.");
+            new SystemChatMessage(systemPrompt)
+        };
+        chatBuilder.AddPreviousMessages(conversationHistory.PromptResponses);
+        chatBuilder.Add(holdConversation.UserPrompt);
+
+        if (holdConversation.UserPrompt is UserChatMessage)
+        {
+            chatBuilder.Add(new UserChatMessage("Do not give me any information that is not mentioned in the <SOURCES> document. Only use the functions you have been provided with."));
         }
 
-        chatBuilder.WithModel(chatModel)
-            .WithTemperature(0.75);
+        /*chatBuilder.WithModel(chatModel)
+            .WithTemperature(0.75);*/
 
-        if (Guid.Parse(tenantId) == TENA_ID)
+        /*if (Guid.Parse(tenantId) == TENA_ID)
         {
             chatBuilder.WithFunction(new System.Text.Json.Serialization.JsonFunction()
             {
@@ -648,7 +658,7 @@ public partial class ConversationService : IConversationService
                 })
                 .AddRequired("gender", "mobility", "incontinence_level")
             });
-        }
+        }*/
 
         if (conversationHistory.DebugEnabled)
         {
@@ -693,7 +703,7 @@ public partial class ConversationService : IConversationService
         {
             shouldReturnFullMessage = true;
             var (_, answer, _, _) = conversationHistory.PromptResponses.Last();
-            mergedAnswer = answer.Content;
+            mergedAnswer = answer.Content.FirstOrDefault()?.Text ?? string.Empty;
         }
 
         Console.WriteLine($"Merged answer {mergedAnswer}");
@@ -964,9 +974,9 @@ public partial class ConversationService : IConversationService
             .ToList();
     }
 
-    private static bool HasFullyComposedMessage(CostResult<StreamingChatResult> streamEntry) =>
+    /*private static bool HasFullyComposedMessage(CostResult<StreamingChatResult> streamEntry) =>
         streamEntry.Result.Composed.Choices != null &&
-        streamEntry.Result.Composed.Choices.Count != 0;
+        streamEntry.Result.Composed.Choices.Count != 0;*/
 
     private static bool StreamCancelledOrFinished(bool completed, CancellationToken cancellationToken) =>
         completed || cancellationToken.IsCancellationRequested;

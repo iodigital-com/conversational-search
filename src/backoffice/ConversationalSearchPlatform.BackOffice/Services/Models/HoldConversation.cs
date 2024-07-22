@@ -1,4 +1,4 @@
-using Rystem.OpenAi.Chat;
+using OpenAI.Chat;
 
 namespace ConversationalSearchPlatform.BackOffice.Services.Models;
 
