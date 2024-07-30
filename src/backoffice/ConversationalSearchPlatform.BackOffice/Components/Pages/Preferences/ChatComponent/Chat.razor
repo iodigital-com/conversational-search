@@ -86,6 +86,9 @@
                             <MudDivider Class="mt-2 mb-2" DividerType="@DividerType.FullWidth"/>
                             <MudText Typo="Typo.h5" Align="Align.Left" GutterBottom="true">Debug information</MudText>
 
+                            <MudText>Input tokens: @DebugInformation.Sum(di => di.UsedInputTokens)</MudText>
+                            <MudText>Output tokens: @DebugInformation.Sum(di => di.UsedOutputTokens)</MudText>
+
                             foreach (var record in DebugInformation.SelectMany(di => di.DebugRecords).OrderBy(record => record.ExecutedAt))
                             {
                                 <MudText>@record.ExecutedAt.ToString("G")</MudText>

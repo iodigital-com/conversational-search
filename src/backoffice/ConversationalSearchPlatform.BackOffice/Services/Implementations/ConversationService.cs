@@ -106,6 +106,7 @@ public partial class ConversationService : IConversationService
                 chatResult.Result.Usage ?? throw new InvalidOperationException("No usage was passed in after executing an OpenAI call"),
                 conversationHistory.Model
             );
+            conversationHistory.DebugInformation?.SetUsage(chatResult.Result.Usage);
 
             answer = chatResult.Result.GetFirstAnswer();
             if (answer.Function != null)
@@ -132,12 +133,14 @@ public partial class ConversationService : IConversationService
                 holdConversation.UserPrompt = functionMessage;
                 (chatBuilder, textReferences, imageReferences) = await BuildChatAsync(holdConversation, conversationHistory, cancellationToken);
                 chatResult = await chatBuilder.ExecuteAndCalculateCostAsync(false, cancellationToken);
-                    _telemetryService.RegisterGPTUsage(
+                _telemetryService.RegisterGPTUsage(
                     holdConversation.ConversationId,
                     holdConversation.TenantId,
                     chatResult.Result.Usage ?? throw new InvalidOperationException("No usage was passed in after executing an OpenAI call"),
                     conversationHistory.Model
                 );
+                conversationHistory.DebugInformation?.SetUsage(chatResult.Result.Usage);
+                
                 answer = chatResult.Result.GetFirstAnswer();
                 conversationHistory.AppendToConversation(functionMessage, answer);
             }

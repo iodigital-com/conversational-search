@@ -236,7 +236,7 @@ public static class ConversationalSearchEndpoints
                 ReplacedContextVariables = record.ReplacedContextVariables,
                 FullPrompt = record.FullPrompt
             })
-            .ToList());
+            .ToList(), debugInformation.UsedInputTokens, debugInformation.UsedOutputTokens);
     }
 
     private static List<ConversationReferenceResponse> MapReferencesToApiResponse(IEnumerable<ConversationReference> references) =>

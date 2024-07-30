@@ -71,7 +71,7 @@ public static class ConversationHistoryExtensions
 
     public static void InitializeDebugInformation(this ConversationHistory conversationHistory)
     {
-        conversationHistory.DebugInformation ??= new DebugInformation(new List<DebugRecord>());
+        conversationHistory.DebugInformation ??= new DebugInformation(new List<DebugRecord>(), 0, 0);
 
         conversationHistory.DebugInformation?.DebugRecords.Add(new DebugRecord
         {

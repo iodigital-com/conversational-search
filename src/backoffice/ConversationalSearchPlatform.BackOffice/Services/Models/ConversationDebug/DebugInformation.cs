@@ -1,17 +1,29 @@
+using Rystem.OpenAi;
 using System.Text.Json.Serialization;
 
 namespace ConversationalSearchPlatform.BackOffice.Services.Models.ConversationDebug;
 
-public record DebugInformation
+public class DebugInformation
 {
-    public DebugInformation(List<DebugRecord> debugRecords)
+    public DebugInformation(List<DebugRecord> debugRecords, int usedInputTokens, int usedOutputTokens)
     {
         DebugRecords = debugRecords;
+        UsedInputTokens = usedInputTokens;
+        UsedOutputTokens = usedOutputTokens;
     }
+
+    public int UsedInputTokens { get; set; } = 0;
+    public int UsedOutputTokens { get; set; } = 0;
 
     public int CurrentDebugRecordIndex { get; set; }
     [JsonPropertyName("debug")]
     public List<DebugRecord> DebugRecords { get; set; }
+
+    public void SetUsage(CompletionUsage usage)
+    {
+        UsedInputTokens += usage.PromptTokens ?? 0;
+        UsedOutputTokens += usage.CompletionTokens ?? 0;
+    }
 }
 
 public record DebugRecord
