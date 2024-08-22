@@ -36,7 +36,7 @@ public class OpenAIPriceFetchingService : IOpenAIPriceFetchingService
 
     private async Task<List<AzurePricingItem>> GetAsyncInternal(List<string> skuNames)
     {
-        var url = "/api/retail/prices?currencyCode=%27EUR%27&$filter=productName%20eq%20%27Azure%20OpenAI%27";
+        var url = "api/retail/prices?currencyCode=%27EUR%27&$filter=productName%20eq%20%27Azure%20OpenAI%27";
 
         var items = await FetchDataPagedAsync(url);
 
@@ -60,9 +60,7 @@ public class OpenAIPriceFetchingService : IOpenAIPriceFetchingService
         while (!string.IsNullOrWhiteSpace(nextPageLink))
         {
             var uri = new Uri(nextPageLink);
-            var host = uri.Host;
-
-            url = nextPageLink.Replace(host, string.Empty);
+            url = uri.PathAndQuery;
             pricingResponse = await FetchDataAsync(url);
 
             items.AddRange(pricingResponse.Items);

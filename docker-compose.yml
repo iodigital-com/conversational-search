@@ -14,7 +14,7 @@ services:
 
   csp-db-arm:
     image: mcr.microsoft.com/azure-sql-edge
-    container_name: csp-db
+    container_name: csp-db-arm
     cap_add: [ 'SYS_PTRACE' ]
     ports:
       - "1450:1433"
@@ -68,7 +68,7 @@ services:
     restart: always
   
   scraper-arm:
-    container_name: csp-scraper
+    container_name: csp-scraper-arm
     environment:
       ARCH: 'arm64'
       TARGETPLATFORM: 'linux/arm64'
