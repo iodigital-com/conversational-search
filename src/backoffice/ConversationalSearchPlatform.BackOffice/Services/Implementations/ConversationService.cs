@@ -495,6 +495,7 @@ public partial class ConversationService : IConversationService
         var keywords = await _keywordExtractorService.ExtractKeywordAsync(vectorPrompt.ToString());
 
         var vector = await _vectorizationService.CreateVectorAsync(holdConversation.ConversationId, holdConversation.TenantId, UsageType.Conversation, string.Join(' ', keywords));
+        var vectorLast = await _vectorizationService.CreateVectorAsync(holdConversation.ConversationId, holdConversation.TenantId, UsageType.Conversation, holdConversation.UserPrompt.Content);
 
         var ragDocument = await _ragService.GetRAGDocumentAsync(Guid.Parse(tenantId));
 
@@ -513,6 +514,18 @@ public partial class ConversationService : IConversationService
                 vectorPrompt.ToString(),
                 vector,
                 cancellationToken);
+
+            var textReferencesLast = await GetTextReferences(
+                conversationHistory,
+                nameof(WebsitePage),
+                tenantId,
+                "English",
+                ragClass.Name,
+                holdConversation.UserPrompt.Content,
+                vectorLast,
+                cancellationToken);
+
+            textReferences.AddRange(textReferencesLast);
 
             foreach (var reference in textReferences)
             {
