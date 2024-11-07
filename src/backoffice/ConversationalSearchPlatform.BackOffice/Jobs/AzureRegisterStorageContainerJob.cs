@@ -7,6 +7,6 @@ namespace ConversationalSearchPlatform.BackOffice.Jobs;
 /// </summary>
 public class AzureRegisterStorageContainerJob(IAzureBlobStorage blobStorage) : BackgroundService
 {
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken) =>
-        await blobStorage.CreateStorageContainerIfNotExistsAsync();
+    protected override Task ExecuteAsync(CancellationToken stoppingToken) => Task.CompletedTask;
+        //await blobStorage.CreateStorageContainerIfNotExistsAsync();
 }

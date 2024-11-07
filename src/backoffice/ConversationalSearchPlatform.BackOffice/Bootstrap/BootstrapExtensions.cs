@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Reflection;
+using Azure.AI.OpenAI;
 using ConversationalSearchPlatform.BackOffice.Constants;
 using ConversationalSearchPlatform.BackOffice.Data.Entities;
 using ConversationalSearchPlatform.BackOffice.Jobs;
@@ -21,7 +22,7 @@ using Hangfire.SqlServer;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
-using Rystem.OpenAi;
+using OpenAI;
 using Swashbuckle.AspNetCore.Filters;
 using TurnerSoftware.SitemapTools;
 using ReferenceType = Microsoft.OpenApi.Models.ReferenceType;
@@ -250,7 +251,13 @@ internal static class BootstrapExtensions
         var openAiSettings = configurationSection.Get<OpenAISettings>() ?? throw new InvalidOperationException("No OpenAiSettings found");
         services.AddOptions<OpenAISettings>().Bind(configurationSection);
 
-        services.AddOpenAi(settings =>
+        services.AddTransient<OpenAIClient>(provider =>
+        {
+            return new AzureOpenAIClient(new Uri($"https://{openAiSettings.ResourceName}.openai.azure.com/"),
+                new System.ClientModel.ApiKeyCredential(openAiSettings.ApiKey));
+        });
+
+        /*services.AddOpenAi(settings =>
         {
             settings.ApiKey = openAiSettings.ApiKey;
 
@@ -265,7 +272,7 @@ internal static class BootstrapExtensions
                 settings.Azure.MapDeploymentChatModel("gpt4-32-0613", ChatModelType.Gpt4_32K);
                 settings.Azure.MapDeploymentEmbeddingModel("text-embedding-ada-002-io-gpt", EmbeddingModelType.AdaTextEmbedding);
             }
-        });
+        });*/
         return services;
     }
 

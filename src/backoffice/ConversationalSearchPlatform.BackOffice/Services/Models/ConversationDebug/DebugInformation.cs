@@ -4,14 +4,25 @@ namespace ConversationalSearchPlatform.BackOffice.Services.Models.ConversationDe
 
 public record DebugInformation
 {
-    public DebugInformation(List<DebugRecord> debugRecords)
+    public DebugInformation(List<DebugRecord> debugRecords, int usedInputTokens, int usedOutputTokens)
     {
         DebugRecords = debugRecords;
+        UsedInputTokens = usedInputTokens;
+        UsedOutputTokens = usedOutputTokens;
     }
+
+    public int UsedInputTokens { get; set; } = 0;
+    public int UsedOutputTokens { get; set; } = 0;
 
     public int CurrentDebugRecordIndex { get; set; }
     [JsonPropertyName("debug")]
     public List<DebugRecord> DebugRecords { get; set; }
+
+    public void SetUsage(int inputTokens, int outputTokens)
+    {
+        UsedInputTokens += inputTokens;
+        UsedOutputTokens += outputTokens;
+    }
 }
 
 public record DebugRecord

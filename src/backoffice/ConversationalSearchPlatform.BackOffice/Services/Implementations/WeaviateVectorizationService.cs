@@ -44,7 +44,7 @@ public class WeaviateVectorizationService : IVectorizationService
 
     public async Task<float[]> CreateVectorAsync(Guid correlationId, string tenantId, UsageType usageType, string content)
     {
-        var openAiEmbedding = _openAIClient.GetEmbeddingClient(string.Empty);
+        var openAiEmbedding = _openAIClient.GetEmbeddingClient("text-embedding-ada-002-io-gpt");
         return await GetVectorDataAsync(openAiEmbedding, correlationId, tenantId, usageType, content);
     }
 
@@ -165,12 +165,12 @@ public class WeaviateVectorizationService : IVectorizationService
 
     private async Task<float[]> GetVectorDataAsync(EmbeddingClient embeddingClient, Guid correlationId, string tenantId, UsageType usageType, string content)
     {
-        var embeddingResult = await embeddingClient
+        OpenAIEmbedding embeddingResult = await embeddingClient
             .GenerateEmbeddingAsync(content);
 
         //_telemetryService.RegisterEmbeddingUsage(correlationId, tenantId, embeddingResult, usageType);
 
-        return embeddingResult.Value.Vector.ToArray();
+        return embeddingResult.ToFloats().ToArray();
     }
 
     private async Task<bool> DoesCollectionExistAsync(string collectionName)

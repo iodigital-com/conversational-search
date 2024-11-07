@@ -16,10 +16,15 @@ public record ConversationReferencedResponse(ConversationResponse Response,
 
 public record DebugInformationResponse
 {
-    public DebugInformationResponse(List<DebugRecordResponse> debugRecords)
+    public DebugInformationResponse(List<DebugRecordResponse> debugRecords, int usedInputTokens, int usedOutputTokens)
     {
         DebugRecords = debugRecords;
+        UsedInputTokens = usedInputTokens;
+        UsedOutputTokens = usedOutputTokens;
     }
+
+    public int UsedInputTokens { get; set; } = 0;
+    public int UsedOutputTokens { get; set; } = 0;
 
     [JsonPropertyName("debug")]
     public List<DebugRecordResponse> DebugRecords { get; set; }

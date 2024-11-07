@@ -1,46 +1,18 @@
-using ConversationalSearchPlatform.BackOffice.Services.Models;
 using ConversationalSearchPlatform.BackOffice.Services.Models.ConversationDebug;
 using Microsoft.Extensions.Caching.Memory;
 using OpenAI.Chat;
 
 namespace ConversationalSearchPlatform.BackOffice.Services.Models;
 
-
-public class ConversationExchange
-{
-    public ConversationExchange(ChatMessage prompt, ChatMessage response, List<string> promptKeywords, List<string> responseKeywords)
-    {
-        Prompt = prompt;
-        Response = response;
-        PromptKeywords = promptKeywords;
-        ResponseKeywords = responseKeywords;
-    }
-
-    public ConversationExchange(ChatMessage prompt, ChatMessage response)
-    {
-        Prompt = prompt;
-        Response = response;
-    }
-
-    public ChatMessage Prompt { get; init; }
-    public ChatMessage Response { get; init; }
-    public List<string> PromptKeywords { get; set; } = new();
-    public List<string> ResponseKeywords { get; set; } = new();
-
-    public void Deconstruct(out ChatMessage prompt, out ChatMessage response, out List<string> promptKeywords, out List<string> responseKeywords)
-    {
-        prompt = Prompt;
-        response = Response;
-        promptKeywords = PromptKeywords;
-        responseKeywords = PromptKeywords;
-    }
-}
-
 public class ConversationHistory(ChatModel model, int amountOfSearchReferences)
 {
 
-    public List<ConversationExchange> PromptResponses { get; set; } = new List<ConversationExchange>();
+    public List<ChatMessage> Messages { get; set; } = new List<ChatMessage>();
     public List<string> StreamingResponseChunks { get; set; } = new();
+
+    public List<string> Query { get; private set; } = new();
+
+    public int AnsweredMessages { get; private set; } = 0;
 
     public bool IsStreaming { get; set; }
     public bool IsLastChunk { get; set; } = false;
@@ -55,9 +27,22 @@ public class ConversationHistory(ChatModel model, int amountOfSearchReferences)
 
     public string GetAllStreamingResponseChunksMerged() => string.Join(null, StreamingResponseChunks);
 
-    public void AppendToConversation(ChatMessage prompt, ChatMessage answer)
+    public void AppendToConversation(ChatMessage message)
     {
-        PromptResponses.Add(new ConversationExchange(prompt, answer));
+        Messages.Add(message);
+
+        // is it a user message or assistant answer? Then add it to the query
+        if (message is UserChatMessage userChatMessage)
+        {
+            Query.Add(userChatMessage.Content[0].Text);
+        }
+
+        if (message is AssistantChatMessage assistantChatMessage &&
+            assistantChatMessage.ToolCalls.Count == 0)
+        {
+            Query.Add(assistantChatMessage.Content[0].Text);
+            AnsweredMessages++;
+        }
     }
 
 
@@ -71,7 +56,7 @@ public static class ConversationHistoryExtensions
 
     public static void InitializeDebugInformation(this ConversationHistory conversationHistory)
     {
-        conversationHistory.DebugInformation ??= new DebugInformation(new List<DebugRecord>());
+        conversationHistory.DebugInformation ??= new DebugInformation(new List<DebugRecord>(), 0, 0);
 
         conversationHistory.DebugInformation?.DebugRecords.Add(new DebugRecord
         {
@@ -89,7 +74,7 @@ public static class ConversationHistoryExtensions
     {
         var debugRecord = conversationHistory.DebugInformation?.DebugRecords.ElementAt(conversationHistory.DebugInformation.CurrentDebugRecordIndex)!;
 
-        debugRecord.FullPrompt = string.Join(Environment.NewLine, chatBuilder.Select(message => message.Content));
+        debugRecord.FullPrompt = string.Join(Environment.NewLine, chatBuilder.Select(message => message.Content[0].Text));
         debugRecord.References = new References
         {
             Text = textReferences.Select(reference => new TextDebugInfo(reference.InternalId, false, reference.Source, reference.Content)).ToList(),

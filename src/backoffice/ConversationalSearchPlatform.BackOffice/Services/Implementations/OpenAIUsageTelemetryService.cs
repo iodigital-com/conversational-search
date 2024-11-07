@@ -23,7 +23,7 @@ public class OpenAIUsageTelemetryService(IBackgroundJobClient backgroundJobClien
             Enum.Parse<CallModel>(model.ToString()),
             usageType,
             0,
-            usage.InputTokens,
+            usage.InputTokenCount,
             DateTimeOffset.UtcNow
         );
         backgroundJobClient.Enqueue<OpenAICallExecutedHandler>(QueueConstants.TelemetryQueue, handler => handler.Handle(evt));
@@ -41,8 +41,8 @@ public class OpenAIUsageTelemetryService(IBackgroundJobClient backgroundJobClien
             CallType.GPT,
             (CallModel)model,
             UsageType.Conversation,
-            usage.OutputTokens,
-            usage.InputTokens,
+            usage.OutputTokenCount,
+            usage.InputTokenCount,
             DateTimeOffset.UtcNow
         );
         backgroundJobClient.Enqueue<OpenAICallExecutedHandler>(QueueConstants.TelemetryQueue, handler => handler.Handle(evt));

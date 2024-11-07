@@ -15,7 +15,6 @@ using ConversationalSearchPlatform.BackOffice.Tenants;
 using Finbuckle.MultiTenant;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Identity.Client;
 using OpenAI.Chat;
 using Swashbuckle.AspNetCore.Filters;
 
@@ -237,7 +236,7 @@ public static class ConversationalSearchEndpoints
                 ReplacedContextVariables = record.ReplacedContextVariables,
                 FullPrompt = record.FullPrompt
             })
-            .ToList());
+            .ToList(), debugInformation.UsedInputTokens, debugInformation.UsedOutputTokens);
     }
 
     private static List<ConversationReferenceResponse> MapReferencesToApiResponse(IEnumerable<ConversationReference> references) =>

@@ -1,11 +1,9 @@
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using ConversationalSearchPlatform.BackOffice.Data.Entities;
 using ConversationalSearchPlatform.BackOffice.Exceptions;
-using ConversationalSearchPlatform.BackOffice.Extensions;
 using ConversationalSearchPlatform.BackOffice.Jobs.Models;
 using ConversationalSearchPlatform.BackOffice.Resources;
 using ConversationalSearchPlatform.BackOffice.Services.Models;
@@ -40,6 +38,44 @@ public partial class ConversationService : IConversationService
     {
         SlidingExpiration = TimeSpan.FromHours(2)
     };
+
+
+    private readonly ChatTool searchTool = ChatTool.CreateFunctionTool(
+        functionName: nameof(searchTool),
+        functionDescription: "Search the knowledge base. Results are formatted as a XML-document containing a list of possible Sources that have a list of References as a property. Use the ReferenceId to identify a reference.",
+        functionParameters: BinaryData.FromBytes("""
+            {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query"
+                    }
+                },
+                "required": ["query"],
+                "additionalProperties": false
+            }
+        """u8.ToArray()));
+
+    private readonly ChatTool groundingTool = ChatTool.CreateFunctionTool(
+        functionName: nameof(groundingTool),
+        functionDescription: "Report use of a source from the knowledge base as part of an answer (effectively, cite the source). Sources appear as references in the XML-document. Use the ReferenceId property only to identify a reference. Always use this tool to cite sources when responding with information from the knowledge base.",
+        functionParameters: BinaryData.FromBytes("""
+            {
+                "type": "object",
+                "properties": {
+                    "sources": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "List of ReferenceIds of the sources from last statement actually used, do not include the ones not used to formulate a response"
+                    }
+                },
+                "required": ["sources"],
+                "additionalProperties": false
+            }
+        """u8.ToArray()));
 
     public ConversationService(
         IMemoryCache conversationsCache,
@@ -79,85 +115,190 @@ public partial class ConversationService : IConversationService
         conversationHistory.DebugEnabled = holdConversation.Debug;
         conversationHistory.IsStreaming = false;
 
+        List<SortedSearchReference> indexedTextReferences = new List<SortedSearchReference>();
+        var toolImageReferences = new List<ImageSearchReference>();
+
         bool shouldEndConversation = false;
 
         // are we at the maximum number of follow up questions after this one?
-        if (conversationHistory.PromptResponses.Count >= 5)
+        if (conversationHistory.AnsweredMessages >= 5)
         {
             shouldEndConversation = true;
         }
 
-        var (chatBuilder, textReferences, imageReferences) = await BuildChatAsync(holdConversation, conversationHistory, cancellationToken);
-        
-        ChatMessage answer;
-        // don't give an answer when no references are found
-        if (textReferences.Count == 0 && imageReferences.Count == 0)
-        {
-            shouldEndConversation = true;
+        bool requiresAction = false;
+        var chatClient = _openAIClient.GetChatClient("gpt4");
 
-            answer = new AssistantChatMessage("I'm sorry, but I couldn't find relevant information in my database. Try asking a new question, please.");
-            conversationHistory.AppendToConversation(holdConversation.UserPrompt, answer);
+        if (conversationHistory.Messages.Count == 0)
+        {
+            var tenantId = holdConversation.TenantId;
+            var tenant = await GetTenantAsync(tenantId);
+            var promptBuilder = new PromptBuilder(new StringBuilder((await ResourceHelper.GetEmbeddedResourceTextAsync(ResourceHelper.BasePromptFile)).Trim()))
+                .ReplaceTenantPrompt(GetTenantPrompt(tenant))
+                .ReplaceConversationContextVariables(tenant.PromptTags ?? new List<PromptTag>(), holdConversation.ConversationContext);
+
+            conversationHistory.AppendToConversation(new SystemChatMessage(promptBuilder.Build()));
         }
-        else
-        {
-            var chatClient = _openAIClient.GetChatClient("test");
 
-            var chatResult = await chatClient.CompleteChatAsync(chatBuilder, new ChatCompletionOptions()
+        conversationHistory.AppendToConversation(holdConversation.UserPrompt);
+        conversationHistory.AppendToConversation(new UserChatMessage("Do not give me any information that is not mentioned in the <SOURCES> document or in the tenant prompt <TenantPrompt>. Only use the functions you have been provided with."));
+            
+
+        do
+        {
+            requiresAction = false;
+            ChatCompletion chatCompletion = await chatClient.CompleteChatAsync(conversationHistory.Messages, new ChatCompletionOptions()
             {
                 Temperature = 0.7f,
+                Tools = { searchTool, groundingTool },
             });
 
-            _telemetryService.RegisterGPTUsage(
-                holdConversation.ConversationId,
-                holdConversation.TenantId,
-                chatResult.Value.Usage ?? throw new InvalidOperationException("No usage was passed in after executing an OpenAI call"),
-                conversationHistory.Model
-            );
-
-            answer = chatResult.Value.GetFirstAnswer();
-            /*if (answer.Function != null)
+            switch (chatCompletion.FinishReason)
             {
-                // call the function
-                conversationHistory.AppendToConversation(holdConversation.UserPrompt, answer);
+                case ChatFinishReason.Stop:
+                    {
+                        // Add the assistant message to the conversation history.
+                        conversationHistory.AppendToConversation(new AssistantChatMessage(chatCompletion));
 
-                // add the function reply
-                var (functionReply, keywordString) = await Task<string>.Run(() => {
+                        _telemetryService.RegisterGPTUsage(
+                            holdConversation.ConversationId,
+                            holdConversation.TenantId,
+                            chatCompletion.Usage ?? throw new InvalidOperationException("No usage was passed in after executing an OpenAI call"),
+                            conversationHistory.Model
+                        );
+                        conversationHistory.DebugInformation?.SetUsage(chatCompletion.Usage.InputTokenCount, chatCompletion.Usage.OutputTokenCount);
 
-                    var functionReplyTask = CallFunction(answer.Function.Name, answer.Function.Arguments);
+                        Console.WriteLine($"Assistant: {chatCompletion.Content[0].Text}");
+                        break;
+                    }
 
-                    return functionReplyTask;
-                }).ConfigureAwait(false);
+                case ChatFinishReason.ToolCalls:
+                    {
+                        // First, add the assistant message with tool calls to the conversation history.
+                        conversationHistory.AppendToConversation(new AssistantChatMessage(chatCompletion));
 
-                // create new chatbuilder request with product reference
-                ChatMessage functionMessage = new ChatMessage()
-                {
-                    Role = ChatRole.Function,
-                    Content = functionReply,
-                    Name = answer.Function.Name,
-                };
+                        // Then, add a new tool message for each tool call that is resolved.
+                        foreach (ChatToolCall toolCall in chatCompletion.ToolCalls)
+                        {
+                            switch (toolCall.FunctionName)
+                            {
+                                case nameof(searchTool):
+                                    {
+                                        // The arguments that the model wants to use to call the function are specified as a
+                                        // stringified JSON object based on the schema defined in the tool definition. Note that
+                                        // the model may hallucinate arguments too. Consequently, it is important to do the
+                                        // appropriate parsing and validation before calling the function.
+                                        using JsonDocument argumentsJson = JsonDocument.Parse(toolCall.FunctionArguments);
+                                        bool hasQuery = argumentsJson.RootElement.TryGetProperty("query", out JsonElement query);
 
-                holdConversation.UserPrompt = functionMessage;
-                (chatBuilder, textReferences, imageReferences) = await BuildChatAsync(holdConversation, conversationHistory, cancellationToken);
-                chatResult = await chatBuilder.ExecuteAndCalculateCostAsync(false, cancellationToken);
-                    _telemetryService.RegisterGPTUsage(
-                    holdConversation.ConversationId,
-                    holdConversation.TenantId,
-                    chatResult.Result.Usage ?? throw new InvalidOperationException("No usage was passed in after executing an OpenAI call"),
-                    conversationHistory.Model
-                );
-                answer = chatResult.Result.GetFirstAnswer();
-                conversationHistory.AppendToConversation(functionMessage, answer);
+                                        if (!hasQuery)
+                                        {
+                                            throw new ArgumentNullException(nameof(query), "The query argument is required.");
+                                        }
+                                        Console.WriteLine($"Query: {query}");
+
+                                        var vector = await _vectorizationService.CreateVectorAsync(holdConversation.ConversationId, holdConversation.TenantId, UsageType.Conversation, query.GetString());
+
+                                        var ragDocument = await _ragService.GetRAGDocumentAsync(Guid.Parse(holdConversation.TenantId));
+
+                                        List<TextSearchReference> references = new List<TextSearchReference>();
+                                        indexedTextReferences = new List<SortedSearchReference>();
+                                        var index = 0;
+
+                                        foreach (var ragClass in ragDocument.Classes)
+                                        {
+                                            var toolTextReferences = await GetTextReferences(
+                                                conversationHistory,
+                                                nameof(WebsitePage),
+                                                holdConversation.TenantId,
+                                                "English",
+                                                ragClass.Name,
+                                                query.GetString(),
+                                                vector,
+                                                cancellationToken);
+
+                                            foreach (var reference in toolTextReferences)
+                                            {
+                                                index++;
+
+                                                Dictionary<string, string> properties = new Dictionary<string, string>();
+                                                properties["Content"] = reference.Content;
+                                                properties["Title"] = reference.Title;
+
+                                                ragClass.Sources.Add(new RAGSource()
+                                                {
+                                                    ReferenceId = $"{index}",
+                                                    Properties = properties,
+                                                });
+
+                                                indexedTextReferences.Add(new SortedSearchReference()
+                                                {
+                                                    Index = index,
+                                                    TextSearchReference = reference,
+                                                });
+                                            }
+
+                                            references.AddRange(toolTextReferences);
+                                        }
+
+
+                                        var ragString = await ragDocument.GenerateXMLStringAsync();
+
+
+                                        conversationHistory.AppendToConversation(new ToolChatMessage(toolCall.Id, ragString));
+                                        break;
+                                    }
+                                case nameof(groundingTool):
+                                    {
+                                        // The arguments that the model wants to use to call the function are specified as a
+                                        // stringified JSON object based on the schema defined in the tool definition. Note that
+                                        // the model may hallucinate arguments too. Consequently, it is important to do the
+                                        // appropriate parsing and validation before calling the function.
+                                        using JsonDocument argumentsJson = JsonDocument.Parse(toolCall.FunctionArguments);
+                                        bool hasSources = argumentsJson.RootElement.TryGetProperty("sources", out JsonElement sources);
+
+                                        if (!hasSources)
+                                        {
+                                            throw new ArgumentNullException(nameof(sources), "The sources argument is required.");
+                                        }
+
+                                        Console.WriteLine($"Sources: {sources}");
+
+
+                                        conversationHistory.AppendToConversation(new ToolChatMessage(toolCall.Id, "results_received, continue"));
+                                        break;
+                                    }
+
+                                default:
+                                    {
+                                        // Handle other unexpected calls.
+                                        throw new NotImplementedException();
+                                    }
+                            }
+                        }
+
+                        requiresAction = true;
+                        break;
+                    }
+
+                case ChatFinishReason.Length:
+                    throw new NotImplementedException("Incomplete model output due to MaxTokens parameter or token limit exceeded.");
+
+                case ChatFinishReason.ContentFilter:
+                    throw new NotImplementedException("Omitted content due to a content filter flag.");
+
+                case ChatFinishReason.FunctionCall:
+                    throw new NotImplementedException("Deprecated in favor of tool calls.");
+
+                default:
+                    throw new NotImplementedException(chatCompletion.FinishReason.ToString());
             }
-            else
-            {*/
-            conversationHistory.AppendToConversation(holdConversation.UserPrompt, answer);
-            //}
-        }
+        } while (requiresAction);
 
         conversationHistory.HasEnded = shouldEndConversation;
         conversationHistory.SaveConversationHistory(_conversationsCache, cacheKey);
 
-        var conversationReferencedResult = ParseAnswerWithReferences(holdConversation, conversationHistory, textReferences, imageReferences, shouldEndConversation);
+        var conversationReferencedResult = ParseAnswerWithReferences(holdConversation, conversationHistory, indexedTextReferences, toolImageReferences, shouldEndConversation);
 
         return conversationReferencedResult;
     }
@@ -167,93 +308,7 @@ public partial class ConversationService : IConversationService
         string tenantId,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        /*var cacheKey = GetCacheKey(holdConversation.ConversationId);
-        var conversationHistory = GetConversationHistory(holdConversation, cacheKey);
-        conversationHistory.IsStreaming = true;
-        conversationHistory.DebugEnabled = holdConversation.Debug;
-        bool shouldEndConversation = false;
 
-        //todo: this is a bit of code repetition
-        // are we at the maximum number of follow up questions after this one?
-        if (conversationHistory.PromptResponses.Count >= 5)
-        {
-            shouldEndConversation = true;
-        }
-
-        var (chatBuilder, textReferences, imageReferences) = await BuildChatAsync(holdConversation, conversationHistory, cancellationToken);
-
-        string answer = string.Empty;
-        // don't give an answer when no references are found
-        if (textReferences.Count == 0 && imageReferences.Count == 0)
-        {
-            shouldEndConversation = true;
-            answer = "I'm sorry, but I couldn't find relevant information in my database. Try asking a new question, please.";
-        }
-
-        conversationHistory.HasEnded = shouldEndConversation;
-        ChatMessage composedMessage = new ChatMessage();
-
-        await foreach (var entry in chatBuilder
-                           .ExecuteAsStreamAndCalculateCostAsync(false, cancellationToken)
-                           .SelectAwait(streamEntry => ProcessStreamedChatChunk(
-                               holdConversation,
-                               streamEntry,
-                               cacheKey,
-                               conversationHistory,
-                               textReferences,
-                               imageReferences,
-                               shouldEndConversation,
-                               composedMessage,
-                               cancellationToken)
-                           )
-                           .Where(result => result is { IsOk: true, Value: not null })
-                           .Select(result => result.Value!)
-                           .WithCancellation(cancellationToken))
-        {
-            yield return entry;
-        }
-
-        if (composedMessage.Function != null)
-        {
-            // add the function reply
-            var (functionReply, keywordString) = await Task<string>.Run(() => {
-
-                var functionReplyTask = CallFunction(composedMessage.Function.Name, composedMessage.Function.Arguments);
-
-                return functionReplyTask;
-            }).ConfigureAwait(false);
-
-            // create new chatbuilder request with product reference
-            ChatMessage functionMessage = new ChatMessage()
-            {
-                Role = ChatRole.Function,
-                Content = functionReply,
-                Name = composedMessage.Function.Name,
-            };
-
-            holdConversation.UserPrompt = functionMessage;
-            (chatBuilder, textReferences, imageReferences) = await BuildChatAsync(holdConversation, conversationHistory, cancellationToken);
-
-            await foreach (var entry in chatBuilder
-                           .ExecuteAsStreamAndCalculateCostAsync(false, cancellationToken)
-                           .SelectAwait(streamEntry => ProcessStreamedChatChunk(
-                               holdConversation,
-                               streamEntry,
-                               cacheKey,
-                               conversationHistory,
-                               textReferences,
-                               imageReferences,
-                               shouldEndConversation,
-                               composedMessage,
-                               cancellationToken)
-                           )
-                           .Where(result => result is { IsOk: true, Value: not null })
-                           .Select(result => result.Value!)
-                           .WithCancellation(cancellationToken))
-            {
-                yield return entry;
-            }
-        }*/
 
         yield return new ConversationReferencedResult(new ConversationResult(Guid.NewGuid(), "", Language.Dutch), new List<ConversationReference>(), true, null);
     }
@@ -482,145 +537,11 @@ public partial class ConversationService : IConversationService
             .ReplaceTenantPrompt(GetTenantPrompt(tenant))
             .ReplaceConversationContextVariables(tenant.PromptTags ?? new List<PromptTag>(), holdConversation.ConversationContext);
 
-        var vectorPrompt = new StringBuilder();
-
-        // add history of conversation to vector context
-        foreach (var promptResponse in conversationHistory.PromptResponses.TakeLast(2))
-        {
-            vectorPrompt.AppendLine(promptResponse.Prompt.Content.FirstOrDefault()?.Text ?? string.Empty);
-
-            if (!string.IsNullOrEmpty(promptResponse.Response.Content.FirstOrDefault()?.Text ?? string.Empty))
-            {
-                vectorPrompt.AppendLine(promptResponse.Response.Content.FirstOrDefault()?.Text ?? string.Empty);
-            }
-        }
-
-        // add last user prompt
-        vectorPrompt.AppendLine(holdConversation.UserPrompt.Content.FirstOrDefault()?.Text ?? string.Empty);
-        // convert to keywords
-        var keywords = await _keywordExtractorService.ExtractKeywordAsync(vectorPrompt.ToString());
-
-        var vector = await _vectorizationService.CreateVectorAsync(holdConversation.ConversationId, holdConversation.TenantId, UsageType.Conversation, string.Join(' ', keywords));
-
-        var ragDocument = await _ragService.GetRAGDocumentAsync(Guid.Parse(tenantId));
-
-        List<TextSearchReference> references = new List<TextSearchReference>();
-        List<SortedSearchReference> indexedTextReferences = new List<SortedSearchReference>();
-        var index = 0;
-
-        foreach (var ragClass in ragDocument.Classes)
-        {
-            var textReferences = await GetTextReferences(
-                conversationHistory,
-                nameof(WebsitePage),
-                tenantId,
-                "English",
-                ragClass.Name,
-                vectorPrompt.ToString(),
-                vector,
-                cancellationToken);
-
-            foreach (var reference in textReferences)
-            {
-                index++;
-
-                Dictionary<string, string> properties = new Dictionary<string, string>();
-                properties["Content"] = reference.Content;
-                properties["Title"] = reference.Title;
-
-                if (ragClass.Name == "Product" && Guid.Parse(tenantId) == TENA_ID)
-                {
-                    properties["ArticleNumber"] = reference.ArticleNumber;
-                    properties["Packaging"] = reference.Packaging;
-                }
-
-                ragClass.Sources.Add(new RAGSource()
-                {
-                    ReferenceId = $"{index}",
-                    Properties = properties,
-                });
-
-                indexedTextReferences.Add(new SortedSearchReference()
-                {
-                    Index = index,
-                    TextSearchReference = reference,
-                });
-            }
-
-            references.AddRange(textReferences);
-        }
-
-        if (Guid.Parse(tenantId) == TENA_ID)
-        {
-            // specialleke voor tena
-            var articleNumber = Regex.Match(holdConversation.UserPrompt.Content.FirstOrDefault()?.Text ?? string.Empty, @"\d+").Value;
-
-            if (!string.IsNullOrEmpty(articleNumber))
-            {
-                var ragClass = ragDocument.Classes.FirstOrDefault(r => r.Name == "Product");
-
-                if (ragClass != null)
-                {
-                    if (!ragClass.Sources.Any(p => p.Properties["ArticleNumber"] == articleNumber))
-                    {
-                        var articleNumberReferences = await GetProductReferenceById(articleNumber,
-                            nameof(WebsitePage),
-                            tenantId,
-                            "English",
-                            ConversationReferenceType.Product.ToString(),
-                            cancellationToken);
-
-                        foreach (var reference in articleNumberReferences)
-                        {
-                            index++;
-
-                            Dictionary<string, string> properties = new Dictionary<string, string>();
-                            properties["Content"] = reference.Content;
-                            properties["Title"] = reference.Title;
-
-                            if (ragClass.Name == "Product")
-                            {
-                                properties["ArticleNumber"] = reference.ArticleNumber;
-                                properties["Packaging"] = reference.Packaging;
-                            }
-
-                            ragClass.Sources.Add(new RAGSource()
-                            {
-                                ReferenceId = $"{index}",
-                                Properties = properties,
-                            });
-
-                            indexedTextReferences.Add(new SortedSearchReference()
-                            {
-                                Index = index,
-                                TextSearchReference = reference,
-                            });
-                        }
-                    }
-                }
-            }
-        }
-
-        // TODO: restore this, but better
-        /*var imageReferences = await GetImageReferences(
-            conversationHistory,
-            IndexingConstants.ImageClass,
-            holdConversation.UserPrompt,
-            textReferences.Select(reference => reference.InternalId).Distinct().ToList(),
-            cancellationToken);*/
-        var imageReferences = new List<ImageSearchReference>();
-
-        var ragString = await ragDocument.GenerateXMLStringAsync();
-
-        var systemPrompt = promptBuilder
-            .ReplaceRAGDocument(ragString)
-            .Build();
-
         var chatBuilder = new List<ChatMessage>
         {
-            new SystemChatMessage(systemPrompt)
+            new SystemChatMessage(promptBuilder.Build())
         };
-        chatBuilder.AddPreviousMessages(conversationHistory.PromptResponses);
+        chatBuilder.AddRange(conversationHistory.Messages);
         chatBuilder.Add(holdConversation.UserPrompt);
 
         if (holdConversation.UserPrompt is UserChatMessage)
@@ -628,44 +549,12 @@ public partial class ConversationService : IConversationService
             chatBuilder.Add(new UserChatMessage("Do not give me any information that is not mentioned in the <SOURCES> document. Only use the functions you have been provided with."));
         }
 
-        /*chatBuilder.WithModel(chatModel)
-            .WithTemperature(0.75);*/
-
-        /*if (Guid.Parse(tenantId) == TENA_ID)
-        {
-            chatBuilder.WithFunction(new System.Text.Json.Serialization.JsonFunction()
-            {
-                Name = "get_product_recommendation",
-                Description = "Get a recommendation for a Tena incontenince product based on gender, level of incontinence and mobility",
-                Parameters = new JsonFunctionNonPrimitiveProperty()
-                .AddEnum("gender", new JsonFunctionEnumProperty
-                {
-                    Type = "string",
-                    Enums = new List<string> { "male", "female" },
-                    Description = "The gender of the person derived from the context, male (he/him) or female (she/her)",
-                })
-                .AddEnum("mobility", new JsonFunctionEnumProperty
-                {
-                    Type = "string",
-                    Enums = new List<string> { "mobile", "needs_help_toilet", "bedridden" },
-                    Description = "The level of mobility of the incontinent person from mobile and being able to go to the toilet himself to bedridden",
-                })
-                .AddEnum("incontinence_level", new JsonFunctionEnumProperty
-                {
-                    Type = "string",
-                    Enums = new List<string> { "small", "light", "moderate", "heavy", "very_heavy" },
-                    Description = "How heavy the urine loss is, from very small drops to a full cup of urine loss. Ranging between; Small (drops making the underwear damp), Light (leakages making the underwear fairly wet), moderate (Quarter cup, making the underwear quite wet), heavy (Half cup, making the underwear very wet) and very heavy (Full cup, emptying more than half bladder). Do not make this data up, it should be explicetely mentioned by the user.",
-                })
-                .AddRequired("gender", "mobility", "incontinence_level")
-            });
-        }*/
-
         if (conversationHistory.DebugEnabled)
         {
-            conversationHistory.AppendPreRequestDebugInformation(chatBuilder, references, imageReferences, promptBuilder);
+            conversationHistory.AppendPreRequestDebugInformation(chatBuilder, new(), new(), promptBuilder);
         }
 
-        return (chatBuilder, indexedTextReferences, imageReferences);
+        return (chatBuilder, new(), new());
     }
 
 
@@ -680,7 +569,6 @@ public partial class ConversationService : IConversationService
 
         return tenant;
     }
-
 
     private static ConversationReferencedResult ParseAnswerWithReferences(HoldConversation holdConversation,
         ConversationHistory conversationHistory,
@@ -702,8 +590,7 @@ public partial class ConversationService : IConversationService
         else if (!isStreaming)
         {
             shouldReturnFullMessage = true;
-            var (_, answer, _, _) = conversationHistory.PromptResponses.Last();
-            mergedAnswer = answer.Content.FirstOrDefault()?.Text ?? string.Empty;
+            mergedAnswer = conversationHistory.Messages.Last().Content.FirstOrDefault()?.Text ?? string.Empty;
         }
 
         Console.WriteLine($"Merged answer {mergedAnswer}");
@@ -973,10 +860,6 @@ public partial class ConversationService : IConversationService
             })
             .ToList();
     }
-
-    /*private static bool HasFullyComposedMessage(CostResult<StreamingChatResult> streamEntry) =>
-        streamEntry.Result.Composed.Choices != null &&
-        streamEntry.Result.Composed.Choices.Count != 0;*/
 
     private static bool StreamCancelledOrFinished(bool completed, CancellationToken cancellationToken) =>
         completed || cancellationToken.IsCancellationRequested;

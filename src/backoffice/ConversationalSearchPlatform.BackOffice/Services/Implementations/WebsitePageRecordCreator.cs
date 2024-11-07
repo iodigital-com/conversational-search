@@ -28,12 +28,12 @@ public abstract class BaseWeaviateRecordCreator(IOpenAIUsageTelemetryService tel
 
     protected async Task<float[]> GetVectorDataAsync(EmbeddingClient embeddingClient, Guid correlationId, string tenantId, UsageType usageType, string content)
     {
-        var embeddingResult = await embeddingClient
+        OpenAIEmbedding embeddingResult = await embeddingClient
             .GenerateEmbeddingAsync(content);
 
         //telemetryService.RegisterEmbeddingUsage(correlationId, tenantId, embeddingResult.Value, usageType);
 
-        return embeddingResult.Value.Vector.ToArray();
+        return embeddingResult.ToFloats().ToArray();
     }
 }
 
