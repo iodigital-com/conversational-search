@@ -388,7 +388,7 @@ public partial class ConversationService : IConversationService
 
                         yield return new ConversationReferencedResult(
                             new ConversationResult(holdConversation.ConversationId, contentUpdate.Text, holdConversation.Language),
-                            validReferences, shouldEndConversation, null);
+                            new(), shouldEndConversation, null);
                     }
                 }
 
@@ -411,6 +411,11 @@ public partial class ConversationService : IConversationService
                                 );
                                 conversationHistory.DebugInformation?.SetUsage(completionUpdate.Usage.InputTokenCount, 
                                     completionUpdate.Usage.OutputTokenCount);*/
+
+                                // send references
+                                yield return new ConversationReferencedResult(
+                                    new ConversationResult(holdConversation.ConversationId, string.Empty, holdConversation.Language),
+                                    validReferences, shouldEndConversation, null);
 
                                 break;
                             }
