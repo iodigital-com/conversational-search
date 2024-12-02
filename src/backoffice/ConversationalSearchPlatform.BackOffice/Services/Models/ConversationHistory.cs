@@ -8,9 +8,11 @@ public class ConversationHistory(ChatModel model, int amountOfSearchReferences)
 {
 
     public List<ChatMessage> Messages { get; set; } = new List<ChatMessage>();
-    public List<string> StreamingResponseChunks { get; set; } = new();
+    private List<ChatMessage> _messagesToRemove { get; set; } = new List<ChatMessage>();
 
-    public List<string> Query { get; private set; } = new();
+    public int LastReferenceIndex { get; set; } = 0;
+
+    public List<string> StreamingResponseChunks { get; set; } = new();
 
     public int AnsweredMessages { get; private set; } = 0;
 
@@ -27,21 +29,20 @@ public class ConversationHistory(ChatModel model, int amountOfSearchReferences)
 
     public string GetAllStreamingResponseChunksMerged() => string.Join(null, StreamingResponseChunks);
 
-    public void AppendToConversation(ChatMessage message)
+    public void AppendToConversation(ChatMessage message, bool isRemovable = false, bool doClean = false)
     {
         Messages.Add(message);
 
-        // is it a user message or assistant answer? Then add it to the query
-        if (message is UserChatMessage userChatMessage)
+        if (isRemovable)
         {
-            Query.Add(userChatMessage.Content[0].Text);
+            _messagesToRemove.Add(message);
         }
 
-        if (message is AssistantChatMessage assistantChatMessage &&
-            assistantChatMessage.ToolCalls.Count == 0)
+        if (doClean)
         {
-            Query.Add(assistantChatMessage.Content[0].Text);
-            AnsweredMessages++;
+            Messages.RemoveAll(_messagesToRemove.Contains);
+
+            _messagesToRemove.Clear();
         }
     }
 

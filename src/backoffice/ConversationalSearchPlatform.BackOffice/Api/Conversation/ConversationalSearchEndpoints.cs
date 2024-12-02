@@ -148,7 +148,6 @@ public static class ConversationalSearchEndpoints
                     await foreach (var crr in conversationService
                                        .ConverseStreamingAsync(
                                            holdConversation,
-                                           tenantId,
                                            cancellationToken))
                     {
                         var mapped = MapToApiResponse(crr);
@@ -313,7 +312,6 @@ public static class ConversationalSearchEndpoints
         await foreach (var crr in conversationService
                            .ConverseStreamingAsync(
                                holdConversation,
-                               tenantId,
                                new CancellationToken()))
         {
             var responseMessage = JsonSerializer.Serialize(crr);

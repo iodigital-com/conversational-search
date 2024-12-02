@@ -38,7 +38,6 @@ public class GetByPromptFiltered
                               where: {
                       			operator: And
                       			operands: [
-                      				{ path: ["language"], operator: Equal, valueText: "{{queryParams.Language}}" }
                       				{ path: ["referenceType"], operator: Equal, valueText: "{{queryParams.ReferenceType}}" }
                       				{ path: ["tenantId"], operator: Equal, valueText: "{{queryParams.TenantId}}" }
                       			]

@@ -29,7 +29,7 @@ namespace ConversationalSearchPlatform.BackOffice.Services.Models
                     {
                         await writer.WriteStartElementAsync(null, "Reference", null);
 
-                        await writer.WriteElementStringAsync(null, nameof(ragSource.ReferenceId), null, ragSource.ReferenceId);
+                        await writer.WriteElementStringAsync(null, nameof(ragSource.ReferenceId), null, $"{ragSource.ReferenceId}");
 
                         foreach (var ragProperty in ragSource.Properties)
                         {
@@ -64,7 +64,7 @@ namespace ConversationalSearchPlatform.BackOffice.Services.Models
 
     public class RAGSource
     {
-        public string ReferenceId { get; set; } = "";
+        public int ReferenceId { get; set; } = 0;
 
         public Dictionary<string, string> Properties { get; set; } = new Dictionary<string, string>();
     }
