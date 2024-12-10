@@ -52,7 +52,7 @@ public class WeaviateVectorizationService : IVectorizationService
         IInsertableCollection<T> insertableCollection)
         where T : IInsertable
     {
-        var openAiEmbedding = _openAIClient.GetEmbeddingClient(string.Empty);
+        var openAiEmbedding = _openAIClient.GetEmbeddingClient("text-embedding-ada-002-io-gpt");
         var objectIds = new List<Guid>(insertableCollection.Items.Capacity);
 
         if (!await DoesCollectionExistAsync(collectionName))
